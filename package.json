@@ -14,10 +14,19 @@
     "type-check": "npm run type-check:web && npm run type-check:server",
     "prisma:generate": "npm run prisma:generate --workspace=app/web",
     "prisma:migrate:dev": "npm run prisma:migrate:dev --workspace=app/web",
-    "prisma:studio": "npm run prisma:studio --workspace=app/web"
+    "prisma:studio": "npm run prisma:studio --workspace=app/web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "devDependencies": {
-    "prisma": "^5.22.0"
+    "@vitejs/plugin-react": "^6.0.2",
+    "@vitest/coverage-v8": "^4.1.7",
+    "prisma": "^5.22.0",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^4.1.7"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0"

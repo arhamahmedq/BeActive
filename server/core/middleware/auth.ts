@@ -1,30 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 import { UnauthorizedError, toErrorResponse } from '../errors/AppError'
 
-export interface AuthenticatedRequest extends NextRequest {
+export interface AuthContext {
   userId: string
 }
 
-// Stub: validates Supabase session cookie
-// Full implementation in Slice 1
 export async function requireAuth(
   _request: NextRequest
-): Promise<{ userId: string } | NextResponse> {
-  // TODO Slice 1: validate Supabase session from HTTP-only cookie
-  // Return { userId } on success, NextResponse 401 on failure
-  const error = new UnauthorizedError()
-  return NextResponse.json(toErrorResponse(error), { status: 401 })
+): Promise<AuthContext | NextResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+
+    if (error || !user) {
+      const err = new UnauthorizedError()
+      return NextResponse.json(toErrorResponse(err), { status: 401 })
+    }
+
+    return { userId: user.id }
+  } catch {
+    const err = new UnauthorizedError()
+    return NextResponse.json(toErrorResponse(err), { status: 401 })
+  }
 }
 
-// HOF wrapper for protected API route handlers
 export function withAuth(
-  handler: (request: NextRequest, context: { userId: string }) => Promise<NextResponse>
+  handler: (request: NextRequest, context: AuthContext) => Promise<NextResponse>
 ) {
   return async (request: NextRequest): Promise<NextResponse> => {
-    const authResult = await requireAuth(request)
-    if (authResult instanceof NextResponse) {
-      return authResult
-    }
-    return handler(request, authResult)
+    const result = await requireAuth(request)
+    if (result instanceof NextResponse) return result
+    return handler(request, result)
   }
 }

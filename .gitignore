@@ -21,3 +21,7 @@ node_modules/.prisma/
 
 # Root-level package-lock (app/web/package-lock.json is the real one)
 /package-lock.json
+
+# Test artifacts
+playwright-report/
+test-results/
