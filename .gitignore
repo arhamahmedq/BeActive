@@ -1,2 +1,5 @@
+node_modules
+build
+dist
+.cache
 .DS_Store
-app/pitch/web-pitch/build
