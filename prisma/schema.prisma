@@ -1,0 +1,200 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String            @id @default(cuid())
+  email         String            @unique
+  username      String            @unique
+  displayName   String?
+  avatarUrl     String?
+  bio           String?           @db.VarChar(160)
+  timezone      String            @default("UTC")
+  activityState UserActivityState @default(ACTIVE)
+  role          UserRole          @default(USER)
+  onboarded     Boolean           @default(false)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  posts            Post[]
+  streak           Streak?
+  friendshipsA     Friendship[]   @relation("FriendA")
+  friendshipsB     Friendship[]   @relation("FriendB")
+  notifications    Notification[]
+  sentMessages     Message[]      @relation("Sender")
+  receivedMessages Message[]      @relation("Receiver")
+  events           Event[]
+
+  @@index([email])
+  @@index([username])
+  @@index([activityState])
+}
+
+enum UserActivityState {
+  ACTIVE
+  AT_RISK
+  BROKEN
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model Post {
+  id        String     @id @default(cuid())
+  userId    String
+  imageUrl  String
+  imageKey  String
+  caption   String?    @db.VarChar(500)
+  status    PostStatus @default(PENDING)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workout Workout?
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+}
+
+enum PostStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model Workout {
+  id           String      @id @default(cuid())
+  postId       String      @unique
+  type         WorkoutType
+  aiConfidence Float
+  modelVersion String
+  processedAt  DateTime    @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([type])
+  @@index([aiConfidence])
+}
+
+enum WorkoutType {
+  GYM
+  RUNNING
+  CYCLING
+  SWIMMING
+  OUTDOOR
+  SPORTS
+  OTHER
+}
+
+model Streak {
+  id             String       @id @default(cuid())
+  userId         String       @unique
+  current        Int          @default(0)
+  best           Int          @default(0)
+  status         StreakStatus @default(INACTIVE)
+  lastVerifiedAt DateTime?
+  brokenAt       DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([lastVerifiedAt])
+}
+
+enum StreakStatus {
+  INACTIVE
+  ACTIVE
+  BROKEN
+}
+
+model Friendship {
+  id        String           @id @default(cuid())
+  userAId   String
+  userBId   String
+  status    FriendshipStatus
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  userA User @relation("FriendA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB User @relation("FriendB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId])
+  @@index([userAId, status])
+  @@index([userBId, status])
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+model Notification {
+  id             String           @id @default(cuid())
+  userId         String
+  type           NotificationType
+  title          String
+  body           String?
+  data           Json?
+  read           Boolean          @default(false)
+  idempotencyKey String?          @unique
+  createdAt      DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt(sort: Desc)])
+  @@index([userId, type])
+}
+
+enum NotificationType {
+  WELCOME
+  FRIEND_REQUEST
+  FRIEND_ACCEPTED
+  WORKOUT_VERIFIED
+  WORKOUT_REJECTED
+  FRIEND_POSTED
+  STREAK_AT_RISK
+  STREAK_BROKEN
+}
+
+model Event {
+  id            String   @id @default(cuid())
+  type          String
+  userId        String
+  payload       Json
+  source        String
+  correlationId String?
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([type, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([correlationId])
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  content    String?  @db.VarChar(2000)
+  imageUrl   String?
+  imageKey   String?
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  sender   User @relation("Sender", fields: [senderId], references: [id])
+  receiver User @relation("Receiver", fields: [receiverId], references: [id])
+
+  @@index([senderId, receiverId, createdAt(sort: Desc)])
+  @@index([receiverId, read, createdAt(sort: Desc)])
+}

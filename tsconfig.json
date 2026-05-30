@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": false,
+    "noImplicitOverride": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "./.build",
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@prisma/client": ["./app/web/node_modules/@prisma/client"],
+      "next/server": ["./app/web/node_modules/next/dist/server/web/exports/index.d.ts"],
+      "zod": ["./app/web/node_modules/zod"]
+    }
+  },
+  "include": ["server/**/*", "shared/**/*"],
+  "exclude": ["app", "node_modules", ".build", "prisma"]
+}

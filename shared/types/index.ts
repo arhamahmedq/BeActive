@@ -1,0 +1,4 @@
+// API request/response types shared between frontend and backend
+// Populated as each slice is built
+
+export type { }

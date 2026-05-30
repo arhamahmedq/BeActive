@@ -1,0 +1,25 @@
+{
+  "name": "beactive",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "app/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=app/web",
+    "build": "npm run build --workspace=app/web",
+    "lint": "npm run lint --workspace=app/web",
+    "type-check:web": "npm run type-check --workspace=app/web",
+    "type-check:server": "node app/web/node_modules/.bin/tsc --noEmit --project tsconfig.json",
+    "type-check": "npm run type-check:web && npm run type-check:server",
+    "prisma:generate": "npm run prisma:generate --workspace=app/web",
+    "prisma:migrate:dev": "npm run prisma:migrate:dev --workspace=app/web",
+    "prisma:studio": "npm run prisma:studio --workspace=app/web"
+  },
+  "devDependencies": {
+    "prisma": "^5.22.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0"
+  }
+}
