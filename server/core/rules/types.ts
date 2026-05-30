@@ -1,4 +1,4 @@
-import type { EventType, DomainEvent } from '../../../app/web/lib/events/types'
+import type { EventType, DomainEvent } from '../../../app/web/lib/events/types' // TODO: move to shared/ when event types stabilize
 
 export interface Rule {
   id: string

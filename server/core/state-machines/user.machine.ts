@@ -2,7 +2,7 @@ import { UserActivityState } from '@prisma/client'
 
 // Valid transitions for user activity state
 const VALID_TRANSITIONS: Record<UserActivityState, UserActivityState[]> = {
-  ACTIVE: ['AT_RISK'],
+  ACTIVE: ['ACTIVE', 'AT_RISK'],
   AT_RISK: ['ACTIVE', 'BROKEN'],
   BROKEN: ['ACTIVE'],
 }
