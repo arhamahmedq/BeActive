@@ -1,6 +1,7 @@
-import { UserActivityState } from '@prisma/client'
+import { StreakStatus, UserActivityState } from '@prisma/client'
 import { logger } from '../core/logger/index'
 import { EventType } from '../core/events/index'
+import { isValidStreakTransition } from '../core/state-machines/streak.machine'
 import {
   getActiveStreaksForEvaluation,
   markStreakBroken,
@@ -22,6 +23,10 @@ export async function evaluateStreaks(): Promise<{ atRisk: number; broken: numbe
 
     if (elapsedMs >= BROKEN_THRESHOLD_MS) {
       // R6: 24h elapsed — break the streak regardless of current activityState
+      if (!isValidStreakTransition(streak.status, StreakStatus.BROKEN)) {
+        logger.error('streakEvaluator: invalid transition to BROKEN', { userId: streak.userId, status: streak.status })
+        continue
+      }
       const brokenAt = new Date()
       await markStreakBroken(streak.userId, brokenAt)
       await setActivityState(streak.userId, UserActivityState.BROKEN)
