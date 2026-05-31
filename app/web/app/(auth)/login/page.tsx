@@ -6,10 +6,26 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { FormError } from '@/components/ui/FormError'
 
+// Allowlist of paths a post-login redirect is permitted to target.
+const ALLOWED_REDIRECT_PATHS = ['/feed', '/profile', '/upload', '/onboarding']
+
+function getSafeRedirect(raw: string | null): string {
+  if (!raw) return '/feed'
+  try {
+    const url = new URL(raw, 'http://localhost')
+    if (url.hostname !== 'localhost') return '/feed'
+    const path = url.pathname
+    if (ALLOWED_REDIRECT_PATHS.some((p) => path.startsWith(p))) return path
+  } catch {
+    // malformed URL — ignore
+  }
+  return '/feed'
+}
+
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectTo = searchParams.get('redirectTo') ?? '/feed'
+  const redirectTo = getSafeRedirect(searchParams.get('redirectTo'))
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -31,19 +47,19 @@ function LoginForm() {
       const data = await res.json()
 
       if (!res.ok) {
-        setFormError(
-          res.status === 401
-            ? 'Invalid email or password.'
-            : data.error?.message ?? 'Something went wrong.'
-        )
+        if (data.error?.code === 'EMAIL_NOT_VERIFIED') {
+          setFormError(
+            'Your email is not verified yet. Check your inbox for a confirmation link.'
+          )
+        } else if (res.status === 401) {
+          setFormError('Invalid email or password.')
+        } else {
+          setFormError(data.error?.message ?? 'Something went wrong.')
+        }
         return
       }
 
-      const safeRedirect = (
-        redirectTo.startsWith('/') &&
-        !redirectTo.startsWith('//')
-      ) ? redirectTo : '/feed'
-      router.push(safeRedirect)
+      router.push(redirectTo)
     } catch {
       setFormError('Network error. Please check your connection and try again.')
     } finally {
