@@ -2,6 +2,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
+import { usePostStatus } from '@/hooks/usePostStatus'
 
 // ---------------------------------------------------------------------------
 // EXIF stripping via canvas — drawing to canvas discards all metadata
@@ -199,6 +200,26 @@ export default function UploadPage() {
       if (selected) URL.revokeObjectURL(selected.previewUrl)
     }
   }, [selected])
+
+  const { data: postStatus } = usePostStatus(postId, stage === 'verifying')
+
+  // Drive stage transitions from poll result
+  useEffect(() => {
+    if (stage !== 'verifying' || !postStatus) return
+    if (postStatus.status === 'VERIFIED') {
+      setWorkoutType(postStatus.workoutType)
+      setStage('recorded')
+    } else if (postStatus.status === 'REJECTED') {
+      setStage('not_a_workout')
+    }
+  }, [postStatus, stage])
+
+  // 30-second timeout → still_checking
+  useEffect(() => {
+    if (stage !== 'verifying') return
+    const t = setTimeout(() => setStage('still_checking'), 30_000)
+    return () => clearTimeout(t)
+  }, [stage])
 
   // ---------------------------------------------------------------------------
   // Render
