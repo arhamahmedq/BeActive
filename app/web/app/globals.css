@@ -1,1 +1,27 @@
 @import "tailwindcss";
+
+@keyframes scan {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes draw-check {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@utility animate-scan {
+  animation: scan 1.5s ease-in-out infinite;
+}
+
+@utility animate-draw-check {
+  animation: draw-check 0.4s ease-out forwards;
+}
