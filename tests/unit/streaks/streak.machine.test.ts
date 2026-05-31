@@ -42,6 +42,16 @@ describe('streak state machine — applyStreakTransition', () => {
     expect(result).toEqual({ current: 1, best: 1, status: StreakStatus.ACTIVE })
   })
 
+  it('preserves best > 0 on INACTIVE → ACTIVE', () => {
+    const result = applyStreakTransition(
+      { current: 0, best: 5, status: StreakStatus.INACTIVE },
+      StreakStatus.ACTIVE
+    )
+    expect(result.current).toBe(1)
+    expect(result.best).toBe(5)
+    expect(result.status).toBe(StreakStatus.ACTIVE)
+  })
+
   it('increments current on ACTIVE → ACTIVE', () => {
     const result = applyStreakTransition(
       { current: 5, best: 5, status: StreakStatus.ACTIVE },

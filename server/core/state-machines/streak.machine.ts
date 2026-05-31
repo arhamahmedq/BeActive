@@ -10,7 +10,7 @@ export function isValidStreakTransition(from: StreakStatus, to: StreakStatus): b
   return VALID_TRANSITIONS[from]?.includes(to) ?? false
 }
 
-interface StreakCounterState {
+export interface StreakCounterState {
   current: number
   best: number
   status: StreakStatus
