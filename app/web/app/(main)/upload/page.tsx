@@ -326,9 +326,106 @@ export default function UploadPage() {
     )
   }
 
-  // Terminal stages — placeholder until Task 6 adds full result UIs
-  if (stage === 'recorded' || stage === 'not_a_workout' || stage === 'still_checking') {
-    return null
+  if (stage === 'recorded') {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-6 max-w-sm mx-auto">
+        <div className="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center">
+          <svg
+            className="w-10 h-10 text-green-600"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-label="Workout verified"
+          >
+            <path
+              d="M5 13l4 4L19 7"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray="100"
+              strokeDashoffset="0"
+              className="animate-draw-check"
+            />
+          </svg>
+        </div>
+        <div className="text-center space-y-2">
+          <p className="text-xl font-semibold">Workout recorded</p>
+          {workoutType && (
+            <span className="inline-block px-3 py-1 rounded-full bg-gray-100 text-sm font-medium text-gray-700">
+              {workoutType.charAt(0) + workoutType.slice(1).toLowerCase()}
+            </span>
+          )}
+        </div>
+        <Button onClick={handleContinue} className="w-full max-w-xs">
+          Continue
+        </Button>
+      </div>
+    )
+  }
+
+  if (stage === 'not_a_workout') {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-6 max-w-sm mx-auto">
+        <div className="w-20 h-20 rounded-full bg-gray-50 flex items-center justify-center">
+          <svg
+            className="w-10 h-10 text-gray-400"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-label="Not a workout"
+          >
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+            <path
+              d="M15 9l-6 6M9 9l6 6"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+        <div className="text-center space-y-2">
+          <p className="text-xl font-semibold">This doesn&apos;t look like a workout</p>
+          <p className="text-sm text-gray-400 max-w-xs">
+            Try a photo that shows you being active.
+          </p>
+        </div>
+        <Button onClick={resetToSelect} className="w-full max-w-xs">
+          Try a different photo
+        </Button>
+      </div>
+    )
+  }
+
+  if (stage === 'still_checking') {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-6 max-w-sm mx-auto">
+        <div className="w-20 h-20 rounded-full bg-yellow-50 flex items-center justify-center">
+          <svg
+            className="w-10 h-10 text-yellow-500"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-label="Still checking"
+          >
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+            <path
+              d="M12 7v5l3 3"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+        <div className="text-center space-y-2">
+          <p className="text-xl font-semibold">Still checking your workout</p>
+          <p className="text-sm text-gray-400 max-w-xs">
+            We&apos;ll update your feed when it&apos;s ready.
+          </p>
+        </div>
+        <Button onClick={handleContinue} className="w-full max-w-xs">
+          Continue
+        </Button>
+      </div>
+    )
   }
 
   // stage === 'select'
