@@ -1,7 +1,6 @@
 import { PostStatus } from '@prisma/client'
 import { logger } from '../core/logger/index'
 import { EventType } from '../core/events/index'
-import { isValidWorkoutTransition } from '../core/state-machines/workout.machine'
 import { classifyImage } from '../modules/ai/ai.service'
 import {
   findPostForClassification,
@@ -10,6 +9,7 @@ import {
   persistClassificationEvent,
 } from '../modules/ai/ai.repo'
 import type { ClassificationOutput, ClassificationDecision } from '../modules/ai/ai.types'
+import { onWorkoutVerified } from '../modules/streaks/streaks.service'
 
 // Confidence thresholds per AI_BOUNDARY.md
 const VERIFY_THRESHOLD = 0.70
@@ -71,12 +71,6 @@ export async function processUploadedPost(params: {
     return
   }
 
-  // State machine guard
-  if (!isValidWorkoutTransition(PostStatus.PENDING, PostStatus.VERIFIED)) {
-    logger.error('AI worker: unexpected state machine constraint', { postId })
-    return
-  }
-
   logger.info('AI worker: classifying image', { postId, userId })
   const result = await classifyWithRetry(imageUrl)
 
@@ -107,15 +101,26 @@ export async function processUploadedPost(params: {
   if (decision === 'VERIFIED') {
     // Rule R1 — confidence >= 0.70 → VERIFIED
     const workoutId = await markPostVerified(postId, result)
-    void persistClassificationEvent({
-      type: EventType.WORKOUT_VERIFIED,
-      userId,
-      payload: { postId, workoutId, type: result.type, confidence: result.confidence, modelVersion: result.modelVersion },
-      source: 'ai.worker',
-      correlationId,
-    }).catch((e: unknown) =>
-      logger.error('Failed to persist WORKOUT_VERIFIED event', { error: String(e) })
-    )
+    // Awaited so Slice 4 (Streak Engine) reliably sees WORKOUT_VERIFIED in the event log.
+    // Caught so a DB failure here doesn't unwind the already-committed post status.
+    try {
+      await persistClassificationEvent({
+        type: EventType.WORKOUT_VERIFIED,
+        userId,
+        payload: { postId, workoutId, type: result.type, confidence: result.confidence, modelVersion: result.modelVersion },
+        source: 'ai.worker',
+        correlationId,
+      })
+    } catch (e: unknown) {
+      logger.error('Failed to persist WORKOUT_VERIFIED event', { postId, error: String(e) })
+    }
+
+    // R3: Update streak synchronously — uses post.createdAt, not AI processing time
+    try {
+      await onWorkoutVerified({ postId, userId })
+    } catch (e: unknown) {
+      logger.error('Failed to update streak on WORKOUT_VERIFIED', { postId, error: String(e) })
+    }
 
   } else if (decision === 'AMBIGUOUS') {
     // 0.50–0.69 — stays PENDING, recorded for manual review
@@ -132,14 +137,17 @@ export async function processUploadedPost(params: {
   } else {
     // Rule R2 — confidence < 0.50 → REJECTED
     await markPostRejected(postId)
-    void persistClassificationEvent({
-      type: EventType.WORKOUT_REJECTED,
-      userId,
-      payload: { postId, confidence: result.confidence, reason: 'confidence_below_threshold' },
-      source: 'ai.worker',
-      correlationId,
-    }).catch((e: unknown) =>
-      logger.error('Failed to persist WORKOUT_REJECTED event', { error: String(e) })
-    )
+    // Awaited so the rejection event is reliably recorded alongside the state change.
+    try {
+      await persistClassificationEvent({
+        type: EventType.WORKOUT_REJECTED,
+        userId,
+        payload: { postId, confidence: result.confidence, reason: 'confidence_below_threshold' },
+        source: 'ai.worker',
+        correlationId,
+      })
+    } catch (e: unknown) {
+      logger.error('Failed to persist WORKOUT_REJECTED event', { postId, error: String(e) })
+    }
   }
 }
