@@ -247,12 +247,22 @@ export default function UploadPage() {
     )
   }
 
-  if (stage === 'verifying') {
+  if (stage === 'verifying' && selected) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <div className="text-4xl">✓</div>
-        <p className="text-lg font-semibold">Workout submitted!</p>
-        <p className="text-sm text-gray-500">AI is verifying your photo…</p>
+      <div className="space-y-6 max-w-sm mx-auto">
+        <div className="relative overflow-hidden rounded-2xl bg-gray-100">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={selected.previewUrl}
+            alt="Workout photo"
+            className="w-full aspect-square object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent animate-scan" />
+        </div>
+        <div className="text-center space-y-1">
+          <p className="text-lg font-semibold">Checking your workout</p>
+          <p className="text-sm text-gray-400">This usually takes a few seconds</p>
+        </div>
       </div>
     )
   }
