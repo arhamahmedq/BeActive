@@ -2,9 +2,9 @@ import { UserActivityState } from '@prisma/client'
 
 // Valid transitions for user activity state
 const VALID_TRANSITIONS: Record<UserActivityState, UserActivityState[]> = {
-  ACTIVE: ['ACTIVE', 'AT_RISK'],
-  AT_RISK: ['ACTIVE', 'BROKEN'],
-  BROKEN: ['ACTIVE'],
+  ACTIVE: [UserActivityState.ACTIVE, UserActivityState.AT_RISK],
+  AT_RISK: [UserActivityState.ACTIVE, UserActivityState.BROKEN],
+  BROKEN: [UserActivityState.ACTIVE],
 }
 
 export function isValidUserTransition(
@@ -14,10 +14,11 @@ export function isValidUserTransition(
   return VALID_TRANSITIONS[from]?.includes(to) ?? false
 }
 
-// Stub: actual transition logic implemented in Slice 4
-export function transitionUserState(
-  _currentState: UserActivityState,
-  _nextState: UserActivityState
+export function assertUserTransition(
+  from: UserActivityState,
+  to: UserActivityState
 ): void {
-  throw new Error('User state machine not yet implemented — coming in Slice 4')
+  if (!isValidUserTransition(from, to)) {
+    throw new Error(`Invalid user activity transition: ${from} → ${to}`)
+  }
 }
