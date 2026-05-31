@@ -7,9 +7,6 @@ const mockPrisma = vi.hoisted(() => ({
     update: vi.fn(),
     findMany: vi.fn(),
   },
-  user: {
-    update: vi.fn(),
-  },
   post: {
     findUnique: vi.fn(),
   },
@@ -25,7 +22,6 @@ import {
   updateStreak,
   markStreakBroken,
   getActiveStreaksForEvaluation,
-  updateUserActivityState,
   persistStreakEvent,
   getPostCreatedAt,
 } from '../../../server/modules/streaks/streaks.repo'
@@ -132,19 +128,6 @@ describe('getActiveStreaksForEvaluation', () => {
         lastVerifiedAt: true,
         user: { select: { activityState: true } },
       },
-    })
-  })
-})
-
-describe('updateUserActivityState', () => {
-  it('updates user activityState field', async () => {
-    mockPrisma.user.update.mockResolvedValue({})
-
-    await updateUserActivityState('user-1', UserActivityState.AT_RISK)
-
-    expect(mockPrisma.user.update).toHaveBeenCalledWith({
-      where: { id: 'user-1' },
-      data: { activityState: UserActivityState.AT_RISK },
     })
   })
 })

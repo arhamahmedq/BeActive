@@ -55,16 +55,6 @@ export async function getActiveStreaksForEvaluation(): Promise<StreakWithUserAct
   return rows as unknown as StreakWithUserActivity[]
 }
 
-export async function updateUserActivityState(
-  userId: string,
-  state: UserActivityState
-): Promise<void> {
-  await prisma.user.update({
-    where: { id: userId },
-    data: { activityState: state },
-  })
-}
-
 export async function persistStreakEvent(params: {
   type: string
   userId: string
