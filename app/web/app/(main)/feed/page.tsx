@@ -1,11 +1,14 @@
 'use client'
 import { useAuth } from '@/hooks/useAuth'
+import { useStreak } from '@/hooks/useStreak'
 import { Button } from '@/components/ui/Button'
+import { StreakWidget } from '@/components/features/StreakWidget'
 
 export default function FeedPage() {
-  const { user, isLoading, signOut } = useAuth()
+  const { user, isLoading: authLoading, signOut } = useAuth()
+  const { data: streak, isLoading: streakLoading } = useStreak()
 
-  if (isLoading) {
+  if (authLoading) {
     return (
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
@@ -26,6 +29,9 @@ export default function FeedPage() {
           Sign out
         </Button>
       </div>
+
+      <StreakWidget streak={streak ?? null} isLoading={streakLoading} />
+
       <div className="bg-white rounded-xl border border-gray-100 p-8 text-center">
         <p className="text-gray-400 text-sm">Feed coming in Slice 5.</p>
         <p className="text-gray-300 text-xs mt-1">Add friends to see their workouts.</p>
