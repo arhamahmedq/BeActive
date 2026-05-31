@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 
@@ -73,7 +73,7 @@ async function uploadToR2(
 // ---------------------------------------------------------------------------
 // Page states
 // ---------------------------------------------------------------------------
-type Stage = 'select' | 'preview' | 'uploading' | 'done'
+type Stage = 'select' | 'preview' | 'uploading' | 'verifying' | 'recorded' | 'not_a_workout' | 'still_checking'
 
 interface SelectedFile {
   originalFile: File
@@ -91,6 +91,8 @@ export default function UploadPage() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [isRetrying, setIsRetrying] = useState(false)
+  const [postId, setPostId] = useState<string | null>(null)
+  const [workoutType, setWorkoutType] = useState<string | undefined>(undefined) // set by polling effect in Task 4
 
   const handleFileChosen = useCallback(async (file: File) => {
     setError(null)
@@ -163,16 +165,17 @@ export default function UploadPage() {
         throw new Error(data?.error?.message ?? 'Failed to create post')
       }
 
-      // 5. Revoke preview URL and redirect
-      URL.revokeObjectURL(selected.previewUrl)
-      setStage('done')
-      router.push('/feed')
+      // 5. Capture post ID and enter verification stage
+      const { post } = (await createRes.json()) as { post: { id: string } }
+      setPostId(post.id)
+      setStage('verifying')
+      // Preview URL intentionally kept alive — needed for verifying UI
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setStage('preview')
       setIsRetrying(true)
     }
-  }, [selected, caption, router])
+  }, [selected, caption])
 
   const resetToSelect = useCallback(() => {
     if (selected) URL.revokeObjectURL(selected.previewUrl)
@@ -180,7 +183,21 @@ export default function UploadPage() {
     setCaption('')
     setError(null)
     setUploadProgress(0)
+    setPostId(null)
+    setWorkoutType(undefined)
     setStage('select')
+  }, [selected])
+
+  const handleContinue = useCallback(() => {
+    if (selected) URL.revokeObjectURL(selected.previewUrl)
+    router.push('/feed')
+  }, [selected, router])
+
+  // Revoke object URL on unmount to prevent memory leak
+  useEffect(() => {
+    return () => {
+      if (selected) URL.revokeObjectURL(selected.previewUrl)
+    }
   }, [selected])
 
   // ---------------------------------------------------------------------------
@@ -209,7 +226,7 @@ export default function UploadPage() {
     )
   }
 
-  if (stage === 'done') {
+  if (stage === 'verifying') {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <div className="text-4xl">✓</div>
@@ -276,6 +293,11 @@ export default function UploadPage() {
         </Button>
       </div>
     )
+  }
+
+  // Terminal stages — placeholder until Task 6 adds full result UIs
+  if (stage === 'recorded' || stage === 'not_a_workout' || stage === 'still_checking') {
+    return null
   }
 
   // stage === 'select'
