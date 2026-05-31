@@ -1,12 +1,22 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { prisma } from '@/lib/prisma'
+
+// force-dynamic so this is never cached by CDN or Next.js
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
+  const checks: Record<string, boolean> = {}
+
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    return NextResponse.json({ ok: true, authenticated: !!user })
+    await prisma.$queryRaw`SELECT 1`
+    checks.database = true
   } catch {
-    return NextResponse.json({ ok: false, authenticated: false }, { status: 500 })
+    checks.database = false
   }
+
+  const ok = Object.values(checks).every(Boolean)
+  return NextResponse.json(
+    { ok, checks, ts: new Date().toISOString() },
+    { status: ok ? 200 : 503 }
+  )
 }

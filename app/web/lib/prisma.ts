@@ -8,4 +8,7 @@ export const prisma =
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   })
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// Always cache: prevents a new PrismaClient (and connection) on every module
+// evaluation. In dev this avoids hot-reload connection leaks. On Vercel this
+// reuses the client within a warm Lambda container.
+globalForPrisma.prisma = prisma

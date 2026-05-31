@@ -17,7 +17,10 @@
     "paths": {
       "@prisma/client": ["./app/web/node_modules/@prisma/client"],
       "next/server": ["./app/web/node_modules/next/dist/server/web/exports/index.d.ts"],
-      "zod": ["./app/web/node_modules/zod"]
+      "zod": ["./app/web/node_modules/zod"],
+      "@/lib/*": ["./app/web/lib/*"],
+      "@/server/*": ["./server/*"],
+      "@/shared/*": ["./shared/*"]
     }
   },
   "include": ["server/**/*", "shared/**/*"],

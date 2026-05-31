@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const PROTECTED_PATHS = ['/feed', '/profile', '/upload', '/onboarding']
-const AUTH_PATHS = ['/login', '/signup']
+const AUTH_PATHS = ['/login', '/signup', '/verify-email']
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -55,6 +55,9 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Exclude: static assets, images, favicon, AND all /api/* routes.
+    // API routes validate sessions themselves via createClient() — running the
+    // middleware on every API call adds a redundant Supabase round-trip.
+    '/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

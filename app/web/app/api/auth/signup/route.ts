@@ -19,9 +19,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const supabase = await createClient()
     const result = await authService.signup(supabase, bodyOrError)
+
+    const isResent = result.status === 'VERIFICATION_RESENT'
     return NextResponse.json(
-      { user: result.user, session: result.session },
-      { status: 201 }
+      {
+        status: result.status,
+        message: isResent
+          ? 'Confirmation email resent. Check your inbox.'
+          : 'Check your email to confirm your account.',
+      },
+      { status: isResent ? 200 : 201 }
     )
   } catch (err) {
     if (isAppError(err)) {

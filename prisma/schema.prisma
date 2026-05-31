@@ -3,12 +3,13 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")  // used by prisma migrate — bypasses PgBouncer
 }
 
 model User {
-  id            String            @id @default(cuid())
+  id            String            @id  // No @default: id MUST be set to the Supabase UUID
   email         String            @unique
   username      String            @unique
   displayName   String?
@@ -30,8 +31,7 @@ model User {
   receivedMessages Message[]      @relation("Receiver")
   events           Event[]
 
-  @@index([email])
-  @@index([username])
+  // Unique indexes are already created by @unique above — no @@index needed
   @@index([activityState])
 }
 
@@ -127,6 +127,9 @@ model Friendship {
   userA User @relation("FriendA", fields: [userAId], references: [id], onDelete: Cascade)
   userB User @relation("FriendB", fields: [userBId], references: [id], onDelete: Cascade)
 
+  // Canonical ordering: userAId < userBId enforced at the service layer.
+  // The unique index below prevents both (A,B) and (B,A) rows via a functional index
+  // created in the migration (Prisma does not support expressions in @@unique).
   @@unique([userAId, userBId])
   @@index([userAId, status])
   @@index([userBId, status])
@@ -169,13 +172,13 @@ enum NotificationType {
 model Event {
   id            String   @id @default(cuid())
   type          String
-  userId        String
+  userId        String?  // Nullable: events outlive users (audit log must survive user deletion)
   payload       Json
   source        String
   correlationId String?
   createdAt     DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([type, createdAt(sort: Desc)])
   @@index([userId, createdAt(sort: Desc)])

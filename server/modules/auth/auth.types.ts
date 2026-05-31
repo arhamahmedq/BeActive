@@ -25,9 +25,10 @@ export interface AuthSession {
   userId: string
 }
 
-export interface SignupResult {
-  user: AuthUser
-  session: AuthSession
+export type SignupStatus = 'PENDING_VERIFICATION' | 'VERIFICATION_RESENT'
+
+export interface SignupStatusResult {
+  status: SignupStatus
 }
 
 export interface LoginResult {

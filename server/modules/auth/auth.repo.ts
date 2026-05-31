@@ -3,7 +3,7 @@ import { prisma } from '../../../app/web/lib/prisma'
 import type { AuthUser } from './auth.types'
 
 export async function findUserByEmail(email: string): Promise<AuthUser | null> {
-  const user = await prisma.user.findFirst({
+  const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase() },
     select: {
       id: true,
@@ -17,10 +17,7 @@ export async function findUserByEmail(email: string): Promise<AuthUser | null> {
     },
   })
   if (!user) return null
-  return {
-    ...user,
-    activityState: user.activityState as string,
-  }
+  return { ...user, activityState: user.activityState as string }
 }
 
 export async function findUserById(id: string): Promise<AuthUser | null> {
@@ -38,14 +35,11 @@ export async function findUserById(id: string): Promise<AuthUser | null> {
     },
   })
   if (!user) return null
-  return {
-    ...user,
-    activityState: user.activityState as string,
-  }
+  return { ...user, activityState: user.activityState as string }
 }
 
 export async function findUserByUsername(username: string): Promise<AuthUser | null> {
-  const user = await prisma.user.findFirst({
+  const user = await prisma.user.findUnique({
     where: { username },
     select: {
       id: true,
@@ -59,12 +53,11 @@ export async function findUserByUsername(username: string): Promise<AuthUser | n
     },
   })
   if (!user) return null
-  return {
-    ...user,
-    activityState: user.activityState as string,
-  }
+  return { ...user, activityState: user.activityState as string }
 }
 
+// Retained for future OAuth flows where user + streak may be created separately.
+// Prefer createUserWithStreak for all email/password signups (atomic transaction).
 export async function createUser(params: {
   id: string
   email: string
@@ -88,10 +81,7 @@ export async function createUser(params: {
       createdAt: true,
     },
   })
-  return {
-    ...user,
-    activityState: user.activityState as string,
-  }
+  return { ...user, activityState: user.activityState as string }
 }
 
 export async function createDefaultStreak(userId: string): Promise<void> {
@@ -133,7 +123,7 @@ export async function createUserWithStreak(params: {
       data: {
         id: params.id,
         email: params.email.toLowerCase(),
-        username: params.username,
+        username: params.username.toLowerCase(),
         activityState: UserActivityState.ACTIVE,
       },
       select: {
@@ -155,9 +145,6 @@ export async function createUserWithStreak(params: {
         status: StreakStatus.INACTIVE,
       },
     })
-    return {
-      ...user,
-      activityState: user.activityState as string,
-    }
+    return { ...user, activityState: user.activityState as string }
   })
 }

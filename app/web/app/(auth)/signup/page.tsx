@@ -1,10 +1,25 @@
 'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { FormError } from '@/components/ui/FormError'
+
+const CALLBACK_ERRORS: Record<string, string> = {
+  verification_failed:
+    'Email verification link has expired or already been used. Please sign up again.',
+  username_taken:
+    'Your username was claimed by another user while you were verifying. Please sign up with a different one.',
+  account_creation_failed:
+    'Something went wrong creating your account. Please try again or contact support.',
+  missing_username:
+    'There was an issue with your signup. Please try again.',
+  invalid_username:
+    'There was an issue with your account setup. Please sign up again.',
+  missing_code:
+    'Invalid verification link. Please request a new one.',
+}
 
 interface FieldErrors {
   email?: string
@@ -12,13 +27,20 @@ interface FieldErrors {
   password?: string
 }
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const callbackError = searchParams.get('error')
+
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formError, setFormError] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(
+    callbackError
+      ? (CALLBACK_ERRORS[callbackError] ?? 'Something went wrong. Please try again.')
+      : null
+  )
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
 
   async function handleSubmit(e: React.FormEvent) {
@@ -51,7 +73,8 @@ export default function SignupPage() {
         return
       }
 
-      router.push('/onboarding')
+      // Both PENDING_VERIFICATION and VERIFICATION_RESENT land on verify-email
+      router.push(`/verify-email?email=${encodeURIComponent(email)}`)
     } catch {
       setFormError('Network error. Please check your connection and try again.')
     } finally {
@@ -108,5 +131,17 @@ export default function SignupPage() {
         </Link>
       </p>
     </div>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 animate-pulse h-64" />
+      }
+    >
+      <SignupForm />
+    </Suspense>
   )
 }

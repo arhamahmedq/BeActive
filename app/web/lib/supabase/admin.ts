@@ -1,7 +1,10 @@
+import 'server-only'
+
 import { createClient } from '@supabase/supabase-js'
 
-// SERVER ONLY — NEVER import this in client components
-// Uses service key for admin operations only
+// SERVICE ROLE CLIENT — bypasses ALL Supabase Row Level Security.
+// Use ONLY in server-side workers and admin operations. NEVER in API route
+// handlers that serve user requests. NEVER import in client components.
 export function createAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

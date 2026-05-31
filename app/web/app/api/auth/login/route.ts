@@ -6,7 +6,7 @@ import { validateBody } from '@/server/core/middleware/validate'
 import { authRateLimit } from '@/server/core/middleware/rateLimit'
 import { isAppError, toErrorResponse, InternalError } from '@/server/core/errors/AppError'
 
-// Rate limit: 5 per minute per IP (per security.md) — uses pre-configured authRateLimit
+// Rate limit: 5 per minute per IP (per security.md)
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const rateLimitResponse = authRateLimit(request)
   if (rateLimitResponse) return rateLimitResponse
@@ -17,10 +17,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const supabase = await createClient()
     const result = await authService.login(supabase, bodyOrError)
-    return NextResponse.json(
-      { user: result.user, session: result.session },
-      { status: 200 }
-    )
+    // Return user only — the Supabase session is managed via HTTP-only cookies
+    // set by createClient(). Returning session metadata in the body is redundant
+    // and trains consumers to expect auth data in the body (XSS risk if tokens
+    // were ever added here).
+    return NextResponse.json({ user: result.user }, { status: 200 })
   } catch (err) {
     if (isAppError(err)) {
       return NextResponse.json(toErrorResponse(err), { status: err.statusCode })

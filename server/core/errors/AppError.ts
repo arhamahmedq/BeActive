@@ -23,6 +23,12 @@ export class UnauthorizedError extends AppError {
   }
 }
 
+export class EmailNotVerifiedError extends AppError {
+  constructor() {
+    super('EMAIL_NOT_VERIFIED', 401, 'Please verify your email before signing in.')
+  }
+}
+
 export class ForbiddenError extends AppError {
   constructor() {
     super('FORBIDDEN', 403, 'Access denied')

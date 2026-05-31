@@ -52,4 +52,24 @@ test.describe('Authentication flows', () => {
     await page.getByRole('button', { name: 'Create account' }).click()
     await expect(page.getByText(/8/)).toBeVisible({ timeout: 5000 })
   })
+
+  test('verify-email page renders with check your email heading', async ({ page }) => {
+    await page.goto('/verify-email?email=test%40example.com')
+    await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible()
+    await expect(page.getByText('test@example.com')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Resend confirmation email' })).toBeVisible()
+  })
+
+  test('verify-email page has links back to signup and login', async ({ page }) => {
+    await page.goto('/verify-email')
+    await expect(page.getByRole('link', { name: 'Sign up again' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible()
+  })
+
+  test('signup page shows error from callback verification_failed param', async ({ page }) => {
+    await page.goto('/signup?error=verification_failed')
+    await expect(
+      page.getByText('Email verification link has expired or already been used.')
+    ).toBeVisible()
+  })
 })

@@ -9,18 +9,21 @@ export function useAuth() {
   const router = useRouter()
 
   useEffect(() => {
+    // Skip the round-trip if we already have a user in the Zustand store.
+    // This prevents a skeleton flash on every internal navigation while the
+    // store remains hydrated in memory.
+    if (user !== null) return
+
     let cancelled = false
     setLoading(true)
 
     fetch('/api/auth/session')
-      .then((res) => {
+      .then(async (res) => {
         if (!res.ok) {
           if (!cancelled) clearUser()
           return
         }
-        return res.json()
-      })
-      .then((data: { user: AuthUser } | undefined) => {
+        const data = (await res.json()) as { user: AuthUser }
         if (!cancelled && data?.user) setUser(data.user)
       })
       .catch(() => {

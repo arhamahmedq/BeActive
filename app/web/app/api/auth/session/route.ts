@@ -22,6 +22,9 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
         avatarUrl: user.avatarUrl,
         activityState: user.activityState,
         onboarded: user.onboarded,
+        createdAt: user.createdAt instanceof Date
+          ? user.createdAt.toISOString()
+          : user.createdAt,
       },
     })
   } catch {
