@@ -65,9 +65,10 @@ export async function onWorkoutVerified(params: {
 
   await setActivityState(userId, UserActivityState.ACTIVE)
 
-  const isRecovery =
-    previousStatus === StreakStatus.BROKEN || previousStatus === StreakStatus.INACTIVE
-  const eventType = isRecovery ? EventType.STREAK_RECOVERED : EventType.STREAK_UPDATED
+  const eventType =
+    previousStatus === StreakStatus.BROKEN
+      ? EventType.STREAK_RECOVERED
+      : EventType.STREAK_UPDATED
 
   await persistStreakEvent({
     type: eventType,

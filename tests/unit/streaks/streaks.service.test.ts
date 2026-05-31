@@ -52,7 +52,7 @@ describe('onWorkoutVerified', () => {
       brokenAt: null,
     }))
     expect(repo.persistStreakEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'STREAK_RECOVERED', userId: 'user-1' })
+      expect.objectContaining({ type: 'STREAK_UPDATED', userId: 'user-1' })
     )
   })
 
