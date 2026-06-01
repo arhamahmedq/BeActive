@@ -91,21 +91,34 @@ Sends to AI Provider API (Claude Vision / OpenAI Vision)
 
 ## 5. AI PROVIDER STRATEGY
 
-### MVP
-- Single provider: Claude Vision (Anthropic) or GPT-4 Vision (OpenAI)
-- Direct API call from worker
+### MVP (Current)
+- **Primary provider:** Google Gemini Flash — `gemini-2.0-flash`
+- **Secondary provider:** Claude Vision — `claude-haiku-4-5-20251001` (Anthropic)
+- **Provider selection:** `AI_PROVIDER` env var (`"gemini"` default, `"claude"` optional)
+- **Method:** Vision classification via structured JSON prompt (shared prompt, both providers)
+- **Latency:** ~2-4 seconds (fits within Vercel 10s free-tier timeout)
+- **Cost:** Free tier on Google AI Studio (Gemini); ~$0.01/image (Claude)
+
+**Why this over HuggingFace CLIP:**
+- HuggingFace Inference SDK v4 removed `openai/clip-vit-base-patch32` from all inference provider mappings (neither auto-selection nor explicit `hf-inference` provider works)
+- HuggingFace free tier cold starts (20–30s) would exceed Vercel's 10s function timeout
+- Gemini/Claude Vision produce more accurate, context-aware classification
+
+**Provider abstraction:**
+- The `AI_PROVIDER` env var controls which provider is used at runtime
+- Both providers use the same `ClassificationOutput` interface
+- Switching providers requires only an env var change — no code changes
 
 ### Scale
-- Provider abstraction layer (swap providers without code changes)
-- Fallback provider if primary is down
-- Cost optimization (cheaper model for obvious cases, expensive for ambiguous)
+- Add provider fallback (try Gemini, fallback to Claude on failure)
+- Cost optimization (Gemini free tier first, Claude for ambiguous edge cases)
+- Custom fine-tuned model on BeActive fitness data
 
 ### Prompt Engineering
-The classification prompt should be:
-- Specific to workout types BeActive supports
-- Include negative examples (food photos, selfies, landscapes)
-- Request structured JSON output
-- Include confidence calibration instructions
+The classification prompt (shared across providers):
+- Structured JSON output only (no prose — easier parsing, consistent shape)
+- Explicit confidence calibration (≥0.70 = clearly workout, 0.50–0.69 = ambiguous, <0.50 = not workout)
+- Type mapping to BeActive's WorkoutType enum (GYM, RUNNING, CYCLING, SWIMMING, OUTDOOR, SPORTS, OTHER)
 
 ---
 

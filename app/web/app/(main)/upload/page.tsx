@@ -1,6 +1,7 @@
 'use client'
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/Button'
 import { usePostStatus } from '@/hooks/usePostStatus'
 
@@ -74,7 +75,7 @@ async function uploadToR2(
 // ---------------------------------------------------------------------------
 // Page states
 // ---------------------------------------------------------------------------
-type Stage = 'select' | 'preview' | 'uploading' | 'verifying' | 'recorded' | 'not_a_workout' | 'still_checking'
+type Stage = 'select' | 'preview' | 'uploading' | 'verifying' | 'recorded' | 'not_a_workout' | 'still_checking' | 'already_done'
 
 interface StageState {
   stage: Stage
@@ -122,6 +123,7 @@ function GalleryIcon({ className = '' }: { className?: string }) {
 
 export default function UploadPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
 
@@ -201,6 +203,7 @@ export default function UploadPage() {
         body: JSON.stringify({ imageKey: key, caption: caption.trim() || undefined }),
       })
       if (!createRes.ok) {
+        if (createRes.status === 409) { setStage('already_done'); return }
         const data = await createRes.json().catch(() => ({}))
         throw new Error(data?.error?.message ?? 'Failed to create post')
       }
@@ -247,12 +250,13 @@ export default function UploadPage() {
   useEffect(() => {
     if (stage !== 'verifying' || !postStatus) return
     if (postStatus.status === 'VERIFIED') {
+      queryClient.invalidateQueries({ queryKey: ['streak', 'me'] })
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setStageState({ stage: 'recorded', workoutType: postStatus.workoutType })
     } else if (postStatus.status === 'REJECTED') {
       setStageState({ stage: 'not_a_workout' })
     }
-  }, [postStatus, stage])
+  }, [postStatus, stage, queryClient])
 
   // 30-second timeout → still_checking
   useEffect(() => {
@@ -445,6 +449,43 @@ export default function UploadPage() {
         <div className="w-full max-w-xs animate-rise" style={{ animationDelay: '220ms' }}>
           <Button onClick={resetToSelect} className="w-full">
             Try a different photo
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (stage === 'already_done') {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-7 max-w-sm mx-auto">
+        <div className="relative animate-pop">
+          <div className="absolute inset-0 rounded-full bg-emerald-100/60 scale-150 blur-xl" />
+          <div className="relative w-24 h-24 rounded-full bg-emerald-50 ring-1 ring-emerald-200/70 flex items-center justify-center">
+            <svg
+              className="w-11 h-11 text-emerald-600"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-label="Already logged today"
+            >
+              <path
+                d="M5 13l4 4L19 7"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+        <div className="text-center space-y-3 animate-rise" style={{ animationDelay: '120ms' }}>
+          <p className="text-2xl font-semibold tracking-tight">Already logged today</p>
+          <p className="text-sm text-gray-400 max-w-xs mx-auto leading-relaxed">
+            You&apos;ve already submitted a workout today. Come back tomorrow to keep your streak going.
+          </p>
+        </div>
+        <div className="w-full max-w-xs animate-rise" style={{ animationDelay: '220ms' }}>
+          <Button onClick={handleContinue} className="w-full">
+            Back to feed
           </Button>
         </div>
       </div>

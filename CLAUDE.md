@@ -1,6 +1,6 @@
 # CLAUDE.md — BeActive Project Bible
 
-> **Last updated:** Phase 1 (Architecture Complete, Pre-Code)
+> **Last updated:** 2026-06-01 — Slices 0–4 complete, Slice 4 QA 8/8 PASS
 > **Purpose:** Master reference for Claude CLI/Code. Read this FIRST before every session.
 > **Rule:** architecture.md wins all contradictions. This file is the index; the /docs/ files are the source of truth.
 
@@ -422,8 +422,10 @@ R2_PUBLIC_URL="https://..."              # R2 CDN URL for serving images
 R2_ENDPOINT="https://xxx.r2.cloudflarestorage.com"  # R2 endpoint
 
 # AI Classification
-AI_API_KEY="sk-..."                      # Anthropic or OpenAI API key
-AI_PROVIDER="anthropic"                  # "anthropic" or "openai"
+AI_PROVIDER="gemini"                     # "gemini" (default) or "claude"
+GEMINI_API_KEY="..."                     # Gemini API key — free at aistudio.google.com/apikey
+# AI_API_KEY="sk-ant-..."               # Anthropic key — only if AI_PROVIDER=claude
+# HF_API_KEY is no longer used (HF SDK v4 removed CLIP from inference provider mapping)
 
 # App
 NEXT_PUBLIC_APP_URL="http://localhost:3000"  # App URL (NEXT_PUBLIC_ prefix = client-accessible)
@@ -524,11 +526,11 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"  # App URL (NEXT_PUBLIC_ prefix = cl
 ### Vertical Slices (Build in this order)
 | # | Slice | Status | Dependency |
 |---|-------|--------|-----------|
-| 0 | Project Scaffold | NOT STARTED | None |
-| 1 | Authentication | NOT STARTED | Slice 0 |
-| 2 | Upload & Post | NOT STARTED | Slice 1 |
-| 3 | AI Classification | NOT STARTED | Slice 2 |
-| 4 | Streak Engine | NOT STARTED | Slice 3 |
+| 0 | Project Scaffold | ✅ COMPLETE | None |
+| 1 | Authentication | ✅ COMPLETE | Slice 0 |
+| 2 | Upload & Post | ✅ COMPLETE | Slice 1 |
+| 3 | AI Classification | ✅ COMPLETE | Slice 2 |
+| 4 | Streak Engine | ✅ COMPLETE — QA 8/8 PASS (2026-06-01) | Slice 3 |
 | 5 | Social Feed | NOT STARTED | Slice 4 + 6 |
 | 6 | Friends System | NOT STARTED | Slice 1 |
 | 7 | Notifications | NOT STARTED | Slice 4 + 6 |
@@ -739,6 +741,20 @@ The goal is for this file to grow from a project blueprint into a comprehensive 
 - Supabase free tier: 500MB database, 1GB storage, 50k auth users
 - R2 free tier: 10GB storage, 10M reads/month, 1M writes/month
 - One VERIFIED post per user per UTC day (enforced in posts.service)
+- R2 CORS bucket policy must be configured before production launch (upload works locally, not from production domain without CORS headers)
+
+### QA Commands
+```bash
+# Streak Engine full QA (T1–T7, uses fresh throwaway account, cleans up after)
+node --env-file=app/web/.env.local qa-streak.mjs
+# Requires: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY, CRON_SECRET, R2 creds in .env.local
+# Dev server must be running first (npm run dev)
+```
+
+### Completed Slice Notes
+- **Slice 2 (Upload):** EXIF stripped client-side via canvas; same-day guard at POST /api/posts/create (not at sign endpoint); R2 upload uses XHR for progress events
+- **Slice 3 (AI):** HuggingFace CLIP dropped — use `AI_PROVIDER=gemini` (default) or `AI_PROVIDER=claude`; gemini-2.5-flash-lite model; confidence ≥ 0.70 = VERIFIED
+- **Slice 4 (Streaks):** Rolling 24h UTC window from lastVerifiedAt; cron at /api/cron/streak-evaluator; AT_RISK at 20h, BROKEN at 24h; useStreak hook with staleTime=30s; upload page invalidates ['streak','me'] on VERIFIED
 
 ### Architecture Website
 - `index.html` in `/pitch/` directory → deploy to GitHub Pages for investor walkthroughs
