@@ -1,3 +1,4 @@
+'use client'
 import { useStreakTimer } from '@/hooks/useStreakTimer'
 import type { StreakData } from '@/hooks/useStreak'
 

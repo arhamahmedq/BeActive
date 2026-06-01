@@ -195,6 +195,21 @@ describe('getMyStreak', () => {
     expect(result?.nextDeadline).toBeNull()
     expect(result?.atRiskAt).toBeNull()
   })
+
+  it('returns non-null nextDeadline and atRiskAt for BROKEN streak (deadline is in the past)', async () => {
+    const lva = new Date('2024-01-13T10:00:00Z')
+    vi.mocked(repo.getStreakByUserId).mockResolvedValue({
+      ...BROKEN_STREAK,
+      lastVerifiedAt: lva,
+    })
+
+    const result = await getMyStreak('user-1')
+
+    expect(result?.status).toBe(StreakStatus.BROKEN)
+    // deadline and atRiskAt are in the past — timer will show BROKEN / "Reset required"
+    expect(result?.nextDeadline).toBe('2024-01-14T10:00:00.000Z')
+    expect(result?.atRiskAt).toBe('2024-01-14T06:00:00.000Z')
+  })
 })
 
 describe('getPublicStreak', () => {
