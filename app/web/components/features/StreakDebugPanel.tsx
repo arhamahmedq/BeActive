@@ -66,11 +66,18 @@ export function StreakDebugPanel({ streak }: StreakDebugPanelProps) {
       <div>
         <p className="text-xs text-slate-500 mb-2">24h window</p>
         <div className="relative h-2 bg-slate-700 rounded-full overflow-hidden">
+          {/* Green segment: 0 → min(progress, 83%) */}
           <div
-            className={`absolute left-0 top-0 h-full rounded-full transition-all ${
-              progressPct >= 83 ? 'bg-amber-400' : 'bg-green-400'
-            }`}
-            style={{ width: `${progressPct}%` }}
+            className="absolute left-0 top-0 h-full bg-green-400 rounded-full"
+            style={{ width: `${Math.min(progressPct, 83)}%` }}
+          />
+          {/* Amber segment: 83% → progress (only visible past AT_RISK threshold) */}
+          <div
+            className="absolute top-0 h-full bg-amber-400"
+            style={{
+              left: '83%',
+              width: `${Math.max(0, progressPct - 83)}%`,
+            }}
           />
         </div>
         <div className="relative h-4">
