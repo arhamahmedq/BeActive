@@ -16,7 +16,8 @@ export function computeTimerStatus(
   atRiskAt: string | null,
   nowMs: number
 ): TimerStatus {
-  if (!nextDeadline || !atRiskAt) return 'INACTIVE'
+  if (!nextDeadline) return 'INACTIVE'
+  if (!atRiskAt) return 'ACTIVE'
   if (nowMs >= new Date(nextDeadline).getTime()) return 'BROKEN'
   if (nowMs >= new Date(atRiskAt).getTime()) return 'AT_RISK'
   return 'ACTIVE'
@@ -43,7 +44,7 @@ export function useStreakTimer(
     return () => clearInterval(id)
   }, [nextDeadline])
 
-  if (!nextDeadline || !atRiskAt) {
+  if (!nextDeadline) {
     return { hh: '00', mm: '00', ss: '00', computedStatus: 'INACTIVE', totalSecondsLeft: 0 }
   }
 

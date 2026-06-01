@@ -33,6 +33,12 @@ describe('computeTimerStatus', () => {
     const now = new Date('2024-01-16T10:00:00Z').getTime()
     expect(computeTimerStatus(nextDeadline, atRiskAt, now)).toBe('BROKEN')
   })
+
+  it('returns ACTIVE when nextDeadline is set but atRiskAt is null', () => {
+    const now = new Date('2024-01-15T10:00:00Z').getTime()
+    const nextDeadline = new Date('2024-01-16T10:00:00Z').toISOString()
+    expect(computeTimerStatus(nextDeadline, null, now)).toBe('ACTIVE')
+  })
 })
 
 describe('formatSeconds', () => {
