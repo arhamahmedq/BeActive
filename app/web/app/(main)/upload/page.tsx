@@ -1,7 +1,9 @@
 'use client'
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/Button'
+import { usePostStatus } from '@/hooks/usePostStatus'
 
 // ---------------------------------------------------------------------------
 // EXIF stripping via canvas — drawing to canvas discards all metadata
@@ -73,24 +75,66 @@ async function uploadToR2(
 // ---------------------------------------------------------------------------
 // Page states
 // ---------------------------------------------------------------------------
-type Stage = 'select' | 'preview' | 'uploading' | 'done'
+type Stage = 'select' | 'preview' | 'uploading' | 'verifying' | 'recorded' | 'not_a_workout' | 'still_checking' | 'already_done'
+
+interface StageState {
+  stage: Stage
+  workoutType?: string
+}
 
 interface SelectedFile {
   originalFile: File
   previewUrl: string
 }
 
+// ---------------------------------------------------------------------------
+// Line-art icons — crafted in-house to keep the surface calm and brand-neutral
+// (no emoji, no third-party icon set). 1.5px strokes, rounded joins.
+// ---------------------------------------------------------------------------
+function CameraIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M3 9.5A2.5 2.5 0 0 1 5.5 7h1.2a1 1 0 0 0 .83-.45l.74-1.1A1 1 0 0 1 9.1 5h5.8a1 1 0 0 1 .83.45l.74 1.1a1 1 0 0 0 .83.45h1.2A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12.5" r="3.25" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  )
+}
+
+function GalleryIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3.5" y="5" width="17" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="8.5" cy="9.5" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M4 16.5l4-3.5a2 2 0 0 1 2.6 0l3.4 3M14 14l1.6-1.4a2 2 0 0 1 2.6 0l2 1.8"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export default function UploadPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
 
-  const [stage, setStage] = useState<Stage>('select')
+  const [{ stage, workoutType }, setStageState] = useState<StageState>({ stage: 'select' })
+  const setStage = useCallback((s: Stage) => setStageState((prev) => ({ ...prev, stage: s })), [])
   const [selected, setSelected] = useState<SelectedFile | null>(null)
   const [caption, setCaption] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [isRetrying, setIsRetrying] = useState(false)
+  const [postId, setPostId] = useState<string | null>(null)
 
   const handleFileChosen = useCallback(async (file: File) => {
     setError(null)
@@ -113,7 +157,7 @@ export default function UploadPage() {
     const rawPreviewUrl = URL.createObjectURL(file)
     setSelected({ originalFile: file, previewUrl: rawPreviewUrl })
     setStage('preview')
-  }, [selected])
+  }, [selected, setStage])
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,20 +203,22 @@ export default function UploadPage() {
         body: JSON.stringify({ imageKey: key, caption: caption.trim() || undefined }),
       })
       if (!createRes.ok) {
+        if (createRes.status === 409) { setStage('already_done'); return }
         const data = await createRes.json().catch(() => ({}))
         throw new Error(data?.error?.message ?? 'Failed to create post')
       }
 
-      // 5. Revoke preview URL and redirect
-      URL.revokeObjectURL(selected.previewUrl)
-      setStage('done')
-      router.push('/feed')
+      // 5. Capture post ID and enter verification stage
+      const { post } = (await createRes.json()) as { post: { id: string } }
+      setPostId(post.id)
+      setStage('verifying')
+      // Preview URL intentionally kept alive — needed for verifying UI
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setStage('preview')
       setIsRetrying(true)
     }
-  }, [selected, caption, router])
+  }, [selected, caption, setStage])
 
   const resetToSelect = useCallback(() => {
     if (selected) URL.revokeObjectURL(selected.previewUrl)
@@ -180,8 +226,44 @@ export default function UploadPage() {
     setCaption('')
     setError(null)
     setUploadProgress(0)
-    setStage('select')
+    setPostId(null)
+    setStageState({ stage: 'select', workoutType: undefined })
   }, [selected])
+
+  const handleContinue = useCallback(() => {
+    if (selected) URL.revokeObjectURL(selected.previewUrl)
+    router.push('/feed')
+  }, [selected, router])
+
+  // Revoke object URL on unmount to prevent memory leak
+  useEffect(() => {
+    return () => {
+      if (selected) URL.revokeObjectURL(selected.previewUrl)
+    }
+  }, [selected])
+
+  const { data: postStatus } = usePostStatus(postId, stage === 'verifying')
+
+  // Drive stage transitions from poll result.
+  // This effect subscribes to an external polling system (TanStack Query) and updates
+  // local stage state when the server reports a terminal classification result.
+  useEffect(() => {
+    if (stage !== 'verifying' || !postStatus) return
+    if (postStatus.status === 'VERIFIED') {
+      queryClient.invalidateQueries({ queryKey: ['streak', 'me'] })
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setStageState({ stage: 'recorded', workoutType: postStatus.workoutType })
+    } else if (postStatus.status === 'REJECTED') {
+      setStageState({ stage: 'not_a_workout' })
+    }
+  }, [postStatus, stage, queryClient])
+
+  // 30-second timeout → still_checking
+  useEffect(() => {
+    if (stage !== 'verifying') return
+    const t = setTimeout(() => setStage('still_checking'), 30_000)
+    return () => clearTimeout(t)
+  }, [stage, setStage])
 
   // ---------------------------------------------------------------------------
   // Render
@@ -189,51 +271,67 @@ export default function UploadPage() {
 
   if (stage === 'uploading') {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-6">
-        <div className="w-full max-w-sm">
-          <div className="flex justify-between text-sm text-gray-500 mb-2">
-            <span>Uploading…</span>
-            <span>{uploadProgress}%</span>
+      <div className="flex flex-col items-center justify-center py-24 gap-8 animate-rise">
+        <div className="w-full max-w-xs">
+          <div className="flex items-baseline justify-between mb-3">
+            <span className="text-sm font-medium text-gray-900">Uploading</span>
+            <span className="text-sm tabular-nums text-gray-400">{uploadProgress}%</span>
           </div>
-          <div className="w-full bg-gray-100 rounded-full h-2">
+          <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
             <div
-              className="bg-black rounded-full h-2 transition-all duration-200"
+              className="bg-gray-900 rounded-full h-1.5 transition-all duration-300 ease-out"
               style={{ width: `${uploadProgress}%` }}
             />
           </div>
         </div>
-        <p className="text-xs text-gray-400">
-          Your photo is being securely uploaded
+        <p className="text-xs text-gray-400 tracking-wide">
+          Securing your photo
         </p>
       </div>
     )
   }
 
-  if (stage === 'done') {
+  if (stage === 'verifying' && selected) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <div className="text-4xl">✓</div>
-        <p className="text-lg font-semibold">Workout submitted!</p>
-        <p className="text-sm text-gray-500">AI is verifying your photo…</p>
+      <div className="space-y-7 max-w-sm mx-auto animate-rise">
+        <div className="relative overflow-hidden rounded-3xl bg-gray-100 shadow-sm ring-1 ring-black/5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={selected.previewUrl}
+            alt="Workout photo"
+            className="w-full aspect-square object-cover"
+          />
+          {/* Soft dim so the moving highlight reads clearly */}
+          <div className="absolute inset-0 bg-black/5" />
+          <div className="absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white/35 to-transparent animate-scan" />
+        </div>
+        <div className="text-center space-y-2">
+          <p className="text-lg font-semibold tracking-tight">Checking your workout</p>
+          <div className="flex items-center justify-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-gray-300 animate-breathe" style={{ animationDelay: '0ms' }} />
+            <span className="h-1.5 w-1.5 rounded-full bg-gray-300 animate-breathe" style={{ animationDelay: '200ms' }} />
+            <span className="h-1.5 w-1.5 rounded-full bg-gray-300 animate-breathe" style={{ animationDelay: '400ms' }} />
+          </div>
+        </div>
       </div>
     )
   }
 
   if (stage === 'preview' && selected) {
     return (
-      <div className="space-y-6 max-w-sm mx-auto">
-        <div className="flex items-center gap-3">
+      <div className="space-y-6 max-w-sm mx-auto animate-rise">
+        <div className="flex items-center justify-between">
           <button
             onClick={resetToSelect}
-            className="text-sm text-gray-500 hover:text-black transition-colors"
+            className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 transition-colors"
           >
-            ← Change photo
+            <span aria-hidden>←</span> Change
           </button>
-          <h1 className="text-lg font-semibold">Preview</h1>
+          <h1 className="text-sm font-medium text-gray-400">Ready to post</h1>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-sm text-red-700">
+          <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         )}
@@ -243,7 +341,7 @@ export default function UploadPage() {
           <img
             src={selected.previewUrl}
             alt="Workout preview"
-            className="w-full aspect-square object-cover rounded-2xl bg-gray-100"
+            className="w-full aspect-square object-cover rounded-3xl bg-gray-100 shadow-sm ring-1 ring-black/5"
           />
         </div>
 
@@ -278,47 +376,207 @@ export default function UploadPage() {
     )
   }
 
+  if (stage === 'recorded') {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-7 max-w-sm mx-auto">
+        <div className="relative animate-pop">
+          {/* Concentric halo for a celebratory-but-calm moment */}
+          <div className="absolute inset-0 rounded-full bg-emerald-100/60 scale-150 blur-xl" />
+          <div className="relative w-24 h-24 rounded-full bg-emerald-50 ring-1 ring-emerald-200/70 flex items-center justify-center">
+            <svg
+              className="w-11 h-11 text-emerald-600"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-label="Workout verified"
+            >
+              <path
+                d="M5 13l4 4L19 7"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray="100"
+                strokeDashoffset="0"
+                className="animate-draw-check"
+                style={{ animationDelay: '180ms' }}
+              />
+            </svg>
+          </div>
+        </div>
+        <div className="text-center space-y-3 animate-rise" style={{ animationDelay: '120ms' }}>
+          <p className="text-2xl font-semibold tracking-tight">Workout recorded</p>
+          {workoutType && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 text-sm font-medium text-gray-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              {workoutType.charAt(0) + workoutType.slice(1).toLowerCase()}
+            </span>
+          )}
+        </div>
+        <div className="w-full max-w-xs animate-rise" style={{ animationDelay: '220ms' }}>
+          <Button onClick={handleContinue} className="w-full">
+            Continue to feed
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (stage === 'not_a_workout') {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-7 max-w-sm mx-auto">
+        <div className="w-24 h-24 rounded-full bg-gray-50 ring-1 ring-gray-200/70 flex items-center justify-center animate-pop">
+          <svg
+            className="w-10 h-10 text-gray-400"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-label="Not a workout"
+          >
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
+            <path
+              d="M15 9l-6 6M9 9l6 6"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+        <div className="text-center space-y-3 animate-rise" style={{ animationDelay: '120ms' }}>
+          <p className="text-2xl font-semibold tracking-tight">This doesn&apos;t look like a workout</p>
+          <p className="text-sm text-gray-400 max-w-xs mx-auto leading-relaxed">
+            Make sure your photo clearly shows you being active, then give it another go.
+          </p>
+        </div>
+        <div className="w-full max-w-xs animate-rise" style={{ animationDelay: '220ms' }}>
+          <Button onClick={resetToSelect} className="w-full">
+            Try a different photo
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (stage === 'already_done') {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-7 max-w-sm mx-auto">
+        <div className="relative animate-pop">
+          <div className="absolute inset-0 rounded-full bg-emerald-100/60 scale-150 blur-xl" />
+          <div className="relative w-24 h-24 rounded-full bg-emerald-50 ring-1 ring-emerald-200/70 flex items-center justify-center">
+            <svg
+              className="w-11 h-11 text-emerald-600"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-label="Already logged today"
+            >
+              <path
+                d="M5 13l4 4L19 7"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+        <div className="text-center space-y-3 animate-rise" style={{ animationDelay: '120ms' }}>
+          <p className="text-2xl font-semibold tracking-tight">Already logged today</p>
+          <p className="text-sm text-gray-400 max-w-xs mx-auto leading-relaxed">
+            You&apos;ve already submitted a workout today. Come back tomorrow to keep your streak going.
+          </p>
+        </div>
+        <div className="w-full max-w-xs animate-rise" style={{ animationDelay: '220ms' }}>
+          <Button onClick={handleContinue} className="w-full">
+            Back to feed
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (stage === 'still_checking') {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-7 max-w-sm mx-auto">
+        <div className="w-24 h-24 rounded-full bg-amber-50 ring-1 ring-amber-200/70 flex items-center justify-center animate-pop">
+          <svg
+            className="w-10 h-10 text-amber-500"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-label="Still checking"
+          >
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
+            <path
+              d="M12 7.5v5l3 2"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+        <div className="text-center space-y-3 animate-rise" style={{ animationDelay: '120ms' }}>
+          <p className="text-2xl font-semibold tracking-tight">This is taking a moment</p>
+          <p className="text-sm text-gray-400 max-w-xs mx-auto leading-relaxed">
+            Your workout is still being checked. We&apos;ll update your feed the moment it&apos;s ready.
+          </p>
+        </div>
+        <div className="w-full max-w-xs animate-rise" style={{ animationDelay: '220ms' }}>
+          <Button onClick={handleContinue} className="w-full">
+            Continue to feed
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   // stage === 'select'
   return (
-    <div className="space-y-8 max-w-sm mx-auto">
-      <div>
-        <h1 className="text-xl font-semibold">Log today&apos;s workout</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Take a photo or choose one from your gallery.
+    <div className="space-y-8 max-w-sm mx-auto animate-rise">
+      <div className="space-y-1.5">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-400">Today</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Log your workout</h1>
+        <p className="text-sm text-gray-500">
+          One photo. That&apos;s all it takes to keep your streak alive.
         </p>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-sm text-red-700">
+        <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-3">
         {/* Camera capture — primary action on mobile */}
         <button
           onClick={() => cameraInputRef.current?.click()}
-          className="flex flex-col items-center justify-center gap-3 h-48 rounded-2xl border-2 border-dashed border-gray-200 bg-white hover:border-gray-400 hover:bg-gray-50 transition-colors cursor-pointer"
+          className="group flex items-center gap-4 px-5 h-24 rounded-2xl bg-white ring-1 ring-gray-200 shadow-sm hover:ring-gray-900/20 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer text-left"
         >
-          <span className="text-4xl">📷</span>
-          <div className="text-center">
-            <p className="text-sm font-medium text-gray-800">Open camera</p>
-            <p className="text-xs text-gray-400 mt-0.5">Take a photo of your workout</p>
-          </div>
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white transition-transform duration-200 group-hover:scale-105">
+            <CameraIcon className="h-6 w-6" />
+          </span>
+          <span className="flex-1">
+            <span className="block text-sm font-semibold text-gray-900">Take a photo</span>
+            <span className="block text-xs text-gray-400 mt-0.5">Capture your workout right now</span>
+          </span>
+          <span className="text-gray-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-gray-500" aria-hidden>→</span>
         </button>
 
         {/* Gallery upload — secondary / desktop fallback */}
         <button
           onClick={() => galleryInputRef.current?.click()}
-          className="flex flex-col items-center justify-center gap-3 h-32 rounded-2xl border border-gray-200 bg-white hover:border-gray-400 hover:bg-gray-50 transition-colors cursor-pointer"
+          className="group flex items-center gap-4 px-5 h-20 rounded-2xl bg-white ring-1 ring-gray-200 hover:ring-gray-900/20 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer text-left"
         >
-          <span className="text-2xl">🖼</span>
-          <p className="text-sm text-gray-600">Choose from gallery</p>
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600 transition-colors duration-200 group-hover:bg-gray-200">
+            <GalleryIcon className="h-5 w-5" />
+          </span>
+          <span className="flex-1">
+            <span className="block text-sm font-medium text-gray-800">Choose from gallery</span>
+          </span>
+          <span className="text-gray-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-gray-500" aria-hidden>→</span>
         </button>
       </div>
 
       <p className="text-xs text-center text-gray-400">
-        Accepted: JPEG, PNG, WebP · Max 10 MB
+        JPEG, PNG, or WebP · up to 10 MB
       </p>
 
       {/* Hidden file inputs */}

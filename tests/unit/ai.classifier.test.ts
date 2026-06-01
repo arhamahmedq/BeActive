@@ -6,10 +6,14 @@ vi.mock('../../server/modules/ai/ai.repo')
 vi.mock('../../server/core/logger/index', () => ({
   logger: { info: vi.fn(), error: vi.fn() },
 }))
+vi.mock('../../server/modules/streaks/streaks.service', () => ({
+  onWorkoutVerified: vi.fn().mockResolvedValue(undefined),
+}))
 
 import { processUploadedPost } from '../../server/workers/aiClassifier'
 import * as aiService from '../../server/modules/ai/ai.service'
 import * as aiRepo from '../../server/modules/ai/ai.repo'
+import * as streaksService from '../../server/modules/streaks/streaks.service'
 
 const VERIFIED_RESULT = {
   isWorkout: true,
@@ -48,6 +52,7 @@ beforeEach(() => {
   vi.mocked(aiRepo.markPostVerified).mockResolvedValue('workout-1')
   vi.mocked(aiRepo.markPostRejected).mockResolvedValue(undefined)
   vi.mocked(aiRepo.persistClassificationEvent).mockResolvedValue(undefined)
+  vi.mocked(streaksService.onWorkoutVerified).mockResolvedValue(undefined)
 })
 
 // ---------------------------------------------------------------------------
@@ -176,5 +181,21 @@ describe('processUploadedPost', () => {
 
     expect(aiRepo.markPostRejected).not.toHaveBeenCalled()
     expect(aiRepo.markPostVerified).not.toHaveBeenCalled()
+  })
+
+  it('calls onWorkoutVerified after VERIFIED post', async () => {
+    vi.mocked(aiService.classifyImage).mockResolvedValue(VERIFIED_RESULT)
+
+    await processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2.example.com/abc.jpg', userId: 'user-1' })
+
+    expect(streaksService.onWorkoutVerified).toHaveBeenCalledWith({ postId: 'post-1', userId: 'user-1' })
+  })
+
+  it('does not call onWorkoutVerified when post is REJECTED', async () => {
+    vi.mocked(aiService.classifyImage).mockResolvedValue(REJECTED_RESULT)
+
+    await processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2.example.com/abc.jpg', userId: 'user-1' })
+
+    expect(streaksService.onWorkoutVerified).not.toHaveBeenCalled()
   })
 })
