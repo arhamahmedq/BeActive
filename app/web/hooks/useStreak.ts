@@ -6,6 +6,8 @@ export interface StreakData {
   best: number
   status: 'INACTIVE' | 'ACTIVE' | 'BROKEN'
   lastVerifiedAt: string | null
+  nextDeadline: string | null
+  atRiskAt: string | null
 }
 
 export function useStreak() {
