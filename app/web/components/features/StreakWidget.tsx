@@ -1,3 +1,4 @@
+import { useStreakTimer } from '@/hooks/useStreakTimer'
 import type { StreakData } from '@/hooks/useStreak'
 
 interface StreakWidgetProps {
@@ -32,6 +33,47 @@ const STATUS_CONFIG = {
   },
 }
 
+const TIMER_ROW_CONFIG = {
+  ACTIVE: {
+    bg: 'bg-green-50',
+    label: "You're safe",
+    labelColor: 'text-green-700',
+    valueColor: 'text-green-700',
+  },
+  AT_RISK: {
+    bg: 'bg-amber-50',
+    label: 'Post now to save it',
+    labelColor: 'text-amber-700',
+    valueColor: 'text-amber-700',
+  },
+  BROKEN: {
+    bg: 'bg-red-50',
+    label: 'Start a new streak',
+    labelColor: 'text-red-700',
+    valueColor: 'text-red-700',
+  },
+  INACTIVE: null,
+}
+
+function TimerRow({ nextDeadline, atRiskAt }: { nextDeadline: string | null; atRiskAt: string | null }) {
+  const { hh, mm, ss, computedStatus } = useStreakTimer(nextDeadline, atRiskAt)
+  const rowConfig = TIMER_ROW_CONFIG[computedStatus]
+  if (!rowConfig) return null
+
+  return (
+    <div className={`rounded-lg px-3 py-2 flex items-center justify-between mt-3 ${rowConfig.bg}`}>
+      <span className={`text-xs font-medium ${rowConfig.labelColor}`}>{rowConfig.label}</span>
+      {computedStatus === 'BROKEN' ? (
+        <span className={`text-xs font-semibold ${rowConfig.valueColor}`}>Reset required</span>
+      ) : (
+        <span className={`text-sm font-bold tabular-nums ${rowConfig.valueColor}`}>
+          {hh}:{mm}:{ss}
+        </span>
+      )}
+    </div>
+  )
+}
+
 export function StreakWidget({ streak, isLoading }: StreakWidgetProps) {
   if (isLoading) {
     return (
@@ -64,6 +106,10 @@ export function StreakWidget({ streak, isLoading }: StreakWidgetProps) {
           </div>
         )}
       </div>
+      <TimerRow
+        nextDeadline={streak?.nextDeadline ?? null}
+        atRiskAt={streak?.atRiskAt ?? null}
+      />
     </div>
   )
 }
