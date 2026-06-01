@@ -92,11 +92,22 @@ export async function onWorkoutVerified(params: {
 export async function getMyStreak(userId: string): Promise<StreakResponse | null> {
   const streak = await getStreakByUserId(userId)
   if (!streak) return null
+
+  const lastVerifiedAt = streak.lastVerifiedAt
+  const nextDeadline = lastVerifiedAt
+    ? new Date(lastVerifiedAt.getTime() + 24 * 60 * 60 * 1000).toISOString()
+    : null
+  const atRiskAt = lastVerifiedAt
+    ? new Date(lastVerifiedAt.getTime() + 20 * 60 * 60 * 1000).toISOString()
+    : null
+
   return {
     current: streak.current,
     best: streak.best,
     status: streak.status,
-    lastVerifiedAt: streak.lastVerifiedAt?.toISOString() ?? null,
+    lastVerifiedAt: lastVerifiedAt?.toISOString() ?? null,
+    nextDeadline,
+    atRiskAt,
   }
 }
 

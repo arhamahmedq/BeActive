@@ -163,6 +163,8 @@ describe('getMyStreak', () => {
       best: 10,
       status: StreakStatus.ACTIVE,
       lastVerifiedAt: '2024-01-14T10:00:00.000Z',
+      nextDeadline: '2024-01-15T10:00:00.000Z',
+      atRiskAt: '2024-01-15T06:00:00.000Z',
     })
   })
 
@@ -170,6 +172,28 @@ describe('getMyStreak', () => {
     vi.mocked(repo.getStreakByUserId).mockResolvedValue(null)
     const result = await getMyStreak('user-new')
     expect(result).toBeNull()
+  })
+
+  it('returns nextDeadline = lastVerifiedAt + 24h for ACTIVE streak', async () => {
+    const lva = new Date('2024-01-14T10:00:00Z')
+    vi.mocked(repo.getStreakByUserId).mockResolvedValue({
+      ...ACTIVE_STREAK,
+      lastVerifiedAt: lva,
+    })
+
+    const result = await getMyStreak('user-1')
+
+    expect(result?.nextDeadline).toBe('2024-01-15T10:00:00.000Z')
+    expect(result?.atRiskAt).toBe('2024-01-15T06:00:00.000Z')
+  })
+
+  it('returns null nextDeadline and atRiskAt for INACTIVE streak', async () => {
+    vi.mocked(repo.getStreakByUserId).mockResolvedValue(INACTIVE_STREAK)
+
+    const result = await getMyStreak('user-1')
+
+    expect(result?.nextDeadline).toBeNull()
+    expect(result?.atRiskAt).toBeNull()
   })
 })
 

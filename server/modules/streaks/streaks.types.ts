@@ -16,6 +16,8 @@ export interface StreakResponse {
   best: number
   status: StreakStatus
   lastVerifiedAt: string | null
+  nextDeadline: string | null   // lastVerifiedAt + 24h, null when INACTIVE
+  atRiskAt: string | null       // lastVerifiedAt + 20h, null when INACTIVE
 }
 
 // Returned by GET /api/streaks/:userId (less data — no lastVerifiedAt)
