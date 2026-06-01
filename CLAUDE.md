@@ -429,6 +429,7 @@ GEMINI_API_KEY="..."                     # Gemini API key — free at aistudio.g
 
 # App
 NEXT_PUBLIC_APP_URL="http://localhost:3000"  # App URL (NEXT_PUBLIC_ prefix = client-accessible)
+NEXT_PUBLIC_STREAK_DEBUG="true"      # Dev only — enables StreakDebugPanel on /feed. Never set in production.
 ```
 
 **Security rules:**

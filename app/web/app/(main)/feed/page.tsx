@@ -3,6 +3,9 @@ import { useAuth } from '@/hooks/useAuth'
 import { useStreak } from '@/hooks/useStreak'
 import { Button } from '@/components/ui/Button'
 import { StreakWidget } from '@/components/features/StreakWidget'
+import { StreakDebugPanel } from '@/components/features/StreakDebugPanel'
+
+const DEBUG = process.env.NEXT_PUBLIC_STREAK_DEBUG === 'true'
 
 export default function FeedPage() {
   const { user, isLoading: authLoading, signOut } = useAuth()
@@ -31,6 +34,8 @@ export default function FeedPage() {
       </div>
 
       <StreakWidget streak={streak ?? null} isLoading={streakLoading} />
+
+      {DEBUG && <StreakDebugPanel streak={streak ?? null} />}
 
       <div className="bg-white rounded-xl border border-gray-100 p-8 text-center">
         <p className="text-gray-400 text-sm">Feed coming in Slice 5.</p>
