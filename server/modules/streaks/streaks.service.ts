@@ -1,4 +1,3 @@
-import { StreakStatus } from '@prisma/client'
 import { logger } from '../../core/logger/index'
 import { EventType } from '../../core/events/index'
 import {
@@ -61,10 +60,22 @@ export async function onWorkoutVerified(
     brokenAt: null,
   })
 
-  const eventType =
-    streak.status === StreakStatus.BROKEN
-      ? EventType.STREAK_RECOVERED
-      : EventType.STREAK_UPDATED
+  // Classify the event from the ACTUAL recomputed transition — never from the
+  // stored streak.status. In v2, BROKEN is applied asynchronously by the hourly
+  // cron, so a workout that lands after a missed day but before the cron runs
+  // still sees status === ACTIVE. Keying the event off that stale status emitted
+  // STREAK_UPDATED for what was really a lapse-and-restart (the count visibly
+  // reset to 1 while the event claimed a continuation — the production defect).
+  //
+  // The recomputed projection is the source of truth: currentStreak === 1 with a
+  // pre-existing ledger (lastVerifiedDate set) can only mean the run restarted
+  // after a gap. A fresh start (no prior completions) or a consecutive-day
+  // continuation (currentStreak > 1) is an ordinary update. Cron-independent.
+  const isRestartAfterLapse =
+    computed.currentStreak === 1 && streak.lastVerifiedDate !== null
+  const eventType = isRestartAfterLapse
+    ? EventType.STREAK_RECOVERED
+    : EventType.STREAK_UPDATED
 
   await persistStreakEvent({
     type: eventType,
