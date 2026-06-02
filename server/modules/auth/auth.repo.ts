@@ -1,97 +1,58 @@
-import { UserActivityState, StreakStatus, Prisma } from '@prisma/client'
+import { StreakStatus, Prisma } from '@prisma/client'
 import { prisma } from '../../../app/web/lib/prisma'
 import type { AuthUser } from './auth.types'
 
+const USER_SELECT = {
+  id: true,
+  email: true,
+  username: true,
+  displayName: true,
+  avatarUrl: true,
+  timezone: true,
+  onboarded: true,
+  createdAt: true,
+} as const
+
 export async function findUserByEmail(email: string): Promise<AuthUser | null> {
-  const user = await prisma.user.findUnique({
+  return prisma.user.findUnique({
     where: { email: email.toLowerCase() },
-    select: {
-      id: true,
-      email: true,
-      username: true,
-      displayName: true,
-      avatarUrl: true,
-      activityState: true,
-      onboarded: true,
-      createdAt: true,
-    },
+    select: USER_SELECT,
   })
-  if (!user) return null
-  return { ...user, activityState: user.activityState as string }
 }
 
 export async function findUserById(id: string): Promise<AuthUser | null> {
-  const user = await prisma.user.findUnique({
+  return prisma.user.findUnique({
     where: { id },
-    select: {
-      id: true,
-      email: true,
-      username: true,
-      displayName: true,
-      avatarUrl: true,
-      activityState: true,
-      onboarded: true,
-      createdAt: true,
-    },
+    select: USER_SELECT,
   })
-  if (!user) return null
-  return { ...user, activityState: user.activityState as string }
 }
 
 export async function findUserByUsername(username: string): Promise<AuthUser | null> {
-  const user = await prisma.user.findUnique({
+  return prisma.user.findUnique({
     where: { username },
-    select: {
-      id: true,
-      email: true,
-      username: true,
-      displayName: true,
-      avatarUrl: true,
-      activityState: true,
-      onboarded: true,
-      createdAt: true,
-    },
+    select: USER_SELECT,
   })
-  if (!user) return null
-  return { ...user, activityState: user.activityState as string }
 }
 
-// Retained for future OAuth flows where user + streak may be created separately.
-// Prefer createUserWithStreak for all email/password signups (atomic transaction).
+// Retained for future OAuth flows. Prefer createUserWithStreak for email/password signups.
 export async function createUser(params: {
   id: string
   email: string
   username: string
 }): Promise<AuthUser> {
-  const user = await prisma.user.create({
+  return prisma.user.create({
     data: {
       id: params.id,
       email: params.email,
       username: params.username,
-      activityState: UserActivityState.ACTIVE,
     },
-    select: {
-      id: true,
-      email: true,
-      username: true,
-      displayName: true,
-      avatarUrl: true,
-      activityState: true,
-      onboarded: true,
-      createdAt: true,
-    },
+    select: USER_SELECT,
   })
-  return { ...user, activityState: user.activityState as string }
 }
 
 export async function createDefaultStreak(userId: string): Promise<void> {
   await prisma.streak.create({
-    data: {
-      userId,
-      current: 0,
-      best: 0,
-      status: StreakStatus.INACTIVE,
-    },
+    data: { userId, current: 0, best: 0, status: StreakStatus.INACTIVE },
   })
 }
 
@@ -124,27 +85,12 @@ export async function createUserWithStreak(params: {
         id: params.id,
         email: params.email.toLowerCase(),
         username: params.username.toLowerCase(),
-        activityState: UserActivityState.ACTIVE,
       },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        displayName: true,
-        avatarUrl: true,
-        activityState: true,
-        onboarded: true,
-        createdAt: true,
-      },
+      select: USER_SELECT,
     })
     await tx.streak.create({
-      data: {
-        userId: user.id,
-        current: 0,
-        best: 0,
-        status: StreakStatus.INACTIVE,
-      },
+      data: { userId: user.id, current: 0, best: 0, status: StreakStatus.INACTIVE },
     })
-    return { ...user, activityState: user.activityState as string }
+    return user
   })
 }

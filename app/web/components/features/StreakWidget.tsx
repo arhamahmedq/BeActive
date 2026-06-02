@@ -1,78 +1,67 @@
 'use client'
-import { useStreakTimer } from '@/hooks/useStreakTimer'
-import type { StreakData } from '@/hooks/useStreak'
+import type { StreakData, DisplayTier } from '@/hooks/useStreak'
 
 interface StreakWidgetProps {
   streak: StreakData | null
   isLoading: boolean
 }
 
-const STATUS_CONFIG = {
-  ACTIVE: {
-    dot: 'bg-green-400',
-    label: 'Active',
-    text: 'text-green-700',
+interface TierConfig {
+  bg: string
+  dot: string
+  label: string
+  labelColor: string
+  sub: string | null   // null = dynamic (computed from best)
+  subColor: string
+}
+
+const TIER_CONFIG: Record<DisplayTier, TierConfig> = {
+  COMPLETED_TODAY: {
     bg: 'bg-green-50 border-green-100',
+    dot: 'bg-green-400',
+    label: 'Completed',
+    labelColor: 'text-green-700',
+    sub: 'Locked in for today.',
+    subColor: 'text-green-600',
+  },
+  PENDING_TODAY: {
+    bg: 'bg-white border-gray-100',
+    dot: 'bg-gray-300',
+    label: 'Pending',
+    labelColor: 'text-gray-500',
+    sub: "You haven't logged today's workout.",
+    subColor: 'text-gray-400',
   },
   AT_RISK: {
+    bg: 'bg-amber-50 border-amber-100',
     dot: 'bg-amber-400',
     label: 'At risk',
-    text: 'text-amber-700',
-    bg: 'bg-amber-50 border-amber-100',
+    labelColor: 'text-amber-700',
+    sub: "Streak at risk — today's almost over.",
+    subColor: 'text-amber-600',
   },
   BROKEN: {
-    dot: 'bg-red-400',
-    label: 'Broken',
-    text: 'text-red-700',
     bg: 'bg-red-50 border-red-100',
+    dot: 'bg-red-400',
+    label: 'Streak ended',
+    labelColor: 'text-red-700',
+    sub: null,  // rendered as "You were on {best}. Start a new one today."
+    subColor: 'text-red-500',
   },
   INACTIVE: {
-    dot: 'bg-gray-300',
-    label: 'No streak',
-    text: 'text-gray-500',
     bg: 'bg-white border-gray-100',
+    dot: 'bg-gray-200',
+    label: 'No streak',
+    labelColor: 'text-gray-400',
+    sub: 'Post your first workout today.',
+    subColor: 'text-gray-400',
   },
 }
 
-const TIMER_ROW_CONFIG = {
-  ACTIVE: {
-    bg: 'bg-green-50',
-    label: "You're safe",
-    labelColor: 'text-green-700',
-    valueColor: 'text-green-700',
-  },
-  AT_RISK: {
-    bg: 'bg-amber-50',
-    label: 'Post now to save it',
-    labelColor: 'text-amber-700',
-    valueColor: 'text-amber-700',
-  },
-  BROKEN: {
-    bg: 'bg-red-50',
-    label: 'Start a new streak',
-    labelColor: 'text-red-700',
-    valueColor: 'text-red-700',
-  },
-  INACTIVE: null,
-}
-
-function TimerRow({ nextDeadline, atRiskAt }: { nextDeadline: string | null; atRiskAt: string | null }) {
-  const { hh, mm, ss, computedStatus } = useStreakTimer(nextDeadline, atRiskAt)
-  const rowConfig = TIMER_ROW_CONFIG[computedStatus]
-  if (!rowConfig) return null
-
-  return (
-    <div className={`rounded-lg px-3 py-2 flex items-center justify-between mt-3 ${rowConfig.bg}`}>
-      <span className={`text-xs font-medium ${rowConfig.labelColor}`}>{rowConfig.label}</span>
-      {computedStatus === 'BROKEN' ? (
-        <span className={`text-xs font-semibold ${rowConfig.valueColor}`}>Reset required</span>
-      ) : (
-        <span className={`text-sm font-bold tabular-nums ${rowConfig.valueColor}`}>
-          {hh}:{mm}:{ss}
-        </span>
-      )}
-    </div>
-  )
+function headline(tier: DisplayTier, current: number): string {
+  if (tier === 'INACTIVE') return 'Start your streak'
+  if (tier === 'BROKEN') return 'Streak ended'
+  return `${current}-day streak`
 }
 
 export function StreakWidget({ streak, isLoading }: StreakWidgetProps) {
@@ -82,35 +71,41 @@ export function StreakWidget({ streak, isLoading }: StreakWidgetProps) {
     )
   }
 
-  const status = streak?.status ?? 'INACTIVE'
-  const config = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG]
+  const tier: DisplayTier = streak?.displayTier ?? 'INACTIVE'
+  const config = TIER_CONFIG[tier]
   const current = streak?.current ?? 0
   const best = streak?.best ?? 0
+
+  const subText =
+    tier === 'BROKEN'
+      ? `You were on a ${best}-day streak. Start a new one today.`
+      : config.sub
 
   return (
     <div className={`rounded-xl border p-4 ${config.bg}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="text-center">
-            <p className="text-3xl font-bold tabular-nums leading-none">{current}</p>
-            <p className="text-xs text-gray-500 mt-0.5">day streak</p>
-          </div>
-          <div className={`flex items-center gap-1.5 text-xs font-medium ${config.text}`}>
+          {tier !== 'INACTIVE' && tier !== 'BROKEN' && (
+            <div className="text-center">
+              <p className="text-3xl font-bold tabular-nums leading-none">{current}</p>
+              <p className="text-xs text-gray-500 mt-0.5">day streak</p>
+            </div>
+          )}
+          <div className={`flex items-center gap-1.5 text-xs font-medium ${config.labelColor}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} aria-hidden />
-            {config.label}
+            {headline(tier, current)}
           </div>
         </div>
-        {best > 0 && (
+        {best > 0 && tier !== 'BROKEN' && (
           <div className="text-right">
             <p className="text-sm font-semibold tabular-nums">{best}</p>
             <p className="text-xs text-gray-400">best</p>
           </div>
         )}
       </div>
-      <TimerRow
-        nextDeadline={streak?.nextDeadline ?? null}
-        atRiskAt={streak?.atRiskAt ?? null}
-      />
+      {subText && (
+        <p className={`text-xs mt-2 ${config.subColor}`}>{subText}</p>
+      )}
     </div>
   )
 }

@@ -9,36 +9,27 @@ datasource db {
 }
 
 model User {
-  id            String            @id  // No @default: id MUST be set to the Supabase UUID
-  email         String            @unique
-  username      String            @unique
+  id            String   @id  // No @default: id MUST be set to the Supabase UUID
+  email         String   @unique
+  username      String   @unique
   displayName   String?
   avatarUrl     String?
-  bio           String?           @db.VarChar(160)
-  timezone      String            @default("UTC")
-  activityState UserActivityState @default(ACTIVE)
-  role          UserRole          @default(USER)
-  onboarded     Boolean           @default(false)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  bio           String?  @db.VarChar(160)
+  timezone      String   @default("UTC")
+  role          UserRole @default(USER)
+  onboarded     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   posts            Post[]
   streak           Streak?
+  dailyCompletions DailyCompletion[]
   friendshipsA     Friendship[]   @relation("FriendA")
   friendshipsB     Friendship[]   @relation("FriendB")
   notifications    Notification[]
   sentMessages     Message[]      @relation("Sender")
   receivedMessages Message[]      @relation("Receiver")
   events           Event[]
-
-  // Unique indexes are already created by @unique above — no @@index needed
-  @@index([activityState])
-}
-
-enum UserActivityState {
-  ACTIVE
-  AT_RISK
-  BROKEN
 }
 
 enum UserRole {
@@ -56,8 +47,9 @@ model Post {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workout Workout?
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workout          Workout?
+  dailyCompletion  DailyCompletion?
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])
@@ -94,26 +86,47 @@ enum WorkoutType {
 }
 
 model Streak {
-  id             String       @id @default(cuid())
-  userId         String       @unique
-  current        Int          @default(0)
-  best           Int          @default(0)
-  status         StreakStatus @default(INACTIVE)
-  lastVerifiedAt DateTime?
-  brokenAt       DateTime?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id               String       @id @default(cuid())
+  userId           String       @unique
+  current          Int          @default(0)
+  best             Int          @default(0)
+  status           StreakStatus @default(INACTIVE)
+  lastVerifiedDate String?      // YYYY-MM-DD in user's timezone; set by recomputeStreak
+  brokenAt         DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([status])
-  @@index([lastVerifiedAt])
+  @@index([lastVerifiedDate])
 }
 
 enum StreakStatus {
   INACTIVE
   ACTIVE
   BROKEN
+}
+
+// Append-only ledger: one row per user per local calendar day.
+// UNIQUE(userId, localDate) is the free-idempotency invariant that makes
+// "one verified workout per day" a DB constraint, not application logic.
+// source of truth for v2 streak computation — never update or delete rows.
+model DailyCompletion {
+  id        String   @id @default(cuid())
+  userId    String
+  localDate String   // YYYY-MM-DD in the user's timezone at post creation
+  postId    String   @unique  // one verified post → at most one completion row
+  timezone  String   // IANA tz used when this row was created — immutable history
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // postId FK deliberately has no cascade: if a post is later deleted, the
+  // completion row (and thus the streak history) must survive.
+  post Post @relation(fields: [postId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, localDate])
+  @@index([userId, localDate(sort: Desc)])
 }
 
 model Friendship {

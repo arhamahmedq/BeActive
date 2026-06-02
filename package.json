@@ -19,7 +19,10 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "audit:timezones": "node --env-file=app/web/.env.local scripts/audit-timezones.mjs",
+    "backfill:completions": "node --env-file=app/web/.env.local scripts/backfill-completions.mjs",
+    "validate:parity": "node --env-file=app/web/.env.local scripts/validate-streak-parity.mjs"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.0.2",

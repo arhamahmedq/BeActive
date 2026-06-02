@@ -1,0 +1,170 @@
+<h2>How should the countdown display?</h2>
+<p class="subtitle">All three show the same information — the question is tone and precision. Each example shows all three streak states.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="font-family:system-ui;display:flex;flex-direction:column;gap:8px;padding:4px">
+
+      <!-- ACTIVE -->
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div><div style="font-size:20px;font-weight:700;line-height:1">5</div><div style="font-size:11px;color:#9ca3af">day streak</div></div>
+            <div style="font-size:11px;font-weight:600;color:#16a34a;display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#4ade80;display:inline-block"></span>Active</div>
+          </div>
+          <div style="font-size:11px;color:#6b7280">best: 12</div>
+        </div>
+        <div style="background:#f0fdf4;border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:#15803d">You're safe</span>
+          <span style="font-size:14px;font-weight:700;color:#16a34a;font-variant-numeric:tabular-nums">14:32:07</span>
+        </div>
+      </div>
+
+      <!-- AT RISK -->
+      <div style="background:#fff;border:1px solid #fef08a;border-radius:12px;padding:12px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div><div style="font-size:20px;font-weight:700;line-height:1">5</div><div style="font-size:11px;color:#9ca3af">day streak</div></div>
+            <div style="font-size:11px;font-weight:600;color:#d97706;display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#fbbf24;display:inline-block"></span>At Risk</div>
+          </div>
+          <div style="font-size:11px;color:#6b7280">best: 12</div>
+        </div>
+        <div style="background:#fefce8;border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:#a16207">Post now to save it</span>
+          <span style="font-size:14px;font-weight:700;color:#d97706;font-variant-numeric:tabular-nums">03:10:44</span>
+        </div>
+      </div>
+
+      <!-- BROKEN -->
+      <div style="background:#fff;border:1px solid #fecaca;border-radius:12px;padding:12px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div><div style="font-size:20px;font-weight:700;line-height:1">0</div><div style="font-size:11px;color:#9ca3af">day streak</div></div>
+            <div style="font-size:11px;font-weight:600;color:#dc2626;display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#f87171;display:inline-block"></span>Broken</div>
+          </div>
+          <div style="font-size:11px;color:#6b7280">best: 12</div>
+        </div>
+        <div style="background:#fef2f2;border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:#b91c1c">Start a new streak</span>
+          <span style="font-size:13px;font-weight:600;color:#dc2626">Reset required</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — HH:MM:SS clock</h3>
+      <p>Precise, updates every second. Feels urgent. High information density.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="font-family:system-ui;display:flex;flex-direction:column;gap:8px;padding:4px">
+
+      <!-- ACTIVE -->
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div><div style="font-size:20px;font-weight:700;line-height:1">5</div><div style="font-size:11px;color:#9ca3af">day streak</div></div>
+            <div style="font-size:11px;font-weight:600;color:#16a34a;display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#4ade80;display:inline-block"></span>Active</div>
+          </div>
+          <div style="font-size:11px;color:#6b7280">best: 12</div>
+        </div>
+        <div style="background:#f0fdf4;border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:#15803d">You're safe</span>
+          <span style="font-size:13px;font-weight:600;color:#16a34a">14h 32m left</span>
+        </div>
+      </div>
+
+      <!-- AT RISK -->
+      <div style="background:#fff;border:1px solid #fef08a;border-radius:12px;padding:12px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div><div style="font-size:20px;font-weight:700;line-height:1">5</div><div style="font-size:11px;color:#9ca3af">day streak</div></div>
+            <div style="font-size:11px;font-weight:600;color:#d97706;display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#fbbf24;display:inline-block"></span>At Risk</div>
+          </div>
+          <div style="font-size:11px;color:#6b7280">best: 12</div>
+        </div>
+        <div style="background:#fefce8;border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:#a16207">Post now to save it</span>
+          <span style="font-size:13px;font-weight:600;color:#d97706">3h 10m left</span>
+        </div>
+      </div>
+
+      <!-- BROKEN -->
+      <div style="background:#fff;border:1px solid #fecaca;border-radius:12px;padding:12px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div><div style="font-size:20px;font-weight:700;line-height:1">0</div><div style="font-size:11px;color:#9ca3af">day streak</div></div>
+            <div style="font-size:11px;font-weight:600;color:#dc2626;display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#f87171;display:inline-block"></span>Broken</div>
+          </div>
+          <div style="font-size:11px;color:#6b7280">best: 12</div>
+        </div>
+        <div style="background:#fef2f2;border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:#b91c1c">Start a new streak</span>
+          <span style="font-size:13px;font-weight:600;color:#dc2626">Reset required</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Xh Ym format</h3>
+      <p>Updates every minute. Calm, readable. Good balance of urgency and cleanliness.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="font-family:system-ui;display:flex;flex-direction:column;gap:8px;padding:4px">
+
+      <!-- ACTIVE -->
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div><div style="font-size:20px;font-weight:700;line-height:1">5</div><div style="font-size:11px;color:#9ca3af">day streak</div></div>
+            <div style="font-size:11px;font-weight:600;color:#16a34a;display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#4ade80;display:inline-block"></span>Active</div>
+          </div>
+          <div style="font-size:11px;color:#6b7280">best: 12</div>
+        </div>
+        <div style="background:#f0fdf4;border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:#15803d">Safe until tonight</span>
+          <span style="font-size:13px;font-weight:600;color:#16a34a">~14 hrs</span>
+        </div>
+      </div>
+
+      <!-- AT RISK -->
+      <div style="background:#fff;border:1px solid #fef08a;border-radius:12px;padding:12px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div><div style="font-size:20px;font-weight:700;line-height:1">5</div><div style="font-size:11px;color:#9ca3af">day streak</div></div>
+            <div style="font-size:11px;font-weight:600;color:#d97706;display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#fbbf24;display:inline-block"></span>At Risk</div>
+          </div>
+          <div style="font-size:11px;color:#6b7280">best: 12</div>
+        </div>
+        <div style="background:#fefce8;border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:#a16207">Post now to save it</span>
+          <span style="font-size:13px;font-weight:600;color:#d97706">~3 hrs left</span>
+        </div>
+      </div>
+
+      <!-- BROKEN -->
+      <div style="background:#fff;border:1px solid #fecaca;border-radius:12px;padding:12px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div><div style="font-size:20px;font-weight:700;line-height:1">0</div><div style="font-size:11px;color:#9ca3af">day streak</div></div>
+            <div style="font-size:11px;font-weight:600;color:#dc2626;display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#f87171;display:inline-block"></span>Broken</div>
+          </div>
+          <div style="font-size:11px;color:#6b7280">best: 12</div>
+        </div>
+        <div style="background:#fef2f2;border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:#b91c1c">Start a new streak</span>
+          <span style="font-size:13px;font-weight:600;color:#dc2626">Reset required</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Approximate natural language</h3>
+      <p>"~14 hrs", "~3 hrs left". Friendly, low-anxiety. Updates every few minutes. No ticking numbers.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:24px">Click your preferred format, then respond in the terminal.</p>

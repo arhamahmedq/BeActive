@@ -5,7 +5,6 @@ export interface AuthUser {
   username: string
   displayName: string | null
   avatarUrl: string | null
-  activityState: string
   onboarded: boolean
   createdAt: string // ISO string (JSON-safe)
 }

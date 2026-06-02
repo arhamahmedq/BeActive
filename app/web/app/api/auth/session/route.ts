@@ -20,7 +20,7 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
         username: user.username,
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
-        activityState: user.activityState,
+        timezone: user.timezone,
         onboarded: user.onboarded,
         createdAt: user.createdAt instanceof Date
           ? user.createdAt.toISOString()

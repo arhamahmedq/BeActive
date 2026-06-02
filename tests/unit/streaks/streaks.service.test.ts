@@ -1,40 +1,58 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { StreakStatus, UserActivityState } from '@prisma/client'
+import { StreakStatus } from '@prisma/client'
 
 vi.mock('../../../server/modules/streaks/streaks.repo')
-vi.mock('../../../server/modules/users/users.service')
+// Mock the pure engine so service tests verify wiring only — computation is tested in recomputeStreak.test.ts
+vi.mock('../../../server/modules/streaks/recomputeStreak', () => ({
+  recomputeStreak: vi.fn(),
+  toLocalDateStr: vi.fn().mockReturnValue('2024-01-15'),
+  getLocalHour: vi.fn().mockReturnValue(10),
+  deriveDisplayTier: vi.fn().mockReturnValue('PENDING_TODAY'),
+}))
 vi.mock('../../../server/core/logger/index', () => ({
   logger: { info: vi.fn(), error: vi.fn() },
 }))
 
 import { onWorkoutVerified, getMyStreak, getPublicStreak } from '../../../server/modules/streaks/streaks.service'
 import * as repo from '../../../server/modules/streaks/streaks.repo'
-import * as usersService from '../../../server/modules/users/users.service'
+import * as recomputeMod from '../../../server/modules/streaks/recomputeStreak'
+import type { DisplayTier } from '../../../server/modules/streaks/recomputeStreak'
 
-// Fixed clock: Jan 15 10:00 UTC
 const NOW = new Date('2024-01-15T10:00:00Z')
 const YESTERDAY = new Date('2024-01-14T10:00:00Z')
 
 const INACTIVE_STREAK = {
   id: 'streak-1', userId: 'user-1', current: 0, best: 0,
-  status: StreakStatus.INACTIVE, lastVerifiedAt: null, brokenAt: null,
+  status: StreakStatus.INACTIVE, lastVerifiedDate: null, brokenAt: null,
 }
 const ACTIVE_STREAK = {
   id: 'streak-1', userId: 'user-1', current: 5, best: 10,
-  status: StreakStatus.ACTIVE, lastVerifiedAt: YESTERDAY, brokenAt: null,
+  status: StreakStatus.ACTIVE, lastVerifiedDate: '2024-01-14', brokenAt: null,
 }
 const BROKEN_STREAK = {
   id: 'streak-1', userId: 'user-1', current: 3, best: 7,
   status: StreakStatus.BROKEN,
-  lastVerifiedAt: new Date('2024-01-13T10:00:00Z'),
+  lastVerifiedDate: '2024-01-13',
   brokenAt: new Date('2024-01-14T10:00:00Z'),
 }
+
+// Canonical recompute return values per test scenario
+const V2_FIRST   = { currentStreak: 1, bestStreak: 1, lastVerifiedDate: '2024-01-15', status: StreakStatus.ACTIVE }
+const V2_CONT    = { currentStreak: 6, bestStreak: 10, lastVerifiedDate: '2024-01-15', status: StreakStatus.ACTIVE }
+const V2_RECOVER = { currentStreak: 1, bestStreak: 7,  lastVerifiedDate: '2024-01-15', status: StreakStatus.ACTIVE }
 
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(repo.updateStreak).mockResolvedValue(undefined)
-  vi.mocked(usersService.setActivityState).mockResolvedValue(undefined)
+  vi.mocked(repo.createDailyCompletion).mockResolvedValue(true)
+  vi.mocked(repo.getCompletionsForUser).mockResolvedValue([{ localDate: '2024-01-15' }])
+  vi.mocked(repo.getUserTimezone).mockResolvedValue('UTC')
+  vi.mocked(repo.hasDailyCompletion).mockResolvedValue(false)
   vi.mocked(repo.persistStreakEvent).mockResolvedValue(undefined)
+  vi.mocked(recomputeMod.recomputeStreak).mockReturnValue(V2_FIRST)
+  vi.mocked(recomputeMod.toLocalDateStr).mockReturnValue('2024-01-15')
+  vi.mocked(recomputeMod.getLocalHour).mockReturnValue(10)
+  vi.mocked(recomputeMod.deriveDisplayTier).mockReturnValue('PENDING_TODAY')
 })
 
 describe('onWorkoutVerified', () => {
@@ -42,13 +60,19 @@ describe('onWorkoutVerified', () => {
     vi.mocked(repo.getPostCreatedAt).mockResolvedValue(NOW)
     vi.mocked(repo.getStreakByUserId).mockResolvedValue(INACTIVE_STREAK)
 
-    await onWorkoutVerified({ postId: 'post-1', userId: 'user-1' })
+    await onWorkoutVerified({ postId: 'post-1', userId: 'user-1' }, NOW)
 
+    expect(repo.createDailyCompletion).toHaveBeenCalledWith({
+      userId: 'user-1',
+      localDate: '2024-01-15',
+      postId: 'post-1',
+      timezone: 'UTC',
+    })
     expect(repo.updateStreak).toHaveBeenCalledWith('user-1', expect.objectContaining({
       current: 1,
       best: 1,
       status: StreakStatus.ACTIVE,
-      lastVerifiedAt: NOW,
+      lastVerifiedDate: '2024-01-15',
       brokenAt: null,
     }))
     expect(repo.persistStreakEvent).toHaveBeenCalledWith(
@@ -59,29 +83,29 @@ describe('onWorkoutVerified', () => {
   it('increments streak for active user (ACTIVE → ACTIVE)', async () => {
     vi.mocked(repo.getPostCreatedAt).mockResolvedValue(NOW)
     vi.mocked(repo.getStreakByUserId).mockResolvedValue(ACTIVE_STREAK)
+    vi.mocked(recomputeMod.recomputeStreak).mockReturnValue(V2_CONT)
 
-    await onWorkoutVerified({ postId: 'post-1', userId: 'user-1' })
+    await onWorkoutVerified({ postId: 'post-1', userId: 'user-1' }, NOW)
 
     expect(repo.updateStreak).toHaveBeenCalledWith('user-1', expect.objectContaining({
       current: 6,
       best: 10,
       status: StreakStatus.ACTIVE,
-      lastVerifiedAt: NOW,
     }))
     expect(repo.persistStreakEvent).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'STREAK_UPDATED' })
     )
   })
 
-  it('resets to 1 on recovery from BROKEN, preserves best', async () => {
+  it('resets to 1 on recovery from BROKEN and emits STREAK_RECOVERED', async () => {
     vi.mocked(repo.getPostCreatedAt).mockResolvedValue(NOW)
     vi.mocked(repo.getStreakByUserId).mockResolvedValue(BROKEN_STREAK)
+    vi.mocked(recomputeMod.recomputeStreak).mockReturnValue(V2_RECOVER)
 
-    await onWorkoutVerified({ postId: 'post-1', userId: 'user-1' })
+    await onWorkoutVerified({ postId: 'post-1', userId: 'user-1' }, NOW)
 
     expect(repo.updateStreak).toHaveBeenCalledWith('user-1', expect.objectContaining({
       current: 1,
-      best: 7,
       status: StreakStatus.ACTIVE,
     }))
     expect(repo.persistStreakEvent).toHaveBeenCalledWith(
@@ -89,52 +113,54 @@ describe('onWorkoutVerified', () => {
     )
   })
 
-  it('sets user activityState to ACTIVE on every update', async () => {
+  it('skips when completion for this local date already exists (idempotency)', async () => {
     vi.mocked(repo.getPostCreatedAt).mockResolvedValue(NOW)
     vi.mocked(repo.getStreakByUserId).mockResolvedValue(ACTIVE_STREAK)
+    vi.mocked(repo.createDailyCompletion).mockResolvedValue(false)
 
-    await onWorkoutVerified({ postId: 'post-1', userId: 'user-1' })
-
-    expect(usersService.setActivityState).toHaveBeenCalledWith('user-1', UserActivityState.ACTIVE)
-  })
-
-  it('skips if post.createdAt <= streak.lastVerifiedAt (idempotency)', async () => {
-    const olderDate = new Date('2024-01-14T08:00:00Z')
-    vi.mocked(repo.getPostCreatedAt).mockResolvedValue(olderDate)
-    vi.mocked(repo.getStreakByUserId).mockResolvedValue(ACTIVE_STREAK) // lastVerifiedAt = Jan 14 10:00
-
-    await onWorkoutVerified({ postId: 'post-old', userId: 'user-1' })
+    await onWorkoutVerified({ postId: 'post-same-day', userId: 'user-1' }, NOW)
 
     expect(repo.updateStreak).not.toHaveBeenCalled()
     expect(repo.persistStreakEvent).not.toHaveBeenCalled()
   })
 
-  it('skips second post on same UTC day (no double increment)', async () => {
-    const sameDayLater = new Date('2024-01-14T18:00:00Z')
-    vi.mocked(repo.getPostCreatedAt).mockResolvedValue(sameDayLater)
-    vi.mocked(repo.getStreakByUserId).mockResolvedValue(ACTIVE_STREAK) // lastVerifiedAt = Jan 14 10:00
+  it('passes post.createdAt to toLocalDateStr — not AI processing time', async () => {
+    vi.mocked(repo.getPostCreatedAt).mockResolvedValue(NOW)
+    vi.mocked(repo.getStreakByUserId).mockResolvedValue(INACTIVE_STREAK)
 
-    await onWorkoutVerified({ postId: 'post-same-day', userId: 'user-1' })
+    await onWorkoutVerified({ postId: 'post-1', userId: 'user-1' }, NOW)
 
-    expect(repo.updateStreak).not.toHaveBeenCalled()
+    expect(repo.getPostCreatedAt).toHaveBeenCalledWith('post-1')
+    expect(recomputeMod.toLocalDateStr).toHaveBeenCalledWith(NOW, 'UTC')
   })
 
-  it('credits a 00:01 post when last post was 23:59 the previous day', async () => {
-    const lateNight = new Date('2024-01-14T23:59:00Z')
-    const earlyNext = new Date('2024-01-15T00:01:00Z')
-    const streakWithLatePost = { ...ACTIVE_STREAK, lastVerifiedAt: lateNight }
-    vi.mocked(repo.getPostCreatedAt).mockResolvedValue(earlyNext)
-    vi.mocked(repo.getStreakByUserId).mockResolvedValue(streakWithLatePost)
+  it('passes the localDate from toLocalDateStr to createDailyCompletion', async () => {
+    vi.mocked(recomputeMod.toLocalDateStr).mockReturnValue('2024-01-15')
+    vi.mocked(repo.getPostCreatedAt).mockResolvedValue(new Date('2024-01-15T00:01:00Z'))
+    vi.mocked(repo.getStreakByUserId).mockResolvedValue(INACTIVE_STREAK)
 
-    await onWorkoutVerified({ postId: 'post-midnight', userId: 'user-1' })
+    await onWorkoutVerified({ postId: 'post-midnight', userId: 'user-1' }, NOW)
 
-    expect(repo.updateStreak).toHaveBeenCalledWith('user-1', expect.objectContaining({ current: 6 }))
+    expect(repo.createDailyCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({ localDate: '2024-01-15' })
+    )
   })
 
   it('does nothing when post not found', async () => {
     vi.mocked(repo.getPostCreatedAt).mockResolvedValue(null)
+    vi.mocked(repo.getStreakByUserId).mockResolvedValue(ACTIVE_STREAK)
 
-    await onWorkoutVerified({ postId: 'ghost-post', userId: 'user-1' })
+    await onWorkoutVerified({ postId: 'ghost-post', userId: 'user-1' }, NOW)
+
+    expect(repo.updateStreak).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when user timezone not found', async () => {
+    vi.mocked(repo.getPostCreatedAt).mockResolvedValue(NOW)
+    vi.mocked(repo.getUserTimezone).mockResolvedValue(null)
+    vi.mocked(repo.getStreakByUserId).mockResolvedValue(ACTIVE_STREAK)
+
+    await onWorkoutVerified({ postId: 'post-1', userId: 'ghost-user' }, NOW)
 
     expect(repo.updateStreak).not.toHaveBeenCalled()
   })
@@ -143,72 +169,81 @@ describe('onWorkoutVerified', () => {
     vi.mocked(repo.getPostCreatedAt).mockResolvedValue(NOW)
     vi.mocked(repo.getStreakByUserId).mockResolvedValue(null)
 
-    await onWorkoutVerified({ postId: 'post-1', userId: 'user-1' })
+    await onWorkoutVerified({ postId: 'post-1', userId: 'user-1' }, NOW)
 
     expect(repo.updateStreak).not.toHaveBeenCalled()
   })
 })
 
 describe('getMyStreak', () => {
-  it('returns full streak response with ISO lastVerifiedAt', async () => {
-    vi.mocked(repo.getStreakByUserId).mockResolvedValue({
-      ...ACTIVE_STREAK,
-      lastVerifiedAt: new Date('2024-01-14T10:00:00Z'),
-    })
+  it('returns v2 shape — no deadline fields, has displayTier + completedToday', async () => {
+    vi.mocked(repo.getStreakByUserId).mockResolvedValue(ACTIVE_STREAK)
+    vi.mocked(repo.hasDailyCompletion).mockResolvedValue(false)
+    vi.mocked(recomputeMod.deriveDisplayTier).mockReturnValue('PENDING_TODAY')
 
-    const result = await getMyStreak('user-1')
+    const result = await getMyStreak('user-1', NOW)
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       current: 5,
       best: 10,
       status: StreakStatus.ACTIVE,
-      lastVerifiedAt: '2024-01-14T10:00:00.000Z',
-      nextDeadline: '2024-01-15T10:00:00.000Z',
-      atRiskAt: '2024-01-15T06:00:00.000Z',
+      lastVerifiedDate: '2024-01-14',
+      completedToday: false,
+      displayTier: 'PENDING_TODAY',
     })
+    expect(result).not.toHaveProperty('nextDeadline')
+    expect(result).not.toHaveProperty('atRiskAt')
+    expect(result).not.toHaveProperty('lastVerifiedAt')
+  })
+
+  it('returns COMPLETED_TODAY when user has a completion for today', async () => {
+    vi.mocked(repo.getStreakByUserId).mockResolvedValue(ACTIVE_STREAK)
+    vi.mocked(repo.hasDailyCompletion).mockResolvedValue(true)
+    vi.mocked(recomputeMod.deriveDisplayTier).mockReturnValue('COMPLETED_TODAY')
+
+    const result = await getMyStreak('user-1', NOW)
+
+    expect(result?.completedToday).toBe(true)
+    expect(result?.displayTier).toBe('COMPLETED_TODAY')
+  })
+
+  it('passes localToday + localHour to deriveDisplayTier', async () => {
+    vi.mocked(repo.getStreakByUserId).mockResolvedValue(ACTIVE_STREAK)
+    vi.mocked(recomputeMod.toLocalDateStr).mockReturnValue('2024-01-15')
+    vi.mocked(recomputeMod.getLocalHour).mockReturnValue(21)
+
+    await getMyStreak('user-1', NOW)
+
+    expect(recomputeMod.deriveDisplayTier).toHaveBeenCalledWith(
+      StreakStatus.ACTIVE,
+      expect.any(Boolean),
+      21
+    )
+  })
+
+  it('returns BROKEN displayTier for BROKEN streak', async () => {
+    vi.mocked(repo.getStreakByUserId).mockResolvedValue(BROKEN_STREAK)
+    vi.mocked(recomputeMod.deriveDisplayTier).mockReturnValue('BROKEN')
+
+    const result = await getMyStreak('user-1', NOW)
+
+    expect(result?.status).toBe(StreakStatus.BROKEN)
+    expect(result?.displayTier).toBe('BROKEN')
+  })
+
+  it('returns INACTIVE displayTier for INACTIVE streak with zero completedToday', async () => {
+    vi.mocked(repo.getStreakByUserId).mockResolvedValue(INACTIVE_STREAK)
+    vi.mocked(recomputeMod.deriveDisplayTier).mockReturnValue('INACTIVE')
+
+    const result = await getMyStreak('user-1', NOW)
+
+    expect(result?.displayTier).toBe('INACTIVE')
+    expect(result?.completedToday).toBe(false)
   })
 
   it('returns null when streak record does not exist', async () => {
     vi.mocked(repo.getStreakByUserId).mockResolvedValue(null)
-    const result = await getMyStreak('user-new')
-    expect(result).toBeNull()
-  })
-
-  it('returns nextDeadline = lastVerifiedAt + 24h for ACTIVE streak', async () => {
-    const lva = new Date('2024-01-14T10:00:00Z')
-    vi.mocked(repo.getStreakByUserId).mockResolvedValue({
-      ...ACTIVE_STREAK,
-      lastVerifiedAt: lva,
-    })
-
-    const result = await getMyStreak('user-1')
-
-    expect(result?.nextDeadline).toBe('2024-01-15T10:00:00.000Z')
-    expect(result?.atRiskAt).toBe('2024-01-15T06:00:00.000Z')
-  })
-
-  it('returns null nextDeadline and atRiskAt for INACTIVE streak', async () => {
-    vi.mocked(repo.getStreakByUserId).mockResolvedValue(INACTIVE_STREAK)
-
-    const result = await getMyStreak('user-1')
-
-    expect(result?.nextDeadline).toBeNull()
-    expect(result?.atRiskAt).toBeNull()
-  })
-
-  it('returns non-null nextDeadline and atRiskAt for BROKEN streak (deadline is in the past)', async () => {
-    const lva = new Date('2024-01-13T10:00:00Z')
-    vi.mocked(repo.getStreakByUserId).mockResolvedValue({
-      ...BROKEN_STREAK,
-      lastVerifiedAt: lva,
-    })
-
-    const result = await getMyStreak('user-1')
-
-    expect(result?.status).toBe(StreakStatus.BROKEN)
-    // deadline and atRiskAt are in the past — timer will show BROKEN / "Reset required"
-    expect(result?.nextDeadline).toBe('2024-01-14T10:00:00.000Z')
-    expect(result?.atRiskAt).toBe('2024-01-14T06:00:00.000Z')
+    expect(await getMyStreak('user-new', NOW)).toBeNull()
   })
 })
 

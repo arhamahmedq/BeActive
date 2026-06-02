@@ -1,72 +1,68 @@
-import { StreakStatus, UserActivityState } from '@prisma/client'
+import { StreakStatus } from '@prisma/client'
 import { logger } from '../../core/logger/index'
 import { EventType } from '../../core/events/index'
-import { applyStreakTransition } from '../../core/state-machines/streak.machine'
 import {
   getStreakByUserId,
   updateStreak,
   persistStreakEvent,
   getPostCreatedAt,
+  getUserTimezone,
+  createDailyCompletion,
+  getCompletionsForUser,
+  hasDailyCompletion,
 } from './streaks.repo'
-import { setActivityState } from '../users/users.service'
+import { recomputeStreak, toLocalDateStr, getLocalHour, deriveDisplayTier } from './recomputeStreak'
 import type { StreakResponse, PublicStreakResponse } from './streaks.types'
 
-function isSameUTCDay(a: Date, b: Date): boolean {
-  return (
-    a.getUTCFullYear() === b.getUTCFullYear() &&
-    a.getUTCMonth() === b.getUTCMonth() &&
-    a.getUTCDate() === b.getUTCDate()
-  )
-}
-
-export async function onWorkoutVerified(params: {
-  postId: string
-  userId: string
-}): Promise<void> {
+// _now is injectable so tests can fix the clock without mocking Date globally.
+export async function onWorkoutVerified(
+  params: { postId: string; userId: string },
+  _now?: Date
+): Promise<void> {
+  const now = _now ?? new Date()
   const { postId, userId } = params
 
-  const postCreatedAt = await getPostCreatedAt(postId)
+  const [postCreatedAt, userTimezone, streak] = await Promise.all([
+    getPostCreatedAt(postId),
+    getUserTimezone(userId),
+    getStreakByUserId(userId),
+  ])
+
   if (!postCreatedAt) {
     logger.error('streaks.service: post not found for streak update', { postId })
     return
   }
-
-  const streak = await getStreakByUserId(userId)
+  if (!userTimezone) {
+    logger.error('streaks.service: user not found for streak update', { userId })
+    return
+  }
   if (!streak) {
     logger.error('streaks.service: streak record not found', { userId })
     return
   }
 
-  // Idempotency: skip if this post is older than or equal to the last credited post
-  if (streak.lastVerifiedAt && postCreatedAt <= streak.lastVerifiedAt) {
-    logger.info('streaks.service: post already credited, skipping', { postId, userId })
+  const localDate = toLocalDateStr(postCreatedAt, userTimezone)
+
+  // DB UNIQUE(userId, localDate) is the idempotency gate: one completion per local calendar day.
+  const inserted = await createDailyCompletion({ userId, localDate, postId, timezone: userTimezone })
+  if (!inserted) {
+    logger.info('streaks.service: already credited for this local date', { userId, localDate })
     return
   }
 
-  // Same UTC day guard: only one streak increment per calendar day
-  if (streak.lastVerifiedAt && isSameUTCDay(postCreatedAt, streak.lastVerifiedAt)) {
-    logger.info('streaks.service: already credited today, skipping', { userId })
-    return
-  }
-
-  const previousStatus = streak.status
-  const newState = applyStreakTransition(
-    { current: streak.current, best: streak.best, status: streak.status },
-    StreakStatus.ACTIVE
-  )
+  const completions = await getCompletionsForUser(userId)
+  const computed = recomputeStreak(completions, userTimezone, now)
 
   await updateStreak(userId, {
-    current: newState.current,
-    best: newState.best,
-    status: StreakStatus.ACTIVE,
-    lastVerifiedAt: postCreatedAt,
+    current: computed.currentStreak,
+    best: computed.bestStreak,
+    status: computed.status,
+    lastVerifiedDate: computed.lastVerifiedDate,
     brokenAt: null,
   })
 
-  await setActivityState(userId, UserActivityState.ACTIVE)
-
   const eventType =
-    previousStatus === StreakStatus.BROKEN
+    streak.status === StreakStatus.BROKEN
       ? EventType.STREAK_RECOVERED
       : EventType.STREAK_UPDATED
 
@@ -74,40 +70,43 @@ export async function onWorkoutVerified(params: {
     type: eventType,
     userId,
     payload: {
-      current: newState.current,
-      best: newState.best,
-      status: StreakStatus.ACTIVE,
+      current: computed.currentStreak,
+      best: computed.bestStreak,
+      status: computed.status,
     },
     source: 'streaks.service',
   })
 
   logger.info('streaks.service: streak updated', {
     userId,
-    current: newState.current,
-    previousStatus,
+    current: computed.currentStreak,
+    previousStatus: streak.status,
     eventType,
   })
 }
 
-export async function getMyStreak(userId: string): Promise<StreakResponse | null> {
-  const streak = await getStreakByUserId(userId)
+export async function getMyStreak(userId: string, _now?: Date): Promise<StreakResponse | null> {
+  const now = _now ?? new Date()
+
+  const [streak, tz] = await Promise.all([
+    getStreakByUserId(userId),
+    getUserTimezone(userId),
+  ])
   if (!streak) return null
 
-  const lastVerifiedAt = streak.lastVerifiedAt
-  const nextDeadline = lastVerifiedAt
-    ? new Date(lastVerifiedAt.getTime() + 24 * 60 * 60 * 1000).toISOString()
-    : null
-  const atRiskAt = lastVerifiedAt
-    ? new Date(lastVerifiedAt.getTime() + 20 * 60 * 60 * 1000).toISOString()
-    : null
+  const userTz = tz ?? 'UTC'
+  const localToday = toLocalDateStr(now, userTz)
+  const localHour = getLocalHour(now, userTz)
+  const completedToday = await hasDailyCompletion(userId, localToday)
+  const displayTier = deriveDisplayTier(streak.status, completedToday, localHour)
 
   return {
     current: streak.current,
     best: streak.best,
     status: streak.status,
-    lastVerifiedAt: lastVerifiedAt?.toISOString() ?? null,
-    nextDeadline,
-    atRiskAt,
+    lastVerifiedDate: streak.lastVerifiedDate,
+    completedToday,
+    displayTier,
   }
 }
 

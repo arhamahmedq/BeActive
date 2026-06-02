@@ -15,7 +15,7 @@ export interface AuthUser {
   username: string
   displayName: string | null
   avatarUrl: string | null
-  activityState: string
+  timezone: string
   onboarded: boolean
   createdAt: Date
 }

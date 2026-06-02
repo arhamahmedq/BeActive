@@ -1,0 +1,21 @@
+{"type":"server-started","port":52724,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:52724","screen_dir":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content","state_dir":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/state"}
+{"type":"screen-added","file":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content/widget-placement.html"}
+{"type":"screen-updated","file":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content/widget-placement.html"}
+{"type":"screen-updated","file":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content/widget-placement.html"}
+{"type":"screen-updated","file":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content/widget-placement.html"}
+{"source":"user-event","type":"click","text":"5\n              day streak\n            \n            \n              Active\n            \n          \n          best: 12\n        \n        \n          You're safe\n          14:32:07\n        \n      \n      Feed content\n    \n    \n      C — Expanded StreakWidget with timer row\n      The existing card grows a second row: color-coded bar with countdown + status text. Separate visual zone.","choice":"c","id":null,"timestamp":1780300021942}
+{"source":"user-event","type":"click","text":"5\n              day streak\n            \n            \n              Active\n            \n          \n          best: 12\n        \n        \n          You're safe\n          14:32:07\n        \n      \n      Feed content\n    \n    \n      C — Expanded StreakWidget with timer row\n      The existing card grows a second row: color-coded bar with countdown + status text. Separate visual zone.","choice":"c","id":null,"timestamp":1780300373029}
+{"type":"screen-added","file":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content/timer-format.html"}
+{"type":"screen-updated","file":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content/timer-format.html"}
+{"type":"screen-updated","file":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content/timer-format.html"}
+{"type":"screen-updated","file":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content/timer-format.html"}
+{"type":"screen-added","file":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content/debug-panel.html"}
+{"type":"screen-updated","file":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content/debug-panel.html"}
+{"type":"screen-updated","file":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content/debug-panel.html"}
+{"type":"screen-updated","file":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content/debug-panel.html"}
+{"type":"screen-updated","file":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content/debug-panel.html"}
+{"type":"screen-added","file":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content/waiting-1.html"}
+{"type":"screen-updated","file":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content/waiting-1.html"}
+{"type":"screen-updated","file":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content/waiting-1.html"}
+{"type":"screen-updated","file":"/Users/arhamahmedfiroz/Documents/Projects/BeActive/.superpowers/brainstorm/9404-1780299859/content/waiting-1.html"}
+{"type":"server-stopped","reason":"idle timeout"}

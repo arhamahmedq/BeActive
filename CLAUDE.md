@@ -1,6 +1,6 @@
 # CLAUDE.md — BeActive Project Bible
 
-> **Last updated:** 2026-06-01 — Slices 0–4 complete, Slice 4 QA 8/8 PASS
+> **Last updated:** 2026-06-01 — Slices 0–4 complete, Slice 4 QA 8/8 PASS; v2 Phases 0–7 complete (streak engine migration DONE)
 > **Purpose:** Master reference for Claude CLI/Code. Read this FIRST before every session.
 > **Rule:** architecture.md wins all contradictions. This file is the index; the /docs/ files are the source of truth.
 
@@ -201,7 +201,8 @@ git push origin main            # Auto-deploys to Vercel production
 │   ├── STATE_MACHINE_REGISTRY.md     # Every state machine: states, transitions, invalid transitions
 │   ├── RULE_REGISTRY.md              # Every business rule: R1-R9, trigger, condition, action
 │   ├── API_CONTRACTS.md              # Every endpoint: request/response shapes, errors
-│   ├── STREAK_ENGINE.md              # Streak system deep dive: edge cases, cron logic
+│   ├── STREAK_ENGINE.md              # Streak system v1 (rolling 24h) — SUPERSEDED, see V2
+│   ├── STREAK_ENGINE_V2.md           # Streak system v2 (calendar-day) — APPROVED, pending impl
 │   ├── AI_BOUNDARY.md                # What AI can/cannot do (the locked box)
 │   ├── FAILURE_MODES.md              # Every failure scenario + recovery
 │   ├── TESTING_STRATEGY.md           # What to test, critical test cases
@@ -688,7 +689,7 @@ When something fails, check in this exact order:
 3. Read the specific docs for the current task:
    - Building a feature? → `goals.md` (scope) + `API_CONTRACTS.md` (endpoints)
    - Database work? → `data_model.md`
-   - Streak logic? → `STREAK_ENGINE.md` + `STATE_MACHINE_REGISTRY.md`
+   - Streak logic? → `STREAK_ENGINE_V2.md` (calendar-day, current direction) + `STATE_MACHINE_REGISTRY.md` (`STREAK_ENGINE.md` = v1 rolling, superseded)
    - Event handling? → `EVENT_CATALOG.md` + `RULE_REGISTRY.md`
    - Security concern? → `security.md`
 
@@ -750,12 +751,30 @@ The goal is for this file to grow from a project blueprint into a comprehensive 
 node --env-file=app/web/.env.local qa-streak.mjs
 # Requires: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY, CRON_SECRET, R2 creds in .env.local
 # Dev server must be running first (npm run dev)
+
+# v2 Phase 0 — Timezone readiness audit (Phase 0 DoD: "Invalid" count = 0)
+npm run audit:timezones
+# Requires: DATABASE_URL in app/web/.env.local (uses Prisma directly, no dev server needed)
+
+# v2 Phase 3 — Backfill historical DailyCompletion rows + recompute Streak projections
+npm run backfill:completions
+# Safe to re-run — idempotent. Run once after deploying Phase 2 to production.
+
+# v2 Phase 3 — Parity validation (Phase 3 DoD: exits 0 with 0 diverged rows)
+npm run validate:parity
+# Run AFTER backfill:completions. Read-only, never writes.
 ```
 
 ### Completed Slice Notes
 - **Slice 2 (Upload):** EXIF stripped client-side via canvas; same-day guard at POST /api/posts/create (not at sign endpoint); R2 upload uses XHR for progress events
 - **Slice 3 (AI):** HuggingFace CLIP dropped — use `AI_PROVIDER=gemini` (default) or `AI_PROVIDER=claude`; gemini-2.5-flash-lite model; confidence ≥ 0.70 = VERIFIED
 - **Slice 4 (Streaks):** Rolling 24h UTC window from lastVerifiedAt; cron at /api/cron/streak-evaluator; AT_RISK at 20h, BROKEN at 24h; useStreak hook with staleTime=30s; upload page invalidates ['streak','me'] on VERIFIED
+- **v2 Phase 0 (TZ Readiness):** `User.timezone` enforced IANA at onboarding (browser auto-detected, user-editable); `/api/users/me` GET+PATCH built; `users` module schema/repo/service/controller scaffolded; `AuthUser` type now includes `timezone`; audit script at `scripts/audit-timezones.mjs`
+- **v2 Phase 1 (Ledger + pure engine):** `DailyCompletion` table added (migration `20260601113359`); `Streak.lastVerifiedDate String?` added; `recomputeStreak(ledger, tz, now)` pure function in `server/modules/streaks/recomputeStreak.ts`; `deriveDisplayTier()`, `toLocalDateStr()`, `getLocalHour()` exported from same file; 53 tests in `tests/unit/streaks/recomputeStreak.test.ts` — all pass; DoD: PASS
+- **v2 Phase 2 (Write path):** `onWorkoutVerified` in `streaks.service.ts` now: (1) calls `getUserTimezone` + `createDailyCompletion` (P2002 idempotency gate replaces UTC same-day guard); (2) fetches full ledger via `getCompletionsForUser`; (3) calls `recomputeStreak` to get projection; (4) writes full v2 result (`current`, `best`, `status`, `lastVerifiedDate`) + `lastVerifiedAt` (kept for cron compat); injectable `_now` param for test clock control; 245 tests pass; DoD: PASS
+- **v2 Phase 3 (Backfill + shadow):** `scripts/backfill-completions.mjs` — idempotent, creates DailyCompletion rows for all VERIFIED posts without one, then recomputes + updates every affected Streak projection; `scripts/validate-streak-parity.mjs` — read-only DoD gate, recomputes all users from ledger and compares against stored values, exits 1 on any divergence; npm scripts `backfill:completions` + `validate:parity`; 11 new unit tests (phase3Parity.test.ts) for parity comparison logic; 256 tests pass; DoD: run `npm run backfill:completions` then `npm run validate:parity` — exit 0 = PASS
+- **v2 Phase 4+5 (Read cutover + UI swap):** `StreakResponse` now returns `{ current, best, status, lastVerifiedDate, completedToday, displayTier }` — no `nextDeadline`/`atRiskAt`/`lastVerifiedAt`; `getMyStreak` fetches tz + calls `hasDailyCompletion` + `deriveDisplayTier`; `StreakWidget` rewritten with tier-based display (5 configs for all DisplayTier values, no countdown); `StreakDebugPanel` updated for v2 fields; `useStreak.ts` StreakData updated; 257 tests pass; DoD: API returns v2 shape, no timer digits in UI
+- **v2 Phase 6+7 (Cron repurpose + full cleanup):** `streakEvaluator.ts` rewritten — uses `lastVerifiedDate` + user tz + `hasDailyCompletion` + `recomputeStreak` guard; no more `lastVerifiedAt`/`activityState`; AT_RISK fires when past EVENING_HOUR + no completion today; BROKEN confirmed via recompute to guard races; schema migration `20260601200000_drop_v1_streak_fields` drops `Streak.lastVerifiedAt`, `User.activityState`, `UserActivityState` enum; `user.machine.ts` deleted; `useStreakTimer.ts` deleted; `setActivityState` removed; `auth.repo.ts` simplified (USER_SELECT const); `activityState` removed from all types/routes/tests; 238 tests pass; DoD: full suite green, rolling-24h code gone
 
 ### Architecture Website
 - `index.html` in `/pitch/` directory → deploy to GitHub Pages for investor walkthroughs

@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -8,27 +8,61 @@ import { FormError } from '@/components/ui/FormError'
 export default function OnboardingPage() {
   const router = useRouter()
   const [displayName, setDisplayName] = useState('')
+  const [timezone, setTimezone] = useState('')
+  const [tzError, setTzError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+
+  // Auto-detect the user's IANA timezone on mount.
+  useEffect(() => {
+    try {
+      const detected = Intl.DateTimeFormat().resolvedOptions().timeZone
+      if (detected) setTimezone(detected)
+    } catch {
+      setTimezone('UTC')
+    }
+  }, [])
+
+  function validateTimezone(tz: string): boolean {
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: tz })
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  function handleTimezoneChange(value: string) {
+    setTimezone(value)
+    if (value && !validateTimezone(value)) {
+      setTzError('Must be a valid IANA timezone (e.g. America/New_York, Europe/London)')
+    } else {
+      setTzError(null)
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setFormError(null)
-    setIsSubmitting(true)
 
+    const tz = timezone.trim() || 'UTC'
+    if (!validateTimezone(tz)) {
+      setTzError('Must be a valid IANA timezone (e.g. America/New_York, Europe/London)')
+      return
+    }
+
+    setIsSubmitting(true)
     try {
       const res = await fetch('/api/users/me', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName: displayName.trim() || null }),
+        body: JSON.stringify({
+          displayName: displayName.trim() || null,
+          timezone: tz,
+        }),
       })
 
       if (!res.ok) {
-        // /api/users/me not built yet (Slice 1 partial) — skip gracefully
-        if (res.status === 404) {
-          router.push('/feed')
-          return
-        }
         const data = await res.json()
         setFormError(data.error?.message ?? 'Could not save profile.')
         return
@@ -36,8 +70,7 @@ export default function OnboardingPage() {
 
       router.push('/feed')
     } catch {
-      // Network error — skip onboarding gracefully
-      router.push('/feed')
+      setFormError('Network error — please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -57,16 +90,31 @@ export default function OnboardingPage() {
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
         />
-        <Button type="submit" isLoading={isSubmitting} className="w-full">
+        <div className="space-y-1">
+          <Input
+            id="timezone"
+            label="Timezone"
+            type="text"
+            placeholder="America/New_York"
+            value={timezone}
+            onChange={(e) => handleTimezoneChange(e.target.value)}
+          />
+          {tzError ? (
+            <p className="text-xs text-red-500">{tzError}</p>
+          ) : timezone ? (
+            <p className="text-xs text-gray-400">
+              Detected: {timezone} — change if incorrect.
+            </p>
+          ) : null}
+        </div>
+        <Button
+          type="submit"
+          isLoading={isSubmitting}
+          disabled={!!tzError}
+          className="w-full"
+        >
           Continue
         </Button>
-        <button
-          type="button"
-          onClick={() => router.push('/feed')}
-          className="w-full text-sm text-gray-400 hover:text-gray-600 py-1"
-        >
-          Skip for now
-        </button>
       </form>
     </div>
   )

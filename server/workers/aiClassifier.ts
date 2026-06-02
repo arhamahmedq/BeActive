@@ -115,7 +115,13 @@ export async function processUploadedPost(params: {
       logger.error('Failed to persist WORKOUT_VERIFIED event', { postId, error: String(e) })
     }
 
-    // R3: Update streak synchronously — uses post.createdAt, not AI processing time
+    // R3: Update the streak via a DIRECT, AWAITED call — NOT through the event bus.
+    // The streak increment is a must-happen state invariant with no reconciliation
+    // path (the cron only breaks streaks, never re-increments). Routing it through
+    // the in-memory bus would make it contingent on a listener being registered on
+    // this exact process/bundle instance — in serverless that is best-effort, and a
+    // miss silently loses the increment forever. Keep this direct and guaranteed.
+    // Uses post.createdAt (inside the service), not AI processing time.
     try {
       await onWorkoutVerified({ postId, userId })
     } catch (e: unknown) {

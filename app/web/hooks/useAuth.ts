@@ -1,12 +1,14 @@
 'use client'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
 import type { AuthUser } from '@/shared/types/auth'
 
 export function useAuth() {
   const { user, isLoading, setUser, setLoading, clearUser } = useAuthStore()
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     // Skip the round-trip if we already have a user in the Zustand store.
@@ -38,6 +40,7 @@ export function useAuth() {
   const signOut = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
     clearUser()
+    queryClient.clear()
     router.push('/login')
   }
 

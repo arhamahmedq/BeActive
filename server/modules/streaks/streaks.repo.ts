@@ -1,6 +1,50 @@
-import { StreakStatus, UserActivityState, Prisma } from '@prisma/client'
+import { StreakStatus, Prisma } from '@prisma/client'
 import { prisma } from '../../../app/web/lib/prisma'
-import type { StreakState, StreakWithUserActivity } from './streaks.types'
+import type { StreakState } from './streaks.types'
+
+export async function getUserTimezone(userId: string): Promise<string | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { timezone: true },
+  })
+  return user?.timezone ?? null
+}
+
+/** Inserts a DailyCompletion row. Returns false on duplicate (same userId + localDate). */
+export async function createDailyCompletion(params: {
+  userId: string
+  localDate: string
+  postId: string
+  timezone: string
+}): Promise<boolean> {
+  try {
+    await prisma.dailyCompletion.create({ data: params })
+    return true
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      return false
+    }
+    throw err
+  }
+}
+
+export async function getCompletionsForUser(
+  userId: string
+): Promise<Array<{ localDate: string }>> {
+  return prisma.dailyCompletion.findMany({
+    where: { userId },
+    select: { localDate: true },
+    orderBy: { localDate: 'asc' },
+  })
+}
+
+export async function hasDailyCompletion(userId: string, localDate: string): Promise<boolean> {
+  const row = await prisma.dailyCompletion.findUnique({
+    where: { userId_localDate: { userId, localDate } },
+    select: { id: true },
+  })
+  return row !== null
+}
 
 export async function getStreakByUserId(userId: string): Promise<StreakState | null> {
   return prisma.streak.findUnique({
@@ -11,7 +55,7 @@ export async function getStreakByUserId(userId: string): Promise<StreakState | n
       current: true,
       best: true,
       status: true,
-      lastVerifiedAt: true,
+      lastVerifiedDate: true,
       brokenAt: true,
     },
   })
@@ -23,7 +67,7 @@ export async function updateStreak(
     current: number
     best: number
     status: StreakStatus
-    lastVerifiedAt: Date
+    lastVerifiedDate?: string | null
     brokenAt?: Date | null
   }
 ): Promise<void> {
@@ -40,19 +84,27 @@ export async function markStreakBroken(userId: string, brokenAt: Date): Promise<
   })
 }
 
-export async function getActiveStreaksForEvaluation(): Promise<StreakWithUserActivity[]> {
-  const rows = await prisma.streak.findMany({
-    where: { status: StreakStatus.ACTIVE, lastVerifiedAt: { not: null } },
+export interface StreakV2ForEvaluation {
+  id: string
+  userId: string
+  current: number
+  status: StreakStatus
+  lastVerifiedDate: string | null
+  user: { timezone: string }
+}
+
+export async function getActiveStreaksV2ForEvaluation(): Promise<StreakV2ForEvaluation[]> {
+  return prisma.streak.findMany({
+    where: { status: StreakStatus.ACTIVE },
     select: {
       id: true,
       userId: true,
       current: true,
       status: true,
-      lastVerifiedAt: true,
-      user: { select: { activityState: true } },
+      lastVerifiedDate: true,
+      user: { select: { timezone: true } },
     },
   })
-  return rows as unknown as StreakWithUserActivity[]
 }
 
 export async function persistStreakEvent(params: {

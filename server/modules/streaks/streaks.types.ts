@@ -1,4 +1,5 @@
-import type { StreakStatus, UserActivityState } from '@prisma/client'
+import type { StreakStatus } from '@prisma/client'
+import type { DisplayTier } from './recomputeStreak'
 
 export interface StreakState {
   id: string
@@ -6,35 +7,23 @@ export interface StreakState {
   current: number
   best: number
   status: StreakStatus
-  lastVerifiedAt: Date | null
+  lastVerifiedDate: string | null
   brokenAt: Date | null
 }
 
-// Returned by GET /api/streaks/me
+// Returned by GET /api/streaks/me — v2 shape
 export interface StreakResponse {
   current: number
   best: number
   status: StreakStatus
-  lastVerifiedAt: string | null
-  nextDeadline: string | null   // lastVerifiedAt + 24h, null when INACTIVE
-  atRiskAt: string | null       // lastVerifiedAt + 20h, null when INACTIVE
+  lastVerifiedDate: string | null  // YYYY-MM-DD in user's tz
+  completedToday: boolean
+  displayTier: DisplayTier
 }
 
-// Returned by GET /api/streaks/:userId (less data — no lastVerifiedAt)
+// Returned by GET /api/streaks/:userId (less data)
 export interface PublicStreakResponse {
   current: number
   best: number
   status: StreakStatus
-}
-
-// Used by streakEvaluator — only ACTIVE streaks with non-null lastVerifiedAt
-export interface StreakWithUserActivity {
-  id: string
-  userId: string
-  current: number
-  status: StreakStatus
-  lastVerifiedAt: Date
-  user: {
-    activityState: UserActivityState
-  }
 }

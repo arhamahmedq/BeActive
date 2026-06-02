@@ -72,7 +72,6 @@ const mockUser = {
   username: 'testuser',
   displayName: null,
   avatarUrl: null,
-  activityState: 'ACTIVE',
   onboarded: false,
   createdAt: new Date(),
 }

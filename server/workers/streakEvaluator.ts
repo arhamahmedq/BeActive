@@ -1,70 +1,105 @@
-import { StreakStatus, UserActivityState } from '@prisma/client'
+import { StreakStatus } from '@prisma/client'
 import { logger } from '../core/logger/index'
 import { EventType } from '../core/events/index'
-import { isValidStreakTransition } from '../core/state-machines/streak.machine'
 import {
-  getActiveStreaksForEvaluation,
+  getActiveStreaksV2ForEvaluation,
   markStreakBroken,
   persistStreakEvent,
+  getCompletionsForUser,
+  hasDailyCompletion,
 } from '../modules/streaks/streaks.repo'
-import { setActivityState } from '../modules/users/users.service'
+import {
+  recomputeStreak,
+  toLocalDateStr,
+  getLocalHour,
+  EVENING_HOUR,
+} from '../modules/streaks/recomputeStreak'
 
-const AT_RISK_THRESHOLD_MS = 20 * 60 * 60 * 1000  // 20 hours
-const BROKEN_THRESHOLD_MS = 24 * 60 * 60 * 1000   // 24 hours
+// YYYY-MM-DD strings are parsed as UTC midnight by JS Date, so arithmetic is safe.
+function localDaysSince(laterDateStr: string, earlierDateStr: string): number {
+  return Math.floor(
+    (new Date(laterDateStr).getTime() - new Date(earlierDateStr).getTime()) / 86_400_000
+  )
+}
 
-export async function evaluateStreaks(): Promise<{ atRisk: number; broken: number }> {
-  const activeStreaks = await getActiveStreaksForEvaluation()
-  const now = Date.now()
+// _now is injectable for deterministic tests.
+export async function evaluateStreaks(
+  _now?: Date
+): Promise<{ atRisk: number; broken: number }> {
+  const now = _now ?? new Date()
+  const activeStreaks = await getActiveStreaksV2ForEvaluation()
   let atRisk = 0
   let broken = 0
 
   for (const streak of activeStreaks) {
-    const elapsedMs = now - streak.lastVerifiedAt.getTime()
+    const tz = streak.user.timezone || 'UTC'
 
-    if (elapsedMs >= BROKEN_THRESHOLD_MS) {
-      // R6: 24h elapsed — break the streak regardless of current activityState
-      if (!isValidStreakTransition(streak.status, StreakStatus.BROKEN)) {
-        logger.error('streakEvaluator: invalid transition to BROKEN', { userId: streak.userId, status: streak.status })
+    if (!streak.lastVerifiedDate) {
+      // ACTIVE streak with no ledger entry — possible if Phase 3 backfill hasn't run yet.
+      // Skip: will self-heal on next verify.
+      continue
+    }
+
+    const localToday = toLocalDateStr(now, tz)
+    const daysSince = localDaysSince(localToday, streak.lastVerifiedDate)
+
+    if (daysSince > 1) {
+      // Full local calendar day missed — recompute to confirm (guards against race conditions
+      // where a verify landed between cron fetch and this point)
+      const completions = await getCompletionsForUser(streak.userId)
+      const v2 = recomputeStreak(completions, tz, now)
+
+      if (v2.status !== StreakStatus.BROKEN) {
+        // User verified after cron fetched the ACTIVE row — ledger now says ACTIVE, skip
         continue
       }
-      const brokenAt = new Date()
-      await markStreakBroken(streak.userId, brokenAt)
-      await setActivityState(streak.userId, UserActivityState.BROKEN)
+
+      await markStreakBroken(streak.userId, now)
       await persistStreakEvent({
         type: EventType.STREAK_BROKEN,
         userId: streak.userId,
-        payload: { finalStreak: streak.current, brokenAt: brokenAt.toISOString() },
+        payload: {
+          finalStreak: streak.current,
+          lastVerifiedDate: streak.lastVerifiedDate,
+        },
         source: 'streak.evaluator',
       })
       logger.info('streakEvaluator: streak broken', {
         userId: streak.userId,
         current: streak.current,
-        elapsedHours: Math.floor(elapsedMs / 3_600_000),
+        lastVerifiedDate: streak.lastVerifiedDate,
+        daysSince,
       })
       broken++
-
-    } else if (
-      elapsedMs >= AT_RISK_THRESHOLD_MS &&
-      streak.user.activityState === UserActivityState.ACTIVE
-    ) {
-      // R5: 20h elapsed and user still ACTIVE — warn once (idempotent via activityState check)
-      await setActivityState(streak.userId, UserActivityState.AT_RISK)
-      await persistStreakEvent({
-        type: EventType.STREAK_AT_RISK,
-        userId: streak.userId,
-        payload: {
-          hoursSinceLastWorkout: Math.floor(elapsedMs / 3_600_000),
-          currentStreak: streak.current,
-        },
-        source: 'streak.evaluator',
-      })
-      logger.info('streakEvaluator: user at risk', {
-        userId: streak.userId,
-        current: streak.current,
-        elapsedHours: Math.floor(elapsedMs / 3_600_000),
-      })
-      atRisk++
+    } else if (daysSince === 1) {
+      // Last verified yesterday — AT_RISK if past EVENING_HOUR and no completion today.
+      // Note: the event can fire multiple times per evening (once per hourly cron run).
+      // Notification deduplication is handled in Slice 7 via idempotency keys.
+      const localHour = getLocalHour(now, tz)
+      if (localHour >= EVENING_HOUR) {
+        const completedToday = await hasDailyCompletion(streak.userId, localToday)
+        if (!completedToday) {
+          await persistStreakEvent({
+            type: EventType.STREAK_AT_RISK,
+            userId: streak.userId,
+            payload: {
+              currentStreak: streak.current,
+              localDate: localToday,
+              localHour,
+            },
+            source: 'streak.evaluator',
+          })
+          logger.info('streakEvaluator: user at risk', {
+            userId: streak.userId,
+            current: streak.current,
+            localDate: localToday,
+            localHour,
+          })
+          atRisk++
+        }
+      }
     }
+    // daysSince === 0: completed today — nothing to do
   }
 
   logger.info('streakEvaluator: evaluation complete', {

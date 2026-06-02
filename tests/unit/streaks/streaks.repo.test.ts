@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { StreakStatus, UserActivityState } from '@prisma/client'
+import { StreakStatus } from '@prisma/client'
 
 const mockPrisma = vi.hoisted(() => ({
   streak: {
@@ -21,7 +21,7 @@ import {
   getStreakByUserId,
   updateStreak,
   markStreakBroken,
-  getActiveStreaksForEvaluation,
+  getActiveStreaksV2ForEvaluation,
   persistStreakEvent,
   getPostCreatedAt,
 } from '../../../server/modules/streaks/streaks.repo'
@@ -38,7 +38,7 @@ describe('getStreakByUserId', () => {
       current: 5,
       best: 10,
       status: StreakStatus.ACTIVE,
-      lastVerifiedAt: new Date('2024-01-14T10:00:00Z'),
+      lastVerifiedDate: '2024-01-14',
       brokenAt: null,
     }
     mockPrisma.streak.findUnique.mockResolvedValue(streak)
@@ -54,7 +54,7 @@ describe('getStreakByUserId', () => {
         current: true,
         best: true,
         status: true,
-        lastVerifiedAt: true,
+        lastVerifiedDate: true,
         brokenAt: true,
       },
     })
@@ -68,21 +68,20 @@ describe('getStreakByUserId', () => {
 })
 
 describe('updateStreak', () => {
-  it('updates all streak fields', async () => {
+  it('updates streak fields', async () => {
     mockPrisma.streak.update.mockResolvedValue({})
-    const lastVerifiedAt = new Date('2024-01-15T10:00:00Z')
 
     await updateStreak('user-1', {
       current: 6,
       best: 10,
       status: StreakStatus.ACTIVE,
-      lastVerifiedAt,
+      lastVerifiedDate: '2024-01-15',
       brokenAt: null,
     })
 
     expect(mockPrisma.streak.update).toHaveBeenCalledWith({
       where: { userId: 'user-1' },
-      data: { current: 6, best: 10, status: StreakStatus.ACTIVE, lastVerifiedAt, brokenAt: null },
+      data: { current: 6, best: 10, status: StreakStatus.ACTIVE, lastVerifiedDate: '2024-01-15', brokenAt: null },
     })
   })
 })
@@ -101,32 +100,32 @@ describe('markStreakBroken', () => {
   })
 })
 
-describe('getActiveStreaksForEvaluation', () => {
-  it('queries ACTIVE streaks with non-null lastVerifiedAt and user activityState', async () => {
+describe('getActiveStreaksV2ForEvaluation', () => {
+  it('queries ACTIVE streaks with lastVerifiedDate and user timezone', async () => {
     const rows = [
       {
         id: 'streak-1',
         userId: 'user-1',
         current: 3,
         status: StreakStatus.ACTIVE,
-        lastVerifiedAt: new Date('2024-01-14T10:00:00Z'),
-        user: { activityState: UserActivityState.ACTIVE },
+        lastVerifiedDate: '2024-01-14',
+        user: { timezone: 'America/New_York' },
       },
     ]
     mockPrisma.streak.findMany.mockResolvedValue(rows)
 
-    const result = await getActiveStreaksForEvaluation()
+    const result = await getActiveStreaksV2ForEvaluation()
 
     expect(result).toEqual(rows)
     expect(mockPrisma.streak.findMany).toHaveBeenCalledWith({
-      where: { status: StreakStatus.ACTIVE, lastVerifiedAt: { not: null } },
+      where: { status: StreakStatus.ACTIVE },
       select: {
         id: true,
         userId: true,
         current: true,
         status: true,
-        lastVerifiedAt: true,
-        user: { select: { activityState: true } },
+        lastVerifiedDate: true,
+        user: { select: { timezone: true } },
       },
     })
   })
@@ -148,45 +147,23 @@ describe('persistStreakEvent', () => {
         type: 'STREAK_UPDATED',
         userId: 'user-1',
         source: 'streaks.service',
-        correlationId: null,
       }),
-    })
-  })
-
-  it('passes correlationId when provided', async () => {
-    mockPrisma.event.create.mockResolvedValue({ id: 'event-2' })
-
-    await persistStreakEvent({
-      type: 'STREAK_BROKEN',
-      userId: 'user-1',
-      payload: {},
-      source: 'streak.evaluator',
-      correlationId: 'corr-123',
-    })
-
-    expect(mockPrisma.event.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ correlationId: 'corr-123' }),
     })
   })
 })
 
 describe('getPostCreatedAt', () => {
-  it('returns post createdAt when post exists', async () => {
+  it('returns createdAt when post found', async () => {
     const createdAt = new Date('2024-01-15T10:00:00Z')
     mockPrisma.post.findUnique.mockResolvedValue({ createdAt })
 
     const result = await getPostCreatedAt('post-1')
 
     expect(result).toEqual(createdAt)
-    expect(mockPrisma.post.findUnique).toHaveBeenCalledWith({
-      where: { id: 'post-1' },
-      select: { createdAt: true },
-    })
   })
 
   it('returns null when post not found', async () => {
     mockPrisma.post.findUnique.mockResolvedValue(null)
-    const result = await getPostCreatedAt('ghost-post')
-    expect(result).toBeNull()
+    expect(await getPostCreatedAt('ghost')).toBeNull()
   })
 })

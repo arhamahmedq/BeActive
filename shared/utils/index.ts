@@ -1,6 +1,8 @@
 // Pure utility functions with no side effects
 // Populated as needed
 
+export { isValidIANATimezone } from './timezone.js'
+
 export function formatDate(date: Date): string {
   return date.toISOString()
 }

@@ -1,13 +1,15 @@
 'use client'
 import { useQuery } from '@tanstack/react-query'
 
+export type DisplayTier = 'COMPLETED_TODAY' | 'PENDING_TODAY' | 'AT_RISK' | 'BROKEN' | 'INACTIVE'
+
 export interface StreakData {
   current: number
   best: number
   status: 'INACTIVE' | 'ACTIVE' | 'BROKEN'
-  lastVerifiedAt: string | null
-  nextDeadline: string | null
-  atRiskAt: string | null
+  lastVerifiedDate: string | null  // YYYY-MM-DD in user's tz
+  completedToday: boolean
+  displayTier: DisplayTier
 }
 
 export function useStreak() {

@@ -52,12 +52,26 @@ interface DomainEvent {
 
 ### STREAK EVENTS
 
+> ⚠️ **REDESIGNED (2026-06-01)** for the calendar-day model — see `STREAK_ENGINE_V2.md` §7.
+> Changes in v2:
+> - **NEW** `DAILY_COMPLETION_RECORDED` (authoritative fact) is emitted when a `DailyCompletion`
+>   ledger row is created (first verified workout of a user's local date).
+> - `STREAK_UPDATED` payload gains `reason: STARTED | CONTINUED | RESET` and collapses the
+>   need for separate INCREMENTED/RESET/RECOVERED events. `STREAK_RECOVERED` is folded into
+>   `STREAK_UPDATED {reason: RESET}`.
+> - `STREAK_AT_RISK` becomes **notification-only**, idempotent per `(userId, localDate)`;
+>   its payload is time-of-day driven, not `hoursSinceLastWorkout`.
+> - `STREAK_BROKEN` source is the repurposed cron (notifications + analytics finalization);
+>   correctness no longer depends on it (status is recomputed on read).
+> The v1 rows below are retained for shadow-migration reference.
+
 | Type | Source | Payload | Consumers | Async? |
 |------|--------|---------|-----------|--------|
-| `STREAK_UPDATED` | streaks.service | `{ userId, current, best, status }` | feed (streak boost), notifications | No |
-| `STREAK_AT_RISK` | streak.worker (cron) | `{ userId, hoursSinceLastWorkout, currentStreak }` | notifications (urgent push) | Yes |
+| `DAILY_COMPLETION_RECORDED` *(v2)* | streaks.service | `{ userId, localDate, postId }` | notifications, feed, streak recompute | No |
+| `STREAK_UPDATED` | streaks.service | v1: `{ userId, current, best, status }` · v2: `{ userId, currentStreak, bestStreak, status, reason }` | feed (streak boost), notifications | No |
+| `STREAK_AT_RISK` | streak.worker (cron) | v1: `{ userId, hoursSinceLastWorkout, currentStreak }` · v2: `{ userId, localDate, currentStreak }` | notifications (urgent push) | Yes |
 | `STREAK_BROKEN` | streak.worker (cron) | `{ userId, finalStreak, brokenAt }` | notifications, feed | No |
-| `STREAK_RECOVERED` | streaks.service | `{ userId, newStreak }` | notifications | No |
+| `STREAK_RECOVERED` *(v1 only — folded into STREAK_UPDATED in v2)* | streaks.service | `{ userId, newStreak }` | notifications | No |
 
 ### FEED EVENTS
 

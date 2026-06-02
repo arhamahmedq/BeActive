@@ -1,4 +1,9 @@
-# STREAK_ENGINE.md — BeActive Streak System v2.0
+# STREAK_ENGINE.md — BeActive Streak System (v1, rolling 24h)
+
+> ⚠️ **SUPERSEDED (2026-06-01) by `STREAK_ENGINE_V2.md`** (calendar-day model, APPROVED).
+> This document describes the rolling-24h system currently in code. It is retained for
+> shadow-migration reference until v2 migration Phase 7 completes. For all new design and
+> implementation decisions, `STREAK_ENGINE_V2.md` is the source of truth.
 
 > **Purpose:** Complete specification of the streak system — the single most important retention mechanic.
 

@@ -16,6 +16,14 @@
 
 ## MACHINE 1: USER ACTIVITY STATE
 
+> ⚠️ **SUPERSEDED (2026-06-01)** by the calendar-day redesign in `STREAK_ENGINE_V2.md`.
+> In v2 this machine is **retired**: `users.activityState` is no longer used for streak
+> logic. The single durable lifecycle lives on `streaks.status` (Machine 3 v2), and
+> `AT_RISK` becomes a *derived display tier* (from `completedToday` + local time-of-day),
+> not a persisted state. The column is kept through migration and dropped in Phase 7.
+> The definition below describes the v1 rolling-24h system, retained for shadow-migration
+> reference only.
+
 **Owner:** streaks module
 **DB field:** `users.activityState`
 **Enum:** `UserActivityState { ACTIVE, AT_RISK, BROKEN }`
@@ -90,6 +98,16 @@
 ---
 
 ## MACHINE 3: STREAK LIFECYCLE
+
+> ⚠️ **REDESIGNED (2026-06-01)** — see `STREAK_ENGINE_V2.md` §4 for the authoritative v2 spec.
+> States are unchanged (`INACTIVE → ACTIVE ⇄ BROKEN`), but in v2:
+> - `status` is a **projection** of the `DailyCompletion` ledger — only ever *set to the
+>   recomputed value*, never nudged imperatively.
+> - Transitions are driven by **local-calendar-day** arithmetic, not a rolling 24h window:
+>   increment when `completion.localDate == lastVerifiedDate + 1`; break when
+>   `currentLocalDate(user.tz) > lastVerifiedDate + 1`.
+> - `lastVerifiedDate` (`DATE`) replaces `lastVerifiedAt` (`DateTime`) for streak logic.
+> The v1 table below (rolling-24h, `lastVerifiedAt`-based) is retained for migration reference.
 
 **Owner:** streaks module
 **DB field:** `streaks.status`
