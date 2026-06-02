@@ -25,3 +25,6 @@ node_modules/.prisma/
 # Test artifacts
 playwright-report/
 test-results/
+
+# Superpowers tool (ephemeral brainstorm/server files)
+.superpowers/
