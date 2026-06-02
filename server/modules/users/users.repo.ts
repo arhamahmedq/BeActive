@@ -18,9 +18,21 @@ export async function getUserById(userId: string): Promise<UserProfile | null> {
   })
 }
 
+/** Current state of the timezone-change throttle window for a user. */
+export async function getTimezoneThrottleState(
+  userId: string
+): Promise<{ tzChangedAt: Date | null; tzChangeCount: number } | null> {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: { tzChangedAt: true, tzChangeCount: true },
+  })
+}
+
 export async function updateUserProfile(
   userId: string,
-  data: UpdateProfileInput
+  data: UpdateProfileInput,
+  // Optional throttle bookkeeping — set only when the timezone actually changes.
+  throttle?: { tzChangedAt: Date; tzChangeCount: number }
 ): Promise<UserProfile> {
   return prisma.user.update({
     where: { id: userId },
@@ -28,6 +40,7 @@ export async function updateUserProfile(
       ...(data.displayName !== undefined && { displayName: data.displayName }),
       ...(data.timezone !== undefined && { timezone: data.timezone }),
       ...(data.bio !== undefined && { bio: data.bio }),
+      ...(throttle && { tzChangedAt: throttle.tzChangedAt, tzChangeCount: throttle.tzChangeCount }),
       onboarded: true,
     },
     select: {

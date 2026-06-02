@@ -1,3 +1,5 @@
+import { Prisma } from '@prisma/client'
+import { prisma } from '../../../app/web/lib/prisma'
 import { logger } from '../../core/logger/index'
 import { EventType } from '../../core/events/index'
 import {
@@ -13,52 +15,80 @@ import {
 import { recomputeStreak, toLocalDateStr, getLocalHour, deriveDisplayTier } from './recomputeStreak'
 import type { StreakResponse, PublicStreakResponse } from './streaks.types'
 
-// _now is injectable so tests can fix the clock without mocking Date globally.
+/**
+ * THE single streak-mutation function. Reads its inputs and writes the
+ * completion + projection through the supplied query runner `db`.
+ *
+ * In production `db` is the SHARED transaction client opened by the AI worker,
+ * so the post-verification, the DailyCompletion insert, and the Streak update
+ * all commit or roll back together — there is no longer any "best-effort"
+ * window where a VERIFIED post can exist with no streak credit.
+ *
+ * Failure policy: a missing prerequisite (post / user / streak) THROWS rather
+ * than returning quietly. Inside the worker's transaction that throw rolls the
+ * whole unit back (post stays PENDING) — no partial state, no silent failure.
+ *
+ * `_now` is injectable so tests can fix the clock without mocking Date globally.
+ */
 export async function onWorkoutVerified(
   params: { postId: string; userId: string },
-  _now?: Date
+  _now?: Date,
+  db: Prisma.TransactionClient | typeof prisma = prisma
 ): Promise<void> {
   const now = _now ?? new Date()
   const { postId, userId } = params
 
   const [postCreatedAt, userTimezone, streak] = await Promise.all([
-    getPostCreatedAt(postId),
-    getUserTimezone(userId),
-    getStreakByUserId(userId),
+    getPostCreatedAt(postId, db),
+    getUserTimezone(userId, db),
+    getStreakByUserId(userId, db),
   ])
 
   if (!postCreatedAt) {
-    logger.error('streaks.service: post not found for streak update', { postId })
-    return
+    throw new Error(`streaks.service: post not found for streak update (postId=${postId})`)
   }
   if (!userTimezone) {
-    logger.error('streaks.service: user not found for streak update', { userId })
-    return
+    throw new Error(`streaks.service: user not found for streak update (userId=${userId})`)
   }
   if (!streak) {
-    logger.error('streaks.service: streak record not found', { userId })
-    return
+    throw new Error(`streaks.service: streak record not found (userId=${userId})`)
   }
 
   const localDate = toLocalDateStr(postCreatedAt, userTimezone)
 
-  // DB UNIQUE(userId, localDate) is the idempotency gate: one completion per local calendar day.
-  const inserted = await createDailyCompletion({ userId, localDate, postId, timezone: userTimezone })
-  if (!inserted) {
-    logger.info('streaks.service: already credited for this local date', { userId, localDate })
+  // Monotonic gate. A verified workout may only ADVANCE the streak to a strictly
+  // later local day. If localDate <= lastVerifiedDate the day is either already
+  // credited (==) or the user moved their clock/timezone backward (<). In both
+  // cases the streak must NOT change — but the post is still a legitimate
+  // verified workout, so we return WITHOUT throwing and the surrounding
+  // transaction still commits markPostVerified. The DailyCompletion
+  // UNIQUE(userId, localDate) constraint remains the final backstop against a
+  // concurrent double-credit (a P2002 there rolls the whole transaction back).
+  if (streak.lastVerifiedDate !== null && localDate <= streak.lastVerifiedDate) {
+    logger.info('streaks.service: workout does not advance the local day — streak unchanged', {
+      userId,
+      localDate,
+      lastVerifiedDate: streak.lastVerifiedDate,
+    })
     return
   }
 
-  const completions = await getCompletionsForUser(userId)
+  await createDailyCompletion({ userId, localDate, postId, timezone: userTimezone }, db)
+
+  const completions = await getCompletionsForUser(userId, db)
   const computed = recomputeStreak(completions, userTimezone, now)
 
-  await updateStreak(userId, {
-    current: computed.currentStreak,
-    best: computed.bestStreak,
-    status: computed.status,
-    lastVerifiedDate: computed.lastVerifiedDate,
-    brokenAt: null,
-  })
+  await updateStreak(
+    userId,
+    {
+      current: computed.currentStreak,
+      best: computed.bestStreak,
+      status: computed.status,
+      lastVerifiedDate: computed.lastVerifiedDate,
+      brokenAt: null,
+    },
+    db
+  )
 
   // Classify the event from the ACTUAL recomputed transition — never from the
   // stored streak.status. In v2, BROKEN is applied asynchronously by the hourly
@@ -77,16 +107,19 @@ export async function onWorkoutVerified(
     ? EventType.STREAK_RECOVERED
     : EventType.STREAK_UPDATED
 
-  await persistStreakEvent({
-    type: eventType,
-    userId,
-    payload: {
-      current: computed.currentStreak,
-      best: computed.bestStreak,
-      status: computed.status,
+  await persistStreakEvent(
+    {
+      type: eventType,
+      userId,
+      payload: {
+        current: computed.currentStreak,
+        best: computed.bestStreak,
+        status: computed.status,
+      },
+      source: 'streaks.service',
     },
-    source: 'streaks.service',
-  })
+    db
+  )
 
   logger.info('streaks.service: streak updated', {
     userId,

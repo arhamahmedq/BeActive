@@ -37,6 +37,12 @@ vi.mock('../../server/modules/streaks/recomputeStreak', () => ({
 vi.mock('../../server/core/logger/index', () => ({
   logger: { info: vi.fn(), error: vi.fn() },
 }))
+// The verify path now runs inside prisma.$transaction. Stub it to invoke the
+// callback with a fake tx — keeps this a pure wiring test (no live DB) while the
+// direct-call contract (no event bus) is still what's being pinned.
+vi.mock('../../app/web/lib/prisma', () => ({
+  prisma: { $transaction: vi.fn((cb: (tx: unknown) => unknown) => cb({})) },
+}))
 
 import { processUploadedPost } from '../../server/workers/aiClassifier'
 import * as aiService from '../../server/modules/ai/ai.service'
@@ -81,7 +87,7 @@ beforeEach(() => {
   vi.mocked(streakRepo.getPostCreatedAt).mockResolvedValue(POST_CREATED_AT)
   vi.mocked(streakRepo.getStreakByUserId).mockResolvedValue(NEW_USER_STREAK)
   vi.mocked(streakRepo.getUserTimezone).mockResolvedValue('UTC')
-  vi.mocked(streakRepo.createDailyCompletion).mockResolvedValue(true)
+  vi.mocked(streakRepo.createDailyCompletion).mockResolvedValue(undefined)
   vi.mocked(streakRepo.getCompletionsForUser).mockResolvedValue([{ localDate: '2024-01-15' }])
   vi.mocked(streakRepo.updateStreak).mockResolvedValue(undefined)
   vi.mocked(streakRepo.persistStreakEvent).mockResolvedValue(undefined)
@@ -106,10 +112,12 @@ describe('processUploadedPost — new user (streak = 0), no bus listener registe
         status: StreakStatus.ACTIVE,
         lastVerifiedDate: '2024-01-15',
         brokenAt: null,
-      })
+      }),
+      expect.anything()
     )
     expect(streakRepo.persistStreakEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'STREAK_UPDATED', userId: 'user-new' })
+      expect.objectContaining({ type: 'STREAK_UPDATED', userId: 'user-new' }),
+      expect.anything()
     )
   })
 
@@ -120,12 +128,10 @@ describe('processUploadedPost — new user (streak = 0), no bus listener registe
       userId: 'user-new',
     })
 
-    expect(streakRepo.createDailyCompletion).toHaveBeenCalledWith({
-      userId: 'user-new',
-      localDate: '2024-01-15',
-      postId: 'post-1',
-      timezone: 'UTC',
-    })
+    expect(streakRepo.createDailyCompletion).toHaveBeenCalledWith(
+      { userId: 'user-new', localDate: '2024-01-15', postId: 'post-1', timezone: 'UTC' },
+      expect.anything()
+    )
   })
 
   it('uses post.createdAt to compute localDate for the completion', async () => {
@@ -135,9 +141,10 @@ describe('processUploadedPost — new user (streak = 0), no bus listener registe
       userId: 'user-new',
     })
 
-    expect(streakRepo.getPostCreatedAt).toHaveBeenCalledWith('post-1')
+    expect(streakRepo.getPostCreatedAt).toHaveBeenCalledWith('post-1', expect.anything())
     expect(streakRepo.createDailyCompletion).toHaveBeenCalledWith(
-      expect.objectContaining({ postId: 'post-1' })
+      expect.objectContaining({ postId: 'post-1' }),
+      expect.anything()
     )
   })
 
@@ -150,12 +157,22 @@ describe('processUploadedPost — new user (streak = 0), no bus listener registe
     })
 
     expect(aiRepo.persistClassificationEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'WORKOUT_VERIFIED', userId: 'user-new' })
+      expect.objectContaining({ type: 'WORKOUT_VERIFIED', userId: 'user-new' }),
+      expect.anything()
     )
   })
 
-  it('skips streak update when completion for that local date already exists', async () => {
-    vi.mocked(streakRepo.createDailyCompletion).mockResolvedValue(false)
+  it('skips streak update when the local day is not after lastVerifiedDate (monotonic gate)', async () => {
+    // Streak already credited for today's local date ('2024-01-15' from the
+    // mocked toLocalDateStr) → the monotonic gate short-circuits before any
+    // completion insert or streak write, but does not throw (post stays verified).
+    vi.mocked(streakRepo.getStreakByUserId).mockResolvedValue({
+      ...NEW_USER_STREAK,
+      current: 1,
+      best: 1,
+      status: StreakStatus.ACTIVE,
+      lastVerifiedDate: '2024-01-15',
+    })
 
     await processUploadedPost({
       postId: 'post-1',
@@ -163,6 +180,7 @@ describe('processUploadedPost — new user (streak = 0), no bus listener registe
       userId: 'user-new',
     })
 
+    expect(streakRepo.createDailyCompletion).not.toHaveBeenCalled()
     expect(streakRepo.updateStreak).not.toHaveBeenCalled()
   })
 })

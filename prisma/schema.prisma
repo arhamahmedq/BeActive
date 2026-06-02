@@ -16,6 +16,10 @@ model User {
   avatarUrl     String?
   bio           String?  @db.VarChar(160)
   timezone      String   @default("UTC")
+  // Timezone-change throttle: anchor of the current 24h window + count of
+  // changes within it. Caps how often "today" can be redefined (anti-cheat).
+  tzChangedAt   DateTime?
+  tzChangeCount Int      @default(0)
   role          UserRole @default(USER)
   onboarded     Boolean  @default(false)
   createdAt     DateTime @default(now())

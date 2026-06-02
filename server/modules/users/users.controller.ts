@@ -4,7 +4,13 @@ import { createClient } from '../../../app/web/lib/supabase/server'
 import { getSession } from '../auth/auth.service'
 import { getProfile, updateProfile } from './users.service'
 import { updateProfileSchema } from './users.schema'
-import { toErrorResponse, UnauthorizedError, ValidationError } from '../../core/errors/AppError'
+import {
+  toErrorResponse,
+  isAppError,
+  UnauthorizedError,
+  ValidationError,
+  InternalError,
+} from '../../core/errors/AppError'
 import { logger } from '../../core/logger/index'
 
 export async function handleGetMe(_request: NextRequest): Promise<NextResponse> {
@@ -44,7 +50,12 @@ export async function handleUpdateMe(request: NextRequest): Promise<NextResponse
     const updated = await updateProfile(sessionUser.id, parsed.data)
     return NextResponse.json({ user: updated })
   } catch (err) {
+    // Surface domain errors with their real status (e.g. 429 from the timezone
+    // throttle, 404 for a missing user) instead of masking everything as 401.
+    if (isAppError(err)) {
+      return NextResponse.json(toErrorResponse(err), { status: err.statusCode })
+    }
     logger.error('PATCH /api/users/me failed', { error: String(err) })
-    return NextResponse.json(toErrorResponse(new UnauthorizedError()), { status: 401 })
+    return NextResponse.json(toErrorResponse(new InternalError()), { status: 500 })
   }
 }

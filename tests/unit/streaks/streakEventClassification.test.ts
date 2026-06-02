@@ -25,7 +25,7 @@ function ledger(...dates: string[]): Array<{ localDate: string }> {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(repo.getUserTimezone).mockResolvedValue('UTC')
-  vi.mocked(repo.createDailyCompletion).mockResolvedValue(true)
+  vi.mocked(repo.createDailyCompletion).mockResolvedValue(undefined)
   vi.mocked(repo.updateStreak).mockResolvedValue(undefined)
   vi.mocked(repo.persistStreakEvent).mockResolvedValue(undefined)
 })
@@ -49,7 +49,7 @@ describe('onWorkoutVerified — event must reflect the ACTUAL transition, not th
     await onWorkoutVerified({ postId: 'p-jan13', userId: 'u1' }, now)
 
     // The count correctly restarts at 1 (best run of 5 preserved) ...
-    expect(repo.updateStreak).toHaveBeenCalledWith('u1', expect.objectContaining({ current: 1, best: 5 }))
+    expect(repo.updateStreak).toHaveBeenCalledWith('u1', expect.objectContaining({ current: 1, best: 5 }), expect.anything())
     // ... and the emitted event must say the streak lapsed & restarted, NOT continued.
     expect(emittedEventType()).toBe('STREAK_RECOVERED')
   })
@@ -65,7 +65,7 @@ describe('onWorkoutVerified — event must reflect the ACTUAL transition, not th
 
     await onWorkoutVerified({ postId: 'p-jan13', userId: 'u1' }, now)
 
-    expect(repo.updateStreak).toHaveBeenCalledWith('u1', expect.objectContaining({ current: 2 }))
+    expect(repo.updateStreak).toHaveBeenCalledWith('u1', expect.objectContaining({ current: 2 }), expect.anything())
     expect(emittedEventType()).toBe('STREAK_UPDATED')
   })
 
@@ -80,7 +80,7 @@ describe('onWorkoutVerified — event must reflect the ACTUAL transition, not th
 
     await onWorkoutVerified({ postId: 'p-first', userId: 'u1' }, now)
 
-    expect(repo.updateStreak).toHaveBeenCalledWith('u1', expect.objectContaining({ current: 1 }))
+    expect(repo.updateStreak).toHaveBeenCalledWith('u1', expect.objectContaining({ current: 1 }), expect.anything())
     expect(emittedEventType()).toBe('STREAK_UPDATED')
   })
 
@@ -97,7 +97,7 @@ describe('onWorkoutVerified — event must reflect the ACTUAL transition, not th
 
     await onWorkoutVerified({ postId: 'p-jan13', userId: 'u1' }, now)
 
-    expect(repo.updateStreak).toHaveBeenCalledWith('u1', expect.objectContaining({ current: 1, best: 7 }))
+    expect(repo.updateStreak).toHaveBeenCalledWith('u1', expect.objectContaining({ current: 1, best: 7 }), expect.anything())
     expect(emittedEventType()).toBe('STREAK_RECOVERED')
   })
 })

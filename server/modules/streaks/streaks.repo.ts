@@ -2,36 +2,39 @@ import { StreakStatus, Prisma } from '@prisma/client'
 import { prisma } from '../../../app/web/lib/prisma'
 import type { StreakState } from './streaks.types'
 
-export async function getUserTimezone(userId: string): Promise<string | null> {
-  const user = await prisma.user.findUnique({
+// A query runner that is either the singleton client or a transaction client.
+// Threading this through every repo lets the verify→streak flow execute as ONE
+// atomic transaction (callers pass `tx`); standalone callers get the default.
+type Db = Prisma.TransactionClient | typeof prisma
+
+export async function getUserTimezone(userId: string, db: Db = prisma): Promise<string | null> {
+  const user = await db.user.findUnique({
     where: { id: userId },
     select: { timezone: true },
   })
   return user?.timezone ?? null
 }
 
-/** Inserts a DailyCompletion row. Returns false on duplicate (same userId + localDate). */
-export async function createDailyCompletion(params: {
-  userId: string
-  localDate: string
-  postId: string
-  timezone: string
-}): Promise<boolean> {
-  try {
-    await prisma.dailyCompletion.create({ data: params })
-    return true
-  } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      return false
-    }
-    throw err
-  }
+/**
+ * Inserts a DailyCompletion row. Does NOT swallow the UNIQUE(userId, localDate)
+ * violation: inside a transaction a caught constraint error would leave the
+ * transaction in an aborted state, so a P2002 here must propagate and roll the
+ * whole transaction back. Same-day idempotency is enforced upstream by the
+ * monotonic localDate gate in streaks.service; this constraint is the final
+ * backstop against a concurrent double-credit race.
+ */
+export async function createDailyCompletion(
+  params: { userId: string; localDate: string; postId: string; timezone: string },
+  db: Db = prisma
+): Promise<void> {
+  await db.dailyCompletion.create({ data: params })
 }
 
 export async function getCompletionsForUser(
-  userId: string
+  userId: string,
+  db: Db = prisma
 ): Promise<Array<{ localDate: string }>> {
-  return prisma.dailyCompletion.findMany({
+  return db.dailyCompletion.findMany({
     where: { userId },
     select: { localDate: true },
     orderBy: { localDate: 'asc' },
@@ -46,8 +49,11 @@ export async function hasDailyCompletion(userId: string, localDate: string): Pro
   return row !== null
 }
 
-export async function getStreakByUserId(userId: string): Promise<StreakState | null> {
-  return prisma.streak.findUnique({
+export async function getStreakByUserId(
+  userId: string,
+  db: Db = prisma
+): Promise<StreakState | null> {
+  return db.streak.findUnique({
     where: { userId },
     select: {
       id: true,
@@ -69,9 +75,10 @@ export async function updateStreak(
     status: StreakStatus
     lastVerifiedDate?: string | null
     brokenAt?: Date | null
-  }
+  },
+  db: Db = prisma
 ): Promise<void> {
-  await prisma.streak.update({
+  await db.streak.update({
     where: { userId },
     data,
   })
@@ -107,14 +114,17 @@ export async function getActiveStreaksV2ForEvaluation(): Promise<StreakV2ForEval
   })
 }
 
-export async function persistStreakEvent(params: {
-  type: string
-  userId: string
-  payload: Record<string, unknown>
-  source: string
-  correlationId?: string
-}): Promise<void> {
-  await prisma.event.create({
+export async function persistStreakEvent(
+  params: {
+    type: string
+    userId: string
+    payload: Record<string, unknown>
+    source: string
+    correlationId?: string
+  },
+  db: Db = prisma
+): Promise<void> {
+  await db.event.create({
     data: {
       type: params.type,
       userId: params.userId,
@@ -125,8 +135,8 @@ export async function persistStreakEvent(params: {
   })
 }
 
-export async function getPostCreatedAt(postId: string): Promise<Date | null> {
-  const post = await prisma.post.findUnique({
+export async function getPostCreatedAt(postId: string, db: Db = prisma): Promise<Date | null> {
+  const post = await db.post.findUnique({
     where: { id: postId },
     select: { createdAt: true },
   })

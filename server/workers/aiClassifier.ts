@@ -1,4 +1,5 @@
 import { PostStatus } from '@prisma/client'
+import { prisma } from '../../app/web/lib/prisma'
 import { logger } from '../core/logger/index'
 import { EventType } from '../core/events/index'
 import { classifyImage } from '../modules/ai/ai.service'
@@ -99,33 +100,39 @@ export async function processUploadedPost(params: {
   })
 
   if (decision === 'VERIFIED') {
-    // Rule R1 — confidence >= 0.70 → VERIFIED
-    const workoutId = await markPostVerified(postId, result)
-    // Awaited so Slice 4 (Streak Engine) reliably sees WORKOUT_VERIFIED in the event log.
-    // Caught so a DB failure here doesn't unwind the already-committed post status.
+    // Rule R1 + R3 as ONE atomic unit. The post flip to VERIFIED, the
+    // WORKOUT_VERIFIED event, and the streak completion + projection all commit
+    // together or not at all. This closes the former best-effort gap where a
+    // VERIFIED post could end up with no streak credit because a later step
+    // failed and its error was swallowed.
+    //
+    // If the transaction throws (any step fails, including the streak update or
+    // a concurrent same-day DailyCompletion race), EVERYTHING rolls back: the
+    // post is left PENDING — never VERIFIED-without-streak. A PENDING post is
+    // recoverable (the upload UI's "still checking" path / a re-classification);
+    // a silently uncredited streak is not. Correctness over convenience.
+    //
+    // Streak update uses post.createdAt (inside the service), not AI time.
     try {
-      await persistClassificationEvent({
-        type: EventType.WORKOUT_VERIFIED,
-        userId,
-        payload: { postId, workoutId, type: result.type, confidence: result.confidence, modelVersion: result.modelVersion },
-        source: 'ai.worker',
-        correlationId,
+      await prisma.$transaction(async (tx) => {
+        const workoutId = await markPostVerified(postId, result, tx)
+        await persistClassificationEvent(
+          {
+            type: EventType.WORKOUT_VERIFIED,
+            userId,
+            payload: { postId, workoutId, type: result.type, confidence: result.confidence, modelVersion: result.modelVersion },
+            source: 'ai.worker',
+            correlationId,
+          },
+          tx
+        )
+        await onWorkoutVerified({ postId, userId }, undefined, tx)
       })
     } catch (e: unknown) {
-      logger.error('Failed to persist WORKOUT_VERIFIED event', { postId, error: String(e) })
-    }
-
-    // R3: Update the streak via a DIRECT, AWAITED call — NOT through the event bus.
-    // The streak increment is a must-happen state invariant with no reconciliation
-    // path (the cron only breaks streaks, never re-increments). Routing it through
-    // the in-memory bus would make it contingent on a listener being registered on
-    // this exact process/bundle instance — in serverless that is best-effort, and a
-    // miss silently loses the increment forever. Keep this direct and guaranteed.
-    // Uses post.createdAt (inside the service), not AI processing time.
-    try {
-      await onWorkoutVerified({ postId, userId })
-    } catch (e: unknown) {
-      logger.error('Failed to update streak on WORKOUT_VERIFIED', { postId, error: String(e) })
+      logger.error('Verified-workout transaction rolled back — post left PENDING', {
+        postId,
+        error: String(e),
+      })
     }
 
   } else if (decision === 'AMBIGUOUS') {

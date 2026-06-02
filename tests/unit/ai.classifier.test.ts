@@ -9,6 +9,12 @@ vi.mock('../../server/core/logger/index', () => ({
 vi.mock('../../server/modules/streaks/streaks.service', () => ({
   onWorkoutVerified: vi.fn().mockResolvedValue(undefined),
 }))
+// The VERIFIED branch now runs inside prisma.$transaction. Mock it to invoke the
+// callback with a stub tx so the wiring (markPostVerified → event → streak) is
+// exercised; a callback rejection propagates exactly as a real rollback would.
+vi.mock('../../app/web/lib/prisma', () => ({
+  prisma: { $transaction: vi.fn((cb: (tx: unknown) => unknown) => cb({})) },
+}))
 
 import { processUploadedPost } from '../../server/workers/aiClassifier'
 import * as aiService from '../../server/modules/ai/ai.service'
@@ -62,9 +68,10 @@ describe('processUploadedPost', () => {
 
     await processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2.example.com/abc.jpg', userId: 'user-1' })
 
-    expect(aiRepo.markPostVerified).toHaveBeenCalledWith('post-1', VERIFIED_RESULT)
+    expect(aiRepo.markPostVerified).toHaveBeenCalledWith('post-1', VERIFIED_RESULT, expect.anything())
     expect(aiRepo.persistClassificationEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'WORKOUT_VERIFIED', userId: 'user-1' })
+      expect.objectContaining({ type: 'WORKOUT_VERIFIED', userId: 'user-1' }),
+      expect.anything()
     )
     expect(aiRepo.markPostRejected).not.toHaveBeenCalled()
   })
@@ -156,9 +163,11 @@ describe('processUploadedPost', () => {
     expect(aiRepo.markPostVerified).toHaveBeenCalledOnce()
   })
 
-  it('does not throw if event persistence fails (fire-and-forget safe)', async () => {
+  it('a failure inside the verify transaction is caught and does not throw (rolls back)', async () => {
     vi.mocked(aiService.classifyImage).mockResolvedValue(VERIFIED_RESULT)
     vi.mocked(aiRepo.markPostVerified).mockResolvedValue('workout-1')
+    // Event write fails → the whole transaction rejects (would roll back the
+    // post verification in prod). The worker catches it, logs, and resolves.
     vi.mocked(aiRepo.persistClassificationEvent).mockRejectedValue(new Error('DB error'))
 
     await expect(
@@ -183,12 +192,18 @@ describe('processUploadedPost', () => {
     expect(aiRepo.markPostVerified).not.toHaveBeenCalled()
   })
 
-  it('calls onWorkoutVerified after VERIFIED post', async () => {
+  it('calls onWorkoutVerified inside the verify transaction', async () => {
     vi.mocked(aiService.classifyImage).mockResolvedValue(VERIFIED_RESULT)
 
     await processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2.example.com/abc.jpg', userId: 'user-1' })
 
-    expect(streaksService.onWorkoutVerified).toHaveBeenCalledWith({ postId: 'post-1', userId: 'user-1' })
+    // Called with the shared tx client (3rd arg) so the streak update commits
+    // atomically with markPostVerified.
+    expect(streaksService.onWorkoutVerified).toHaveBeenCalledWith(
+      { postId: 'post-1', userId: 'user-1' },
+      undefined,
+      expect.anything()
+    )
   })
 
   it('does not call onWorkoutVerified when post is REJECTED', async () => {

@@ -18,25 +18,27 @@ export async function findPostForClassification(
   })
 }
 
+// Runs on whatever client is passed: in the verify flow this is the SHARED
+// transaction client (`tx`) so the Post→VERIFIED flip and the Workout row commit
+// atomically with the streak update. Callers in the verify path MUST pass `tx`.
 export async function markPostVerified(
   postId: string,
-  result: ClassificationOutput
+  result: ClassificationOutput,
+  db: Prisma.TransactionClient | typeof prisma = prisma
 ): Promise<string> {
-  return prisma.$transaction(async (tx) => {
-    await tx.post.update({
-      where: { id: postId },
-      data: { status: PostStatus.VERIFIED },
-    })
-    const workout = await tx.workout.create({
-      data: {
-        postId,
-        type: result.type as WorkoutType,
-        aiConfidence: result.confidence,
-        modelVersion: result.modelVersion,
-      },
-    })
-    return workout.id
+  await db.post.update({
+    where: { id: postId },
+    data: { status: PostStatus.VERIFIED },
   })
+  const workout = await db.workout.create({
+    data: {
+      postId,
+      type: result.type as WorkoutType,
+      aiConfidence: result.confidence,
+      modelVersion: result.modelVersion,
+    },
+  })
+  return workout.id
 }
 
 export async function markPostRejected(postId: string): Promise<void> {
@@ -46,14 +48,17 @@ export async function markPostRejected(postId: string): Promise<void> {
   })
 }
 
-export async function persistClassificationEvent(params: {
-  type: string
-  userId: string
-  payload: Record<string, unknown>
-  source: string
-  correlationId?: string
-}): Promise<void> {
-  await prisma.event.create({
+export async function persistClassificationEvent(
+  params: {
+    type: string
+    userId: string
+    payload: Record<string, unknown>
+    source: string
+    correlationId?: string
+  },
+  db: Prisma.TransactionClient | typeof prisma = prisma
+): Promise<void> {
+  await db.event.create({
     data: {
       type: params.type,
       userId: params.userId,
