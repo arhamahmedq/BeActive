@@ -13,12 +13,18 @@ export default function OnboardingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
-  // Auto-detect the user's IANA timezone on mount.
+  // Auto-detect the user's IANA timezone on mount. This must run in an effect
+  // (not a lazy useState initializer): the timezone is a browser-only value, so
+  // resolving it during SSR would render different HTML on the server than the
+  // client and trip a hydration mismatch on the input. Setting state post-mount
+  // is the intended pattern here, hence the rule suppression.
   useEffect(() => {
     try {
       const detected = Intl.DateTimeFormat().resolvedOptions().timeZone
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (detected) setTimezone(detected)
     } catch {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTimezone('UTC')
     }
   }, [])

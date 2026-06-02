@@ -1,4 +1,5 @@
 import { StreakStatus } from '@prisma/client'
+import { toLocalDateStr } from '../../../shared/utils/timezone'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,19 +31,10 @@ function toDayNumber(dateStr: string): number {
 
 // ─── Exported date utilities (used by write path and tests) ──────────────────
 
-/**
- * Returns the user's local calendar date as YYYY-MM-DD for a given UTC instant.
- * Uses Intl so DST, UTC offsets, and all IANA zone quirks are handled natively.
- * en-CA produces YYYY-MM-DD without further parsing.
- */
-export function toLocalDateStr(instant: Date, tz: string): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: tz,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(instant)
-}
+// toLocalDateStr is defined once in shared/utils/timezone so the streak engine
+// and the posts same-day guard share an identical notion of "today". Re-exported
+// here to preserve the streak module's public surface (callers + test mocks).
+export { toLocalDateStr }
 
 /**
  * Returns the user's local hour (0–23) for a given UTC instant.

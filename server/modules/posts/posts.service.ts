@@ -4,9 +4,10 @@ import { EventType } from '../../core/events/index'
 import {
   createPost as repoCreatePost,
   findPostById,
-  hasPendingOrVerifiedPostToday,
+  hasActivePostForLocalDate,
   persistEvent,
 } from './posts.repo'
+import { getProfile } from '../users/users.service'
 import type { CreatePostInput, PostResponse } from './posts.types'
 
 function buildPublicUrl(key: string): string {
@@ -22,13 +23,19 @@ function validateKeyOwnership(userId: string, key: string): void {
   }
 }
 
+// _now is injectable so tests can fix the clock without mocking Date globally.
 export async function createPost(
   userId: string,
-  input: CreatePostInput
+  input: CreatePostInput,
+  _now?: Date
 ): Promise<PostResponse> {
   validateKeyOwnership(userId, input.imageKey)
 
-  const alreadyPosted = await hasPendingOrVerifiedPostToday(userId)
+  // Resolve the user's timezone so the same-day guard matches the streak
+  // engine's local-calendar-day notion of "today" (not UTC).
+  const { timezone } = await getProfile(userId)
+
+  const alreadyPosted = await hasActivePostForLocalDate(userId, timezone, _now ?? new Date())
   if (alreadyPosted) {
     throw new ConflictError('You have already submitted a workout post today')
   }

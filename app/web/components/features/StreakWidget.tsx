@@ -29,7 +29,7 @@ const TIER_CONFIG: Record<DisplayTier, TierConfig> = {
     dot: 'bg-gray-300',
     label: 'Pending',
     labelColor: 'text-gray-500',
-    sub: "You haven't logged today's workout.",
+    sub: 'Post today’s workout to keep it going.',
     subColor: 'text-gray-400',
   },
   AT_RISK: {

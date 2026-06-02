@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createPost, getPost } from '../../server/modules/posts/posts.service'
 import * as repo from '../../server/modules/posts/posts.repo'
+import * as usersService from '../../server/modules/users/users.service'
 import { ConflictError, ForbiddenError, NotFoundError } from '../../server/core/errors/AppError'
 
 vi.mock('../../server/modules/posts/posts.repo')
+vi.mock('../../server/modules/users/users.service')
 vi.mock('../../server/core/logger/index', () => ({
   logger: { info: vi.fn(), error: vi.fn() },
 }))
@@ -17,9 +19,22 @@ const MOCK_POST = {
   createdAt: new Date(),
 }
 
+const MOCK_PROFILE = {
+  id: 'user-1',
+  email: 'a@b.com',
+  username: 'user1',
+  displayName: null,
+  avatarUrl: null,
+  bio: null,
+  timezone: 'UTC',
+  onboarded: true,
+  createdAt: new Date(),
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   process.env.R2_PUBLIC_URL = 'https://r2.example.com'
+  vi.mocked(usersService.getProfile).mockResolvedValue(MOCK_PROFILE)
 })
 
 // ---------------------------------------------------------------------------
@@ -27,7 +42,7 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 describe('createPost', () => {
   it('creates a post and returns it', async () => {
-    vi.mocked(repo.hasPendingOrVerifiedPostToday).mockResolvedValue(false)
+    vi.mocked(repo.hasActivePostForLocalDate).mockResolvedValue(false)
     vi.mocked(repo.createPost).mockResolvedValue(MOCK_POST)
     vi.mocked(repo.persistEvent).mockResolvedValue(undefined)
 
@@ -41,7 +56,7 @@ describe('createPost', () => {
   })
 
   it('derives imageUrl from R2_PUBLIC_URL — never trusts client URL', async () => {
-    vi.mocked(repo.hasPendingOrVerifiedPostToday).mockResolvedValue(false)
+    vi.mocked(repo.hasActivePostForLocalDate).mockResolvedValue(false)
     vi.mocked(repo.createPost).mockResolvedValue(MOCK_POST)
     vi.mocked(repo.persistEvent).mockResolvedValue(undefined)
 
@@ -52,7 +67,7 @@ describe('createPost', () => {
   })
 
   it('rejects if user already has a post today', async () => {
-    vi.mocked(repo.hasPendingOrVerifiedPostToday).mockResolvedValue(true)
+    vi.mocked(repo.hasActivePostForLocalDate).mockResolvedValue(true)
 
     await expect(createPost('user-1', { imageKey: 'posts/user-1/abc.jpg' })).rejects.toThrow(
       ConflictError
@@ -64,11 +79,11 @@ describe('createPost', () => {
     await expect(
       createPost('user-1', { imageKey: 'posts/user-999/abc.jpg' })
     ).rejects.toThrow(ForbiddenError)
-    expect(repo.hasPendingOrVerifiedPostToday).not.toHaveBeenCalled()
+    expect(repo.hasActivePostForLocalDate).not.toHaveBeenCalled()
   })
 
   it('emits WORKOUT_UPLOADED event after post creation (fire-and-forget)', async () => {
-    vi.mocked(repo.hasPendingOrVerifiedPostToday).mockResolvedValue(false)
+    vi.mocked(repo.hasActivePostForLocalDate).mockResolvedValue(false)
     vi.mocked(repo.createPost).mockResolvedValue(MOCK_POST)
     vi.mocked(repo.persistEvent).mockResolvedValue(undefined)
 
@@ -84,7 +99,7 @@ describe('createPost', () => {
   })
 
   it('does not throw if event persistence fails', async () => {
-    vi.mocked(repo.hasPendingOrVerifiedPostToday).mockResolvedValue(false)
+    vi.mocked(repo.hasActivePostForLocalDate).mockResolvedValue(false)
     vi.mocked(repo.createPost).mockResolvedValue(MOCK_POST)
     vi.mocked(repo.persistEvent).mockRejectedValue(new Error('DB error'))
 
@@ -93,7 +108,7 @@ describe('createPost', () => {
 
   it('handles trailing slash in R2_PUBLIC_URL correctly', async () => {
     process.env.R2_PUBLIC_URL = 'https://r2.example.com/'
-    vi.mocked(repo.hasPendingOrVerifiedPostToday).mockResolvedValue(false)
+    vi.mocked(repo.hasActivePostForLocalDate).mockResolvedValue(false)
     vi.mocked(repo.createPost).mockResolvedValue(MOCK_POST)
     vi.mocked(repo.persistEvent).mockResolvedValue(undefined)
 

@@ -232,8 +232,13 @@ export default function UploadPage() {
 
   const handleContinue = useCallback(() => {
     if (selected) URL.revokeObjectURL(selected.previewUrl)
+    // Guarantee the feed mounts with a fresh streak. By the time the user taps
+    // Continue, the server-side streak write has committed, so this refetch
+    // reflects the increment — covers the recorded, still_checking, and
+    // already_done paths without ever needing a manual refresh.
+    queryClient.invalidateQueries({ queryKey: ['streak', 'me'] })
     router.push('/feed')
-  }, [selected, router])
+  }, [selected, router, queryClient])
 
   // Revoke object URL on unmount to prevent memory leak
   useEffect(() => {
@@ -411,6 +416,7 @@ export default function UploadPage() {
               {workoutType.charAt(0) + workoutType.slice(1).toLowerCase()}
             </span>
           )}
+          <p className="text-sm text-gray-400">Your streak&apos;s locked in for today.</p>
         </div>
         <div className="w-full max-w-xs animate-rise" style={{ animationDelay: '220ms' }}>
           <Button onClick={handleContinue} className="w-full">
@@ -465,7 +471,7 @@ export default function UploadPage() {
               className="w-11 h-11 text-emerald-600"
               viewBox="0 0 24 24"
               fill="none"
-              aria-label="Already logged today"
+              aria-label="Already completed today"
             >
               <path
                 d="M5 13l4 4L19 7"
@@ -478,9 +484,9 @@ export default function UploadPage() {
           </div>
         </div>
         <div className="text-center space-y-3 animate-rise" style={{ animationDelay: '120ms' }}>
-          <p className="text-2xl font-semibold tracking-tight">Already logged today</p>
+          <p className="text-2xl font-semibold tracking-tight">You&apos;re all set for today</p>
           <p className="text-sm text-gray-400 max-w-xs mx-auto leading-relaxed">
-            You&apos;ve already submitted a workout today. Come back tomorrow to keep your streak going.
+            Today&apos;s workout is already locked in. Come back tomorrow to keep your streak alive.
           </p>
         </div>
         <div className="w-full max-w-xs animate-rise" style={{ animationDelay: '220ms' }}>
