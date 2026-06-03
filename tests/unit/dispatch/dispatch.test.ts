@@ -7,6 +7,9 @@ import {
   selectNextTask,
   isStaleLock,
   findDuplicateIds,
+  outboxPath,
+  renderOutbox,
+  type OutboxReport,
   DEFAULT_LOCK_TTL_MS,
   TERMINAL_STATES,
 } from '../../../beactive-dispatch/lib/dispatch'
@@ -165,5 +168,54 @@ describe('findDuplicateIds (task-id uniqueness)', () => {
 
   it('reports duplicated ids', () => {
     expect(findDuplicateIds(['a', 'b', 'a', 'c', 'b']).sort()).toEqual(['a', 'b'])
+  })
+})
+
+describe('outbox output contract', () => {
+  const base: OutboxReport = {
+    taskId: 'demo',
+    status: 'done',
+    priority: 'high',
+    slice: 'none',
+    branch: 'dispatch/demo',
+    commit: 'abc1234',
+    completedAt: '2026-06-03T09:31:00Z',
+    summary: 'Did the thing.',
+    filesChanged: ['a.ts', 'b.ts'],
+    commandsRun: ['npm run test'],
+    testResults: 'npm run test → 380 passed / 28 files',
+    nextRecommendation: 'Proceed to Phase 3.',
+  }
+
+  it('uses a deterministic, non-timestamped path', () => {
+    expect(outboxPath('phase1-smoke')).toBe('beactive-dispatch/outbox/phase1-smoke.md')
+  })
+
+  it('renders every required Phase 2 section', () => {
+    const md = renderOutbox(base)
+    for (const section of [
+      '## Status',
+      '## Execution summary',
+      '## Files changed',
+      '## Commands run',
+      '## Test results',
+      '## Risk',
+      '## Next recommendation',
+    ]) {
+      expect(md).toContain(section)
+    }
+    expect(md).toContain('task_id: demo')
+    expect(md).toContain('- a.ts')
+    expect(md).toContain('npm run test → 380 passed / 28 files')
+  })
+
+  it('defaults risk to none and renders empty lists as "- none"', () => {
+    const md = renderOutbox({ ...base, risk: undefined, filesChanged: [], commandsRun: [] })
+    expect(md).toMatch(/## Risk\nnone/)
+    expect(md).toMatch(/## Files changed\n {2}- none/)
+  })
+
+  it('is pure/deterministic — identical input yields identical output', () => {
+    expect(renderOutbox(base)).toBe(renderOutbox(base))
   })
 })

@@ -94,16 +94,17 @@ decides whether to re-enqueue with explicit authorization.
 
 ## 5. Outbox behavior (output contract)
 
-Every completed cycle writes exactly one report file:
+Every completed cycle writes exactly one report file at a **deterministic path**:
 
 ```
-beactive-dispatch/outbox/<task-id>.<UTC-timestamp>.md
+beactive-dispatch/outbox/<task-id>.md
 ```
 
-Filename timestamp is `YYYYMMDDTHHMMSSZ`. The file is git-tracked (audit trail)
-and is the **machine- and human-readable output** of a cycle. A future Telegram
-bridge will read the newest outbox file for a task and relay it — the bridge
-needs no other coupling to the kernel. Required contents:
+No timestamp in the name — a future bridge reads exactly one well-known file per
+task. Git history supplies the append-only audit trail (each overwrite is a
+commit). The renderer is the pure, tested `renderOutbox()` in `lib/dispatch.ts`,
+so the kernel and any future Telegram bridge share **one** definition of the
+output. Required structure (produced by `renderOutbox`):
 
 ```
 ---
@@ -112,16 +113,17 @@ status: done | failed | blocked
 priority: <p>
 slice: <n>
 branch: <dispatch/...|none>
-commit: <short-sha|none>
+commit: <work-sha | "self (audit-only)" | none>
 completed_at: <ISO-8601>
 ---
 
-TASK:        <id> (<priority>, slice <n>)
-STATUS:      done | failed | blocked
-FILES:       <changed paths or none>
-TESTS:       <command + pass/fail counts>
-RISK:        <one-line residual risk or none>
-NEXT STATE:  idle | continuing-queue (<N> pending remain)
+## Status              <done|failed|blocked>
+## Execution summary   <one-line what happened>
+## Files changed       <bullet list or "- none">
+## Commands run        <bullet list or "- none">
+## Test results        <command + pass/fail counts>
+## Risk                <one-line residual risk or "none">
+## Next recommendation <what a human should do next>
 ```
 
 Idle cycles (no actionable task) do **not** write an outbox file; they report
@@ -192,6 +194,13 @@ branch (or `master` in normal operation). Never commit dispatch work directly to
 - `type` ∈ `feat | fix | refactor | test | chore | docs`
 - always suffixed with `(dispatch:<task-id>)` for traceability
 - ends with the standard `Co-Authored-By` trailer.
+
+**`commit:` field in the task/outbox frontmatter** records the **work commit**
+made in STEP 8 (its sha is known before the audit artifacts are written, so there
+is no self-reference). For **audit-only** tasks (no production change — the audit
+artifacts are the whole deliverable), use the literal `self (audit-only)` rather
+than a sha, because a self-referential sha goes stale on `--amend`. This closes
+the Phase 1 D1 debt.
 
 ### Task id
 Short kebab-case, unique across `queue/ ∪ archived/`. `findDuplicateIds` is the

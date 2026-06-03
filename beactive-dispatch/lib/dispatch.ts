@@ -146,3 +146,75 @@ export function findDuplicateIds(ids: ReadonlyArray<string>): string[] {
   }
   return [...dups]
 }
+
+/**
+ * Output contract (Phase 2). The canonical, deterministic location of a task's
+ * latest execution report. Deterministic path (no timestamp) so a future bridge
+ * reads exactly one well-known file per task; git history supplies the append-only
+ * audit trail (each overwrite is a commit).
+ */
+export function outboxPath(taskId: string): string {
+  return `beactive-dispatch/outbox/${taskId}.md`
+}
+
+export interface OutboxReport {
+  taskId: string
+  status: TaskStatus
+  priority: string
+  slice: string
+  branch: string
+  commit: string
+  completedAt: string
+  /** One-line execution summary. */
+  summary: string
+  filesChanged: readonly string[]
+  commandsRun: readonly string[]
+  /** e.g. "npm run test → 380 passed / 28 files". */
+  testResults: string
+  nextRecommendation: string
+  risk?: string
+}
+
+/**
+ * Render the standardized outbox markdown for a completed cycle. Pure and
+ * deterministic: identical input → byte-identical output. The kernel and any
+ * future Telegram bridge share this single renderer so the output contract has
+ * exactly one definition.
+ */
+export function renderOutbox(r: OutboxReport): string {
+  const bullets = (items: readonly string[]): string =>
+    items.length === 0 ? '  - none' : items.map((i) => `  - ${i}`).join('\n')
+  return [
+    '---',
+    `task_id: ${r.taskId}`,
+    `status: ${r.status}`,
+    `priority: ${r.priority}`,
+    `slice: ${r.slice}`,
+    `branch: ${r.branch}`,
+    `commit: ${r.commit}`,
+    `completed_at: ${r.completedAt}`,
+    '---',
+    '',
+    '## Status',
+    r.status,
+    '',
+    '## Execution summary',
+    r.summary,
+    '',
+    '## Files changed',
+    bullets(r.filesChanged),
+    '',
+    '## Commands run',
+    bullets(r.commandsRun),
+    '',
+    '## Test results',
+    r.testResults,
+    '',
+    '## Risk',
+    r.risk ?? 'none',
+    '',
+    '## Next recommendation',
+    r.nextRecommendation,
+    '',
+  ].join('\n')
+}

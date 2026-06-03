@@ -37,10 +37,10 @@ Execute:
 8. **COMMIT** — Create/switch to `dispatch/<task-id>`. Commit: `<type>(<scope>): <description> (dispatch:<task-id>)` with the `Co-Authored-By` trailer. Do **not** push.
 
 9. **FINALIZE + OUTBOX + REPORT**
-   - Update task frontmatter: `status: done`, `completed_at`, `branch`, `commit`, `summary`.
+   - Update task frontmatter: `status: done`, `completed_at`, `branch`, `commit`, `summary`. The `commit` field = the STEP-8 work sha; for audit-only tasks (no production change) use the literal `self (audit-only)` (never a self-referential sha — it goes stale on amend).
    - Move the task file `queue/ → archived/`.
-   - Write the outbox report to `beactive-dispatch/outbox/<task-id>.<YYYYMMDDTHHMMSSZ>.md` (frontmatter + observability block per CONTRACT §5).
-   - `git add` the archived task file + the outbox file; amend or add a follow-up commit so the audit trail is captured.
+   - Write the outbox report to the deterministic path `beactive-dispatch/outbox/<task-id>.md` using the `renderOutbox()` schema from `lib/dispatch.ts` (Status, Execution summary, Files changed, Commands run, Test results, Risk, Next recommendation per CONTRACT §5). Overwrite any prior report for this task — git history is the audit trail.
+   - `git add` the archived task file + the outbox file; add a follow-up commit so the audit trail is captured.
    - Remove `beactive-dispatch/.lock`.
    - Emit the observability block to the console:
 ```

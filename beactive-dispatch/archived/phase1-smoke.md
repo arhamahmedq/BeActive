@@ -10,7 +10,7 @@ locked_at: 2026-06-03T09:30:05Z
 lock_owner: 73d9585f-2770-40ea-a58d-ab585036002a
 completed_at: 2026-06-03T09:31:00Z
 branch: dispatch/smoke-test-dispatch
-commit: 5e0564de
+commit: self (audit-only)
 summary: Hardened cycle exercised end-to-end; 380 tests green; outbox artifact produced; no production change.
 ---
 
