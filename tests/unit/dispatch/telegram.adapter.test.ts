@@ -54,12 +54,34 @@ describe('mapMessageToEnqueueInput (pure shaping — never validates)', () => {
     expect(TASK_ID_RE.test(input.id)).toBe(true)
     expect(input.id.startsWith('task-')).toBe(true)
   })
+
+  it('parses the #priority tag case-insensitively and at the start', () => {
+    expect(mapMessageToEnqueueInput(msg({ text: '#HIGH fix it' }), NOW).priority).toBe('high')
+    expect(mapMessageToEnqueueInput(msg({ text: 'fix it #Low' }), NOW).priority).toBe('low')
+  })
+
+  it('keeps a valid id even with emoji/unicode input', () => {
+    const input = mapMessageToEnqueueInput(msg({ text: '🚀 Deploy the app' }), NOW)
+    expect(TASK_ID_RE.test(input.id)).toBe(true)
+    expect(input.id).toContain('deploy-the-app')
+  })
+
+  it('falls back to "user unknown" when from is missing', () => {
+    expect(mapMessageToEnqueueInput(msg({ from: undefined }), NOW).notes).toContain('user unknown')
+  })
 })
 
 describe('handleTelegramMessage (thin transport — delegates to enqueue)', () => {
   it('ignores empty text without calling enqueue', () => {
     const spy = vi.fn(okEnqueue)
     const { reply } = handleTelegramMessage(msg({ text: '   ' }), spy, ctx())
+    expect(spy).not.toHaveBeenCalled()
+    expect(reply).toMatch(/Send a task description/)
+  })
+
+  it('treats undefined text as empty (no enqueue call)', () => {
+    const spy = vi.fn(okEnqueue)
+    const { reply } = handleTelegramMessage(msg({ text: undefined }), spy, ctx())
     expect(spy).not.toHaveBeenCalled()
     expect(reply).toMatch(/Send a task description/)
   })
