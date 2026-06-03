@@ -31,3 +31,6 @@ test-results/
 
 # beactive-dispatch ephemeral cycle mutex (runtime-only, machine-local)
 beactive-dispatch/.lock/
+
+# Vitest coverage output (generated)
+coverage/
