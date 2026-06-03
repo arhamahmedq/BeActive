@@ -99,6 +99,11 @@ npm run test:watch              # Watch mode for unit tests
 # Deployment
 git push origin main            # Auto-deploys to Vercel production
 # Feature branches auto-deploy to Vercel preview URLs
+
+# AI Dev OS — Dispatch System (local, single-session; see §18 + beactive-dispatch/CONTRACT.md)
+/process-dispatch               # Execute ONE queued task (STEP 0–9: lock→recover→load→…→outbox)
+/loop 15m /process-dispatch     # Autonomous: poll queue every 15 min, one task per tick
+npx vitest run tests/unit/dispatch/dispatch.test.ts   # Test the pure dispatch core
 ```
 
 ---
@@ -777,6 +782,15 @@ npm run validate:parity
 - **v2 Phase 6+7 (Cron repurpose + full cleanup):** `streakEvaluator.ts` rewritten — uses `lastVerifiedDate` + user tz + `hasDailyCompletion` + `recomputeStreak` guard; no more `lastVerifiedAt`/`activityState`; AT_RISK fires when past EVENING_HOUR + no completion today; BROKEN confirmed via recompute to guard races; schema migration `20260601200000_drop_v1_streak_fields` drops `Streak.lastVerifiedAt`, `User.activityState`, `UserActivityState` enum; `user.machine.ts` deleted; `useStreakTimer.ts` deleted; `setActivityState` removed; `auth.repo.ts` simplified (USER_SELECT const); `activityState` removed from all types/routes/tests; 238 tests pass; DoD: full suite green, rolling-24h code gone
 - **Slice 5 (Social Feed):** Pull/read model — no materialized table, no event handler; two queries per page (friends + posts); frozen T0 cursor for stable pagination; `FEED_WINDOW_DAYS=30`, `FEED_CANDIDATE_CAP=500`; `friends.service.getAcceptedFriendIds` (two-arm OR query on symmetric Friendship row); `feed.ranking.ts` + `feed.cursor.ts` are pure functions (base64url cursor, `(score DESC, id ASC)` total order); `feed.service.getFeed` orchestrates with `_now` injection for tests; `GET /api/feed?cursor&limit` via `feed.controller.ts` + `app/web/app/api/feed/route.ts`; `useFeed` hook (`useInfiniteQuery`, `queryKey: ['feed']`, `staleTime: 60s`); `FeedCard.tsx` (null-safe avatar/caption, relative time, workout badge, streak display); feed page has IntersectionObserver infinite scroll + two empty states (NO_CONNECTIONS / NO_RECENT_ACTIVITY) + skeleton/error states; upload page invalidates `['feed']` on VERIFIED alongside `['streak','me']`; pre-existing `users.repo.ts` TS error (tzChangedAt columns absent from schema) — not introduced by Slice 5, still outstanding (blocks a fully-green repo-wide `type-check`; users-module/v2 owner to resolve)
 - **Slice 5 hardening review (2026-06-03):** Principal-engineer review pass. (1) `feed.service` `emptyReason` now gated on `cursor === null` (first-page-only per §4/§9) so a forged/replayed deep cursor can't emit a misleading NO_CONNECTIONS; (2) added the two §12-mandated integration tests `tests/integration/feed-isolation.test.ts` (author-set enforcement, forged-cursor can't widen, field whitelist) + `tests/integration/feed-pagination.test.ts` (stitch/no-dupe/no-gap + FEED_CANDIDATE_CAP bounded truncation), faithful in-memory repo fakes driving the real getFeed pipeline; (3) added `tests/unit/feed/feed.repo.test.ts` (real VERIFIED/window/cap/select query shape — backs every isolation claim); (4) removed dead `FEED_PAGE_SIZE` constant + stray macOS EPERM temp file. **357 tests pass** (was 344); lint 0 errors; Slice 5 code fully type-clean
+
+### AI Dev OS — Dispatch System (Phase 2, local/single-session)
+A file-based task queue that lets a Claude session execute development tasks deterministically. **Local-first; never auto-push/merge/deploy; one task per cycle.** No Telegram, daemon, or watcher yet (those are future phases).
+- **Layout** (`beactive-dispatch/`): `queue/` (pending/running, git-tracked), `archived/` (terminal: done/failed/blocked), `outbox/` (per-task report `<task-id>.md`, the output contract), `lib/dispatch.ts` (pure tested core), `CONTRACT.md` (formal lifecycle/recovery — **read this first**), `README.md` (protocol), `.lock/` (ephemeral cycle mutex, git-IGNORED).
+- **Kernel**: `.claude/commands/process-dispatch.md` → `/process-dispatch` runs one STEP 0–9 cycle (CYCLE LOCK → RECOVER → LOAD → LOCK → CONTEXT → PLAN → EXECUTE → VALIDATE → COMMIT → FINALIZE+OUTBOX).
+- **Lifecycle**: `pending → running → done|failed|blocked → archived`. Deterministic edges enforced+tested in `lib/dispatch.ts` (`canTransition`, `selectNextTask`, `isStaleLock`, `validateTaskMeta`, `renderOutbox`).
+- **Recovery**: orphaned `running` tasks are reclaimed at cycle start (crash/stale-lock/restart); all state lives in repo+git so a fresh session resumes with zero chat memory.
+- **Safety gates (non-negotiable)**: commit locally only, never push/merge/deploy; always a `dispatch/<task-id>` branch (never `master`); pause for human approval before destructive ops (migrate, deletes, dep removal); never skip VALIDATE.
+- **Tests**: `tests/unit/dispatch/dispatch.test.ts` (26 cases cover the pure core).
 
 ### Architecture Website
 - `index.html` in `/pitch/` directory → deploy to GitHub Pages for investor walkthroughs
