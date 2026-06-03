@@ -19,7 +19,8 @@ and README §6 win.
 | Protocol | `beactive-dispatch/README.md` | Human-facing STEP 1–9 protocol + safety |
 | Contract | `beactive-dispatch/CONTRACT.md` | This file — formal lifecycle + recovery |
 | Kernel | `.claude/commands/process-dispatch.md` | `/process-dispatch` — one cycle, executed by Claude |
-| Core | `beactive-dispatch/lib/dispatch.ts` | Pure, tested state-machine + selection logic |
+| Core | `beactive-dispatch/lib/dispatch.ts` | Pure, tested state-machine + selection + enqueue-build logic |
+| Enqueue | `beactive-dispatch/lib/enqueue.ts` | The ONLY approved writer of new task files (boundary; see README §1a) |
 | Queue | `beactive-dispatch/queue/` | Pending/running task files (git-tracked) |
 | Archive | `beactive-dispatch/archived/` | Terminal task files (git-tracked) |
 | Outbox | `beactive-dispatch/outbox/` | Per-cycle execution reports (git-tracked) |

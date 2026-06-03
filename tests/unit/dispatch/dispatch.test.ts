@@ -10,6 +10,10 @@ import {
   outboxPath,
   renderOutbox,
   type OutboxReport,
+  validateEnqueueInput,
+  buildTaskFile,
+  renderTaskFile,
+  type EnqueueInput,
   DEFAULT_LOCK_TTL_MS,
   TERMINAL_STATES,
 } from '../../../beactive-dispatch/lib/dispatch'
@@ -217,5 +221,72 @@ describe('outbox output contract', () => {
 
   it('is pure/deterministic — identical input yields identical output', () => {
     expect(renderOutbox(base)).toBe(renderOutbox(base))
+  })
+})
+
+describe('enqueue input contract (buildTaskFile / validateEnqueueInput)', () => {
+  const NOW = '2026-06-03T12:00:00.000Z'
+  const valid: EnqueueInput = { id: 'do-thing', source: 'cli', priority: 'high', model_effort: 'low' }
+
+  it('accepts a minimal valid input and forces status/created_at', () => {
+    const r = buildTaskFile(valid, NOW)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.meta.status).toBe('pending')
+    expect(r.meta.created_at).toBe(NOW)
+    expect(r.meta.slice).toBe('none') // defaulted
+    expect(r.content).toContain('status: pending')
+    expect(r.content).toContain(`created_at: ${NOW}`)
+  })
+
+  it('rejects each missing required field', () => {
+    const errs = validateEnqueueInput({})
+    for (const f of ['id', 'source', 'priority', 'model_effort']) {
+      expect(errs).toContain(`missing required field: ${f}`)
+    }
+  })
+
+  it('does NOT require created_at or status from the caller', () => {
+    expect(validateEnqueueInput(valid)).toEqual([])
+  })
+
+  it('rejects any status other than pending (no creating running/done/failed)', () => {
+    for (const bad of ['running', 'done', 'failed', 'blocked']) {
+      const r = buildTaskFile({ ...valid, status: bad }, NOW)
+      expect(r.ok).toBe(false)
+      if (!r.ok) expect(r.errors.join(' ')).toMatch(/status must initialize as "pending"/)
+    }
+  })
+
+  it('ignores a caller-supplied created_at — enqueue is authoritative', () => {
+    const r = buildTaskFile({ ...valid, created_at: '1999-01-01T00:00:00Z' }, NOW)
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.meta.created_at).toBe(NOW)
+  })
+
+  it('rejects an id with path-traversal / unsafe characters', () => {
+    for (const badId of ['../evil', 'a/b', 'Up', 'has space', '_x']) {
+      const r = buildTaskFile({ ...valid, id: badId }, NOW)
+      expect(r.ok).toBe(false)
+    }
+  })
+
+  it('rejects invalid priority and model_effort', () => {
+    expect(validateEnqueueInput({ ...valid, priority: 'urgent' })).toContain('invalid priority: urgent')
+    expect(validateEnqueueInput({ ...valid, model_effort: 'max' })).toContain('invalid model_effort: max')
+  })
+
+  it('carries optional notes + body into the rendered file', () => {
+    const r = buildTaskFile({ ...valid, notes: 'be careful', body: 'Do X. DoD: Y.' }, NOW)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.content).toContain('notes: be careful')
+    expect(r.content).toContain('Do X. DoD: Y.')
+  })
+
+  it('renderTaskFile emits deterministic ordered frontmatter', () => {
+    const a = renderTaskFile({ id: 'x', source: 'cli', status: 'pending', priority: 'low', model_effort: 'low', created_at: NOW, slice: 'none' }, 'body')
+    const b = renderTaskFile({ slice: 'none', created_at: NOW, model_effort: 'low', priority: 'low', status: 'pending', source: 'cli', id: 'x' }, 'body')
+    expect(a).toBe(b) // key insertion order must not matter
   })
 })

@@ -218,3 +218,101 @@ export function renderOutbox(r: OutboxReport): string {
     '',
   ].join('\n')
 }
+
+// ---------------------------------------------------------------------------
+// Enqueue boundary (Phase 3) — pure validation + task-file construction.
+// External systems (Telegram, API, UI, CLI) MAY create tasks only through this
+// path. They MAY NOT set status, created_at, or mutate existing tasks. The
+// kernel remains the sole mutator of task state.
+// ---------------------------------------------------------------------------
+
+/** A task id must be a safe, kebab-case slug — also prevents path traversal. */
+export const TASK_ID_RE = /^[a-z0-9][a-z0-9-]*$/
+
+/** Caller-supplied fields for creating a new task. */
+export interface EnqueueInput {
+  id: string
+  source: string
+  priority: string
+  model_effort: string
+  slice?: string
+  notes?: string
+  /** Free-text task body / definition of done. */
+  body?: string
+  /** Only `pending` (or absent) is allowed; anything else is rejected. */
+  status?: string
+  /** Ignored — enqueue is authoritative for created_at. */
+  created_at?: string
+}
+
+export type BuildTaskResult =
+  | { ok: true; meta: Record<string, string>; content: string }
+  | { ok: false; errors: string[] }
+
+const ENQUEUE_REQUIRED = ['id', 'source', 'priority', 'model_effort'] as const
+
+/** Validate the *enqueue input contract* (distinct from the stored-task contract). */
+export function validateEnqueueInput(input: Partial<EnqueueInput>): string[] {
+  const errors: string[] = []
+  const rec = input as Record<string, unknown>
+  for (const k of ENQUEUE_REQUIRED) {
+    const v = rec[k]
+    if (v === undefined || v === null || String(v).trim() === '') {
+      errors.push(`missing required field: ${k}`)
+    }
+  }
+  if (typeof input.id === 'string' && input.id.trim() !== '' && !TASK_ID_RE.test(input.id.trim())) {
+    errors.push(`invalid id (must be kebab-case [a-z0-9-], no path separators): ${input.id}`)
+  }
+  if (input.priority && !VALID_PRIORITY.has(input.priority)) errors.push(`invalid priority: ${input.priority}`)
+  if (input.model_effort && !VALID_EFFORT.has(input.model_effort)) {
+    errors.push(`invalid model_effort: ${input.model_effort}`)
+  }
+  if (input.status !== undefined && input.status !== 'pending') {
+    errors.push(
+      `status must initialize as "pending" (got "${input.status}") — enqueue cannot create running/done/failed tasks`,
+    )
+  }
+  return errors
+}
+
+/**
+ * Render a task markdown file with deterministic, ordered frontmatter.
+ * Known keys come first in a fixed order; any extra keys follow, sorted.
+ */
+export function renderTaskFile(meta: Record<string, string>, body?: string): string {
+  const order = ['id', 'source', 'status', 'priority', 'model_effort', 'created_at', 'slice', 'notes']
+  const lines: string[] = ['---']
+  for (const k of order) if (meta[k] !== undefined) lines.push(`${k}: ${meta[k]}`)
+  for (const k of Object.keys(meta).sort()) {
+    if (!order.includes(k)) lines.push(`${k}: ${meta[k]}`)
+  }
+  lines.push('---', '')
+  lines.push(body && body.trim() ? body.trim() : 'No description provided.')
+  lines.push('')
+  return lines.join('\n')
+}
+
+/**
+ * Pure: validate enqueue input and construct the full stored task (status forced
+ * to `pending`, created_at = nowIso, slice defaulted). The constructed task is
+ * re-checked against the stored-task contract (`validateTaskMeta`) as a belt-and-
+ * braces guard. No I/O.
+ */
+export function buildTaskFile(input: EnqueueInput, nowIso: string): BuildTaskResult {
+  const errors = validateEnqueueInput(input)
+  if (errors.length) return { ok: false, errors }
+  const meta: Record<string, string> = {
+    id: input.id.trim(),
+    source: input.source.trim(),
+    status: 'pending',
+    priority: input.priority,
+    model_effort: input.model_effort,
+    created_at: nowIso,
+    slice: input.slice && input.slice.trim() ? input.slice.trim() : 'none',
+  }
+  if (input.notes && input.notes.trim()) meta.notes = input.notes.trim()
+  const metaErrors = validateTaskMeta(meta)
+  if (metaErrors.length) return { ok: false, errors: metaErrors }
+  return { ok: true, meta, content: renderTaskFile(meta, input.body) }
+}

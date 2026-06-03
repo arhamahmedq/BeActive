@@ -40,6 +40,46 @@ the formal state machine, outbox/output contract, and crash/stale-lock recovery.
 
 ---
 
+## 1a. System boundary — the enqueue rule (Phase 3)
+
+```
+   External Inputs  (Telegram · API · Mobile UI · Web dashboard · CLI)
+          │
+          ▼
+       enqueue()          ← the ONLY approved writer of new task files
+          │                  (beactive-dispatch/lib/enqueue.ts)
+          ▼
+        queue/            ← new tasks land here, always status: pending
+          │
+          ▼
+    /process-dispatch     ← the ONLY mutator of task state
+   (pending → running → done|failed → archived, outbox)
+```
+
+**Single-writer invariant — permanently enforced:**
+
+- External systems **MAY create** tasks — but only by calling `enqueue()`.
+- External systems **MAY NOT mutate** task state. Ever.
+- `enqueue()` **only creates** new files; it never reads-to-edit, moves, or
+  deletes an existing task. It fails fast on a duplicate id (no overwrite, no
+  merge). It validates, generates `created_at`, forces `status: pending`, and
+  rejects any attempt to create a `running`/`done`/`failed` task.
+- `/process-dispatch` (the kernel) is the **sole** owner of every state
+  transition and of `archived/` + `outbox/`.
+
+**This is a rule for all future phases, stated explicitly:**
+
+> Future Telegram integration **MUST** call `enqueue()`.
+> Future API endpoints **MUST** call `enqueue()`.
+> Future dashboards / mobile / CLI **MUST** call `enqueue()`.
+> **Nothing writes directly into `queue/` except `enqueue()`.**
+
+`enqueue()` returns a deterministic result — `{ ok: true, id, path }` or
+`{ ok: false, errors }` — never a silent or partial write. Validation/build logic
+is the pure, tested `buildTaskFile()` in `lib/dispatch.ts`.
+
+---
+
 ## 2. Task file format
 
 Frontmatter is required. Body is free-form task description.
