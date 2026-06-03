@@ -256,6 +256,7 @@ export default function UploadPage() {
     if (stage !== 'verifying' || !postStatus) return
     if (postStatus.status === 'VERIFIED') {
       queryClient.invalidateQueries({ queryKey: ['streak', 'me'] })
+      queryClient.invalidateQueries({ queryKey: ['feed'] })
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setStageState({ stage: 'recorded', workoutType: postStatus.workoutType })
     } else if (postStatus.status === 'REJECTED') {

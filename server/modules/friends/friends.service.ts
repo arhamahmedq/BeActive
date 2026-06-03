@@ -1,3 +1,5 @@
-// Friends service — business logic, event emission
-// Implemented in Slice 6
-export type { }
+import * as friendsRepo from './friends.repo'
+
+export async function getAcceptedFriendIds(userId: string): Promise<string[]> {
+  return friendsRepo.getAcceptedFriendIds(userId)
+}

@@ -1,6 +1,6 @@
 # CLAUDE.md — BeActive Project Bible
 
-> **Last updated:** 2026-06-01 — Slices 0–4 complete, Slice 4 QA 8/8 PASS; v2 Phases 0–7 complete (streak engine migration DONE)
+> **Last updated:** 2026-06-03 — Slices 0–5 complete (Phases A–F done); v2 Phases 0–7 complete (streak engine migration DONE)
 > **Purpose:** Master reference for Claude CLI/Code. Read this FIRST before every session.
 > **Rule:** architecture.md wins all contradictions. This file is the index; the /docs/ files are the source of truth.
 
@@ -533,7 +533,7 @@ NEXT_PUBLIC_STREAK_DEBUG="true"      # Dev only — enables StreakDebugPanel on 
 | 2 | Upload & Post | ✅ COMPLETE | Slice 1 |
 | 3 | AI Classification | ✅ COMPLETE | Slice 2 |
 | 4 | Streak Engine | ✅ COMPLETE — QA 8/8 PASS (2026-06-01) | Slice 3 |
-| 5 | Social Feed | NOT STARTED | Slice 4 + 6 |
+| 5 | Social Feed | ✅ COMPLETE — Phases A–F done (2026-06-03) | Slice 4 + 6 |
 | 6 | Friends System | NOT STARTED | Slice 1 |
 | 7 | Notifications | NOT STARTED | Slice 4 + 6 |
 | 8 | Stories | NOT STARTED | Slice 5 (post-MVP) |
@@ -775,6 +775,7 @@ npm run validate:parity
 - **v2 Phase 3 (Backfill + shadow):** `scripts/backfill-completions.mjs` — idempotent, creates DailyCompletion rows for all VERIFIED posts without one, then recomputes + updates every affected Streak projection; `scripts/validate-streak-parity.mjs` — read-only DoD gate, recomputes all users from ledger and compares against stored values, exits 1 on any divergence; npm scripts `backfill:completions` + `validate:parity`; 11 new unit tests (phase3Parity.test.ts) for parity comparison logic; 256 tests pass; DoD: run `npm run backfill:completions` then `npm run validate:parity` — exit 0 = PASS
 - **v2 Phase 4+5 (Read cutover + UI swap):** `StreakResponse` now returns `{ current, best, status, lastVerifiedDate, completedToday, displayTier }` — no `nextDeadline`/`atRiskAt`/`lastVerifiedAt`; `getMyStreak` fetches tz + calls `hasDailyCompletion` + `deriveDisplayTier`; `StreakWidget` rewritten with tier-based display (5 configs for all DisplayTier values, no countdown); `StreakDebugPanel` updated for v2 fields; `useStreak.ts` StreakData updated; 257 tests pass; DoD: API returns v2 shape, no timer digits in UI
 - **v2 Phase 6+7 (Cron repurpose + full cleanup):** `streakEvaluator.ts` rewritten — uses `lastVerifiedDate` + user tz + `hasDailyCompletion` + `recomputeStreak` guard; no more `lastVerifiedAt`/`activityState`; AT_RISK fires when past EVENING_HOUR + no completion today; BROKEN confirmed via recompute to guard races; schema migration `20260601200000_drop_v1_streak_fields` drops `Streak.lastVerifiedAt`, `User.activityState`, `UserActivityState` enum; `user.machine.ts` deleted; `useStreakTimer.ts` deleted; `setActivityState` removed; `auth.repo.ts` simplified (USER_SELECT const); `activityState` removed from all types/routes/tests; 238 tests pass; DoD: full suite green, rolling-24h code gone
+- **Slice 5 (Social Feed):** Pull/read model — no materialized table, no event handler; two queries per page (friends + posts); frozen T0 cursor for stable pagination; `FEED_WINDOW_DAYS=30`, `FEED_CANDIDATE_CAP=500`; `friends.service.getAcceptedFriendIds` (two-arm OR query on symmetric Friendship row); `feed.ranking.ts` + `feed.cursor.ts` are pure functions (base64url cursor, `(score DESC, id ASC)` total order); `feed.service.getFeed` orchestrates with `_now` injection for tests; `GET /api/feed?cursor&limit` via `feed.controller.ts` + `app/web/app/api/feed/route.ts`; `useFeed` hook (`useInfiniteQuery`, `queryKey: ['feed']`, `staleTime: 60s`); `FeedCard.tsx` (null-safe avatar/caption, relative time, workout badge, streak display); feed page has IntersectionObserver infinite scroll + two empty states (NO_CONNECTIONS / NO_RECENT_ACTIVITY) + skeleton/error states; upload page invalidates `['feed']` on VERIFIED alongside `['streak','me']`; 344 tests pass; pre-existing `users.repo.ts` TS error (tzChangedAt columns absent from schema) — not introduced by Slice 5
 
 ### Architecture Website
 - `index.html` in `/pitch/` directory → deploy to GitHub Pages for investor walkthroughs

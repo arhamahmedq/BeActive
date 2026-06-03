@@ -5,64 +5,47 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")  // used by prisma migrate — bypasses PgBouncer
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id            String   @id  // No @default: id MUST be set to the Supabase UUID
-  email         String   @unique
-  username      String   @unique
-  displayName   String?
-  avatarUrl     String?
-  bio           String?  @db.VarChar(160)
-  timezone      String   @default("UTC")
-  // Timezone-change throttle: anchor of the current 24h window + count of
-  // changes within it. Caps how often "today" can be redefined (anti-cheat).
-  tzChangedAt   DateTime?
-  tzChangeCount Int      @default(0)
-  role          UserRole @default(USER)
-  onboarded     Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
+  id               String            @id
+  email            String            @unique
+  username         String            @unique
+  displayName      String?
+  avatarUrl        String?
+  bio              String?           @db.VarChar(160)
+  timezone         String            @default("UTC")
+  role             UserRole          @default(USER)
+  onboarded        Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  dailyCompletions DailyCompletion[]
+  events           Event[]
+  friendshipsA     Friendship[]      @relation("FriendA")
+  friendshipsB     Friendship[]      @relation("FriendB")
+  receivedMessages Message[]         @relation("Receiver")
+  sentMessages     Message[]         @relation("Sender")
+  notifications    Notification[]
   posts            Post[]
   streak           Streak?
-  dailyCompletions DailyCompletion[]
-  friendshipsA     Friendship[]   @relation("FriendA")
-  friendshipsB     Friendship[]   @relation("FriendB")
-  notifications    Notification[]
-  sentMessages     Message[]      @relation("Sender")
-  receivedMessages Message[]      @relation("Receiver")
-  events           Event[]
-}
-
-enum UserRole {
-  USER
-  ADMIN
 }
 
 model Post {
-  id        String     @id @default(cuid())
-  userId    String
-  imageUrl  String
-  imageKey  String
-  caption   String?    @db.VarChar(500)
-  status    PostStatus @default(PENDING)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-
-  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workout          Workout?
-  dailyCompletion  DailyCompletion?
+  id              String           @id @default(cuid())
+  userId          String
+  imageUrl        String
+  imageKey        String
+  caption         String?          @db.VarChar(500)
+  status          PostStatus       @default(PENDING)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  dailyCompletion DailyCompletion?
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workout         Workout?
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])
-}
-
-enum PostStatus {
-  PENDING
-  VERIFIED
-  REJECTED
 }
 
 model Workout {
@@ -72,21 +55,10 @@ model Workout {
   aiConfidence Float
   modelVersion String
   processedAt  DateTime    @default(now())
-
-  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post         Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([type])
   @@index([aiConfidence])
-}
-
-enum WorkoutType {
-  GYM
-  RUNNING
-  CYCLING
-  SWIMMING
-  OUTDOOR
-  SPORTS
-  OTHER
 }
 
 model Streak {
@@ -95,44 +67,31 @@ model Streak {
   current          Int          @default(0)
   best             Int          @default(0)
   status           StreakStatus @default(INACTIVE)
-  lastVerifiedDate String?      // YYYY-MM-DD in user's timezone; set by recomputeStreak
   brokenAt         DateTime?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastVerifiedDate String?
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([lastVerifiedDate])
 }
 
-enum StreakStatus {
-  INACTIVE
-  ACTIVE
-  BROKEN
-}
-
-// Append-only ledger: one row per user per local calendar day.
-// UNIQUE(userId, localDate) is the free-idempotency invariant that makes
-// "one verified workout per day" a DB constraint, not application logic.
-// source of truth for v2 streak computation — never update or delete rows.
 model DailyCompletion {
   id        String   @id @default(cuid())
   userId    String
-  localDate String   // YYYY-MM-DD in the user's timezone at post creation
-  postId    String   @unique  // one verified post → at most one completion row
-  timezone  String   // IANA tz used when this row was created — immutable history
+  localDate String
+  postId    String   @unique
+  timezone  String
   createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // postId FK deliberately has no cascade: if a post is later deleted, the
-  // completion row (and thus the streak history) must survive.
-  post Post @relation(fields: [postId], references: [id], onDelete: Restrict)
+  post      Post     @relation(fields: [postId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, localDate])
   @@index([userId, localDate(sort: Desc)])
 }
 
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model Friendship {
   id        String           @id @default(cuid())
   userAId   String
@@ -140,22 +99,12 @@ model Friendship {
   status    FriendshipStatus
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
+  userA     User             @relation("FriendA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB     User             @relation("FriendB", fields: [userBId], references: [id], onDelete: Cascade)
 
-  userA User @relation("FriendA", fields: [userAId], references: [id], onDelete: Cascade)
-  userB User @relation("FriendB", fields: [userBId], references: [id], onDelete: Cascade)
-
-  // Canonical ordering: userAId < userBId enforced at the service layer.
-  // The unique index below prevents both (A,B) and (B,A) rows via a functional index
-  // created in the migration (Prisma does not support expressions in @@unique).
   @@unique([userAId, userBId])
   @@index([userAId, status])
   @@index([userBId, status])
-}
-
-enum FriendshipStatus {
-  PENDING
-  ACCEPTED
-  BLOCKED
 }
 
 model Notification {
@@ -168,34 +117,21 @@ model Notification {
   read           Boolean          @default(false)
   idempotencyKey String?          @unique
   createdAt      DateTime         @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, read, createdAt(sort: Desc)])
   @@index([userId, type])
 }
 
-enum NotificationType {
-  WELCOME
-  FRIEND_REQUEST
-  FRIEND_ACCEPTED
-  WORKOUT_VERIFIED
-  WORKOUT_REJECTED
-  FRIEND_POSTED
-  STREAK_AT_RISK
-  STREAK_BROKEN
-}
-
 model Event {
   id            String   @id @default(cuid())
   type          String
-  userId        String?  // Nullable: events outlive users (audit log must survive user deletion)
+  userId        String?
   payload       Json
   source        String
   correlationId String?
   createdAt     DateTime @default(now())
-
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user          User?    @relation(fields: [userId], references: [id])
 
   @@index([type, createdAt(sort: Desc)])
   @@index([userId, createdAt(sort: Desc)])
@@ -211,10 +147,53 @@ model Message {
   imageKey   String?
   read       Boolean  @default(false)
   createdAt  DateTime @default(now())
-
-  sender   User @relation("Sender", fields: [senderId], references: [id])
-  receiver User @relation("Receiver", fields: [receiverId], references: [id])
+  receiver   User     @relation("Receiver", fields: [receiverId], references: [id])
+  sender     User     @relation("Sender", fields: [senderId], references: [id])
 
   @@index([senderId, receiverId, createdAt(sort: Desc)])
   @@index([receiverId, read, createdAt(sort: Desc)])
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum PostStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum WorkoutType {
+  GYM
+  RUNNING
+  CYCLING
+  SWIMMING
+  OUTDOOR
+  SPORTS
+  OTHER
+}
+
+enum StreakStatus {
+  INACTIVE
+  ACTIVE
+  BROKEN
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+enum NotificationType {
+  WELCOME
+  FRIEND_REQUEST
+  FRIEND_ACCEPTED
+  WORKOUT_VERIFIED
+  WORKOUT_REJECTED
+  FRIEND_POSTED
+  STREAK_AT_RISK
+  STREAK_BROKEN
 }
