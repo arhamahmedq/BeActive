@@ -1,36 +1,48 @@
 ---
-description: Process one task from beactive-dispatch/queue following the STEP 1–7 loop
+description: Process one task from beactive-dispatch/queue following the hardened STEP 0–9 loop
 ---
 
 You are the execution kernel for the BeActive AI Dev OS loop. Process **exactly
 one** task this invocation, then stop. The full protocol is in
-`beactive-dispatch/README.md` — that file wins all contradictions with this one.
+`beactive-dispatch/README.md`; the formal lifecycle/recovery rules are in
+`beactive-dispatch/CONTRACT.md`; the deterministic mechanics (state edges, task
+selection, stale-lock math) are defined and tested in
+`beactive-dispatch/lib/dispatch.ts`. These three must agree — if mechanics are in
+doubt, the lib wins; if policy is in doubt, CONTRACT.md §10 wins.
 
-Hard rules (from README §6, non-negotiable):
-- Commit locally only. **Never `git push`.** Work on a `dispatch/<task-id>` branch, never on `main`/`master`.
+Hard rules (CONTRACT §10, non-negotiable):
+- Commit locally only. **Never `git push`. Never merge. Never deploy.** Work on a `dispatch/<task-id>` branch, never on `master`.
 - Pause and ask the human before any destructive op: `prisma migrate`, deleting files/rows, removing deps, force-push.
 - One task = one unit. Never merge two task files. Never skip test validation.
-- Stay inside the task's slice; if it requires crossing a boundary it didn't authorize, mark `blocked` and report.
+- Stay inside the task's slice; if it needs un-authorized scope, mark `blocked` and report.
 
 Execute:
 
-1. **LOAD** — Read all `beactive-dispatch/queue/*.md`. Keep only `status: pending` (and any stale `status: running`, which take precedence — they may be a crashed prior run). Sort by `priority` (high→low) then `created_at` (oldest first). Pick the single top task. If none exist → output the IDLE report (§5/§7) and STOP.
+0. **CYCLE LOCK** — Acquire the mutex: `mkdir beactive-dispatch/.lock` (atomic). If it already exists and is fresh (< 1h old) → another cycle is live; abort and report. If it exists but is stale (≥ 1h) → reclaim it (`rmdir`/recreate). Always remove `.lock` before you finish (success, failure, or abort).
 
-2. **LOCK** — Set the chosen task's `status: running` and save the file before touching code.
+1. **RECOVER** — Before loading, reclaim crashed work (CONTRACT §6). Read `queue/*.md`. For any task already `status: running`: it is orphaned (single-cycle invariant). If its `dispatch/<task-id>` branch already holds the committed work, finish the transition forward (→ `done`, archive, outbox). Otherwise re-queue it: set `status: pending`, clear `locked_at`/`lock_owner`, leave in `queue/`. Use `isStaleLock` semantics from the lib.
 
-3. **CONTEXT** — Read CLAUDE.md + the relevant `/docs` for the task's `slice`. Confirm architecture invariants (controller→service→repo, no cross-module repo imports, Prisma integrity, events on state change).
+2. **LOAD** — From `queue/*.md`, keep only `status: pending`. Select the single winner by the lib's `selectNextTask` order: priority (high→low), then `created_at` (oldest first), then `id`. If none → remove `.lock`, output the IDLE report (§9, console only, no outbox), STOP.
 
-4. **PLAN** — Decompose into minimal steps. List risks + impacted tests. Verify scope stays in-slice. If not authorized to cross a boundary → set `status: blocked`, write `summary:`, move to `archived/`, report, STOP.
+3. **LOCK** — Set the task's `status: running`; stamp `locked_at` (ISO-8601 UTC) and `lock_owner` (a fresh UUID for this cycle); `git add` the task file; save — before touching any code.
 
-5. **EXECUTE** — Minimal surgical diffs. TDD for new behavior. No unrelated refactors.
+4. **CONTEXT** — Read CLAUDE.md + the relevant `/docs` for the task's `slice`. Confirm architecture invariants (controller→service→repo, no cross-module repo imports, Prisma integrity, events on state change).
 
-6. **VALIDATE** — Run impacted tests (`npm run test`), plus `npm run lint` / `type-check` if code changed. Fix failures. No green → no commit.
+5. **PLAN** — Decompose into minimal steps. List risks + impacted tests. Verify scope stays in-slice. If un-authorized to cross a boundary → `status: blocked`, write `summary`, archive, write outbox, REPORT, remove `.lock`, STOP (Path C).
 
-7. **COMMIT** — Create/switch to `dispatch/<task-id>`. Commit: `feat|fix|refactor(scope): description (dispatch:<task-id>)`. Do **not** push.
+6. **EXECUTE** — Minimal surgical diffs. TDD for new behavior. No unrelated refactors.
 
-8. **FINALIZE** — Update task frontmatter (`status: done|failed|blocked`, `completed_at`, `branch`, `commit`, `summary`). Move the file to `beactive-dispatch/archived/`.
+7. **VALIDATE** — Run impacted tests (`npm run test`), plus `npm run lint` / `type-check` if code changed. Fix failures. If it cannot reach green → Path B: do **not** commit failing production code; set `status: failed` + `summary` (cause), archive, write outbox, REPORT, remove `.lock`, STOP. Keep any partial branch for inspection.
 
-9. **REPORT** — Emit the §7 observability block:
+8. **COMMIT** — Create/switch to `dispatch/<task-id>`. Commit: `<type>(<scope>): <description> (dispatch:<task-id>)` with the `Co-Authored-By` trailer. Do **not** push.
+
+9. **FINALIZE + OUTBOX + REPORT**
+   - Update task frontmatter: `status: done`, `completed_at`, `branch`, `commit`, `summary`.
+   - Move the task file `queue/ → archived/`.
+   - Write the outbox report to `beactive-dispatch/outbox/<task-id>.<YYYYMMDDTHHMMSSZ>.md` (frontmatter + observability block per CONTRACT §5).
+   - `git add` the archived task file + the outbox file; amend or add a follow-up commit so the audit trail is captured.
+   - Remove `beactive-dispatch/.lock`.
+   - Emit the observability block to the console:
 ```
 TASK:        <id> (<priority>, slice <n>)
 STATUS:      done | failed | blocked | idle
@@ -40,5 +52,5 @@ RISK:        <one-line residual risk or none>
 NEXT STATE:  idle | continuing-queue (<N> pending remain)
 ```
 
-If running under `/loop`, the next interval will pick up the next task. Do not
-claim the system is "complete" — only report this task's outcome and the queue state.
+If running under `/loop`, the next interval picks up the next task. Do not claim
+the system is "complete" — report only this task's outcome and the queue state.

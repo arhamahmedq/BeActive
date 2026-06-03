@@ -28,3 +28,6 @@ test-results/
 
 # Superpowers tool (ephemeral brainstorm/server files)
 .superpowers/
+
+# beactive-dispatch ephemeral cycle mutex (runtime-only, machine-local)
+beactive-dispatch/.lock/

@@ -20,16 +20,23 @@ this folder is the runtime queue; git history is the audit log.
 
 ```
 beactive-dispatch/
-├── README.md            ← this file — THE protocol, source of truth
+├── README.md            ← this file — THE protocol (STEP 0–9, source of truth)
+├── CONTRACT.md          ← formal lifecycle + recovery contract
 ├── task.template.md     ← copy this to create a task
-├── queue/               ← pending tasks live here (one file per task)
+├── lib/
+│   └── dispatch.ts      ← pure, tested core: state machine + selection + stale-lock
+├── queue/               ← pending/running tasks (git-tracked)
 │   └── .gitkeep
-└── archived/            ← completed/failed tasks moved here
-    └── .gitkeep
+├── archived/            ← terminal tasks: done/failed/blocked (git-tracked)
+│   └── .gitkeep
+├── outbox/              ← per-cycle execution reports (git-tracked output contract)
+│   └── .gitkeep
+└── .lock/               ← ephemeral cycle mutex (git-IGNORED, created at runtime)
 ```
 
 A task is one `.md` file in `queue/`. One file = one atomic unit of work.
-Never mix two task files into a single execution unit.
+Never mix two task files into a single execution unit. See **CONTRACT.md** for
+the formal state machine, outbox/output contract, and crash/stale-lock recovery.
 
 ---
 
