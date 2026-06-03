@@ -38,7 +38,7 @@ async function sendMessage(chatId: number, text: string): Promise<void> {
 
 interface TgUpdate {
   update_id: number
-  message?: { text?: string; chat: { id: number }; from?: { id: number; username?: string } }
+  message?: { message_id?: number; text?: string; chat: { id: number }; from?: { id: number; username?: string } }
 }
 
 async function main(): Promise<void> {
@@ -59,7 +59,7 @@ async function main(): Promise<void> {
         offset = u.update_id + 1
         const m = u.message
         if (!m) continue
-        const msg: TelegramMessage = { text: m.text, chat: { id: m.chat.id }, from: m.from }
+        const msg: TelegramMessage = { text: m.text, chat: { id: m.chat.id }, from: m.from, message_id: m.message_id }
         const { reply } = handleTelegramMessage(msg, enqueue, { allowedChatIds: ALLOWED, now: () => new Date() })
         await sendMessage(m.chat.id, reply)
       }

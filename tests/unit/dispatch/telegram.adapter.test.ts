@@ -33,6 +33,20 @@ describe('mapMessageToEnqueueInput (pure shaping — never validates)', () => {
     expect(mapMessageToEnqueueInput(msg(), NOW).notes).toBe('from @arham (chat 42)')
   })
 
+  it('derives a stable id from message identity when message_id is present', () => {
+    const a = mapMessageToEnqueueInput(msg({ message_id: 100 }), NOW)
+    const b = mapMessageToEnqueueInput(msg({ message_id: 100 }), new Date('2030-01-01T00:00:00Z'))
+    expect(a.id).toBe(b.id) // clock-independent ⇒ redelivery idempotent
+    expect(TASK_ID_RE.test(a.id)).toBe(true)
+    expect(a.id).toContain('c42-m100')
+  })
+
+  it('gives distinct ids to distinct message_ids with the same text', () => {
+    const a = mapMessageToEnqueueInput(msg({ message_id: 1 }), NOW)
+    const b = mapMessageToEnqueueInput(msg({ message_id: 2 }), NOW)
+    expect(a.id).not.toBe(b.id)
+  })
+
   it('parses an optional #priority tag and strips it from the body', () => {
     const input = mapMessageToEnqueueInput(msg({ text: 'Fix the feed #high please' }), NOW)
     expect(input.priority).toBe('high')

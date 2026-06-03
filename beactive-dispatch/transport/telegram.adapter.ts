@@ -24,6 +24,12 @@ export interface TelegramMessage {
   text?: string
   chat: { id: number }
   from?: { id: number; username?: string }
+  /**
+   * Telegram's per-chat message id. When present it makes the derived task id
+   * deterministic for a given source message, so an at-least-once redelivery of
+   * the SAME update maps to the SAME id and enqueue() dedupes it (idempotency).
+   */
+  message_id?: number
 }
 
 /** The enqueue function, injected so the adapter stays pure + testable. */
@@ -73,7 +79,14 @@ export function mapMessageToEnqueueInput(msg: TelegramMessage, now: Date): Enque
   const { priority, rest } = extractPriority(raw)
   const body = rest.slice(0, MAX_BODY_LEN)
   const slug = slugify(body) || 'task'
-  const id = `${slug}-${now.getTime().toString(36)}`
+  // Idempotency: prefer the source message's stable identity (chat+message_id) so
+  // a redelivered Telegram update yields the SAME id (enqueue then dedupes it).
+  // Fall back to a wall-clock suffix only when message_id is unavailable.
+  const suffix =
+    msg.message_id !== undefined
+      ? `c${msg.chat.id}-m${msg.message_id}`.replace(/[^a-z0-9-]/g, '')
+      : now.getTime().toString(36)
+  const id = `${slug}-${suffix}`
   const who = msg.from?.username ? `@${msg.from.username}` : `user ${msg.from?.id ?? 'unknown'}`
   const input: EnqueueInput = {
     id,

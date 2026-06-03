@@ -23,7 +23,12 @@ const FIXED_NOW = new Date('2026-06-03T12:00:00.000Z')
 const ctx = (): AdapterContext => ({ allowedChatIds: new Set([42]), now: () => FIXED_NOW })
 const realEnqueue = (input: Parameters<typeof enqueue>[0]) =>
   enqueue(input, { queueDir, archivedDir, now: () => FIXED_NOW })
-const msg = (text: string, chatId = 42): TelegramMessage => ({ text, chat: { id: chatId }, from: { id: 7, username: 'arham' } })
+const msg = (text: string, chatId = 42, messageId?: number): TelegramMessage => ({
+  text,
+  chat: { id: chatId },
+  from: { id: 7, username: 'arham' },
+  message_id: messageId,
+})
 
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'tg-enqueue-'))
@@ -49,17 +54,25 @@ describe('Telegram → enqueue integration', () => {
     expect(content).toContain('Add a logout button')
   })
 
-  it('duplicate detection is owned by enqueue, not the adapter', () => {
-    // Same text + same injected clock ⇒ identical derived id ⇒ enqueue must reject the 2nd.
-    const first = handleTelegramMessage(msg('same task'), realEnqueue, ctx())
+  it('is idempotent on Telegram redelivery (same message_id ⇒ enqueue dedupes)', () => {
+    // Telegram is at-least-once: the SAME update (same message_id) can be delivered
+    // twice. The id derives from chat+message_id, so the 2nd maps to the same id and
+    // enqueue refuses it — duplicate detection still owned by enqueue, not the adapter.
+    const first = handleTelegramMessage(msg('same task', 42, 100), realEnqueue, ctx())
     expect(first.reply).toMatch(/✅ Queued task/)
 
-    const second = handleTelegramMessage(msg('same task'), realEnqueue, ctx())
-    expect(second.reply).toMatch(/⚠️ Could not queue/)
-    expect(second.reply).toMatch(/duplicate task id/)
+    const redelivered = handleTelegramMessage(msg('same task', 42, 100), realEnqueue, ctx())
+    expect(redelivered.reply).toMatch(/⚠️ Could not queue/)
+    expect(redelivered.reply).toMatch(/duplicate task id/)
 
-    // Exactly one file exists — the adapter never created a second, enqueue refused it.
+    // Exactly one file — the adapter never created a second, enqueue refused it.
     expect(readdirSync(queueDir).filter((f) => f.endsWith('.md'))).toHaveLength(1)
+  })
+
+  it('treats two DISTINCT messages with the same text as two tasks', () => {
+    expect(handleTelegramMessage(msg('same text', 42, 1), realEnqueue, ctx()).reply).toMatch(/✅/)
+    expect(handleTelegramMessage(msg('same text', 42, 2), realEnqueue, ctx()).reply).toMatch(/✅/)
+    expect(readdirSync(queueDir).filter((f) => f.endsWith('.md'))).toHaveLength(2)
   })
 
   it('unauthorized senders never reach enqueue (no file written)', () => {
