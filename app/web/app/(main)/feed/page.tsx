@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, type ReactNode } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useStreak } from '@/hooks/useStreak'
 import { useFeed } from '@/hooks/useFeed'
@@ -78,7 +78,7 @@ export default function FeedPage() {
   const firstPage = data?.pages[0]
   const emptyReason = firstPage?.emptyReason
 
-  let feedContent: React.ReactNode
+  let feedContent: ReactNode
 
   if (feedLoading) {
     feedContent = <FeedSkeleton />
