@@ -78,6 +78,32 @@ the formal state machine, outbox/output contract, and crash/stale-lock recovery.
 `{ ok: false, errors }` — never a silent or partial write. Validation/build logic
 is the pure, tested `buildTaskFile()` in `lib/dispatch.ts`.
 
+### Transport adapters (Phase 4) — Telegram
+
+A transport is a **thin caller** of `enqueue()` with **zero** task-state
+semantics. It translates an external message into an `EnqueueInput`, calls
+`enqueue()`, and relays the result. It never validates task fields, detects
+duplicates, writes files, or mutates state — `enqueue()` and the kernel do.
+
+- `transport/telegram.adapter.ts` — **pure** (no I/O): `mapMessageToEnqueueInput()`
+  + `handleTelegramMessage(msg, enqueue, ctx)` → `{ reply }`. Authorization
+  (fail-closed allowlist) and body-length capping live here as transport/security
+  concerns, not business rules.
+- `transport/telegram.bot.ts` — the **only** networked piece: a dependency-free
+  long-poll runner that wires real `enqueue` into the adapter. Run it yourself:
+
+  ```bash
+  TELEGRAM_BOT_TOKEN=...  TELEGRAM_ALLOWED_CHAT_IDS=12345,67890 \
+    npx tsx beactive-dispatch/transport/telegram.bot.ts
+  ```
+
+  Token is env-only (never committed); the allowlist is **fail-closed** (unset ⇒
+  nobody can enqueue). Submitting a task does **not** execute it — a human/`/loop`
+  still runs `/process-dispatch` to drain the queue.
+
+This is the template for every future transport (API, mobile, dashboard): map →
+`enqueue()` → relay. Add a new adapter, never a new writer.
+
 ---
 
 ## 2. Task file format
