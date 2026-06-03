@@ -283,6 +283,21 @@ describe('getFeed — emptyReason', () => {
 
     expect('emptyReason' in result).toBe(false)
   })
+
+  it('does NOT set emptyReason on an empty PAGINATED (cursored) response — first-page only', async () => {
+    // A forged/replayed in-bounds cursor that lands past the end yields an empty
+    // page. emptyReason is a first-page discriminator (§4/§9) and must be absent
+    // here — otherwise a deep cursor would emit a misleading NO_CONNECTIONS.
+    const cursor = encodeCursor({ t: T0, s: 0.5, id: 'whatever' })
+    vi.mocked(friendsService.getAcceptedFriendIds).mockResolvedValue([])
+    vi.mocked(feedRepo.getFeedCandidates).mockResolvedValue([])
+
+    const result = await getFeed('viewer-1', { cursor, limit: 20 }, NOW)
+
+    expect(result.posts).toHaveLength(0)
+    expect(result.nextCursor).toBeNull()
+    expect('emptyReason' in result).toBe(false)
+  })
 })
 
 // ---------------------------------------------------------------------------

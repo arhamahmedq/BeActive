@@ -43,7 +43,11 @@ export async function getFeed(
     workout: r.workout ? { type: r.workout.type } : null,
   }))
 
-  if (posts.length === 0 && nextCursor === null) {
+  // emptyReason is a first-page-only discriminator (§4/§9). cursor === null is the
+  // definitive "first page" signal — guarding on it prevents a forged/replayed
+  // in-bounds cursor pointing past the end from emitting a misleading
+  // NO_CONNECTIONS/NO_RECENT_ACTIVITY on a paginated request.
+  if (cursor === null && posts.length === 0 && nextCursor === null) {
     const emptyReason = friendIds.length === 0 ? 'NO_CONNECTIONS' : 'NO_RECENT_ACTIVITY'
     return { posts, nextCursor, emptyReason }
   }
