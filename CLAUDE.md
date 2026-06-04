@@ -752,6 +752,12 @@ node --env-file=app/web/.env.local qa-streak.mjs
 # Requires: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY, CRON_SECRET, R2 creds in .env.local
 # Dev server must be running first (npm run dev)
 
+# Friends (Slice 6) happy-path smoke — two real users, live server + real DB (25 checks)
+node --env-file=app/web/.env.local qa-friends.mjs
+# Covers search→request→accept→list→remove→cancel→block→unblock + self-op/auth guards.
+# Requires: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_KEY, DATABASE_URL in .env.local; dev server running.
+# Caught the unapplied add_timezone_throttle migration drift (2026-06-04). Manual runner, not in `npm test`.
+
 # v2 Phase 0 — Timezone readiness audit (Phase 0 DoD: "Invalid" count = 0)
 npm run audit:timezones
 # Requires: DATABASE_URL in app/web/.env.local (uses Prisma directly, no dev server needed)
