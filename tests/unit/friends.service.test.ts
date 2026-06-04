@@ -15,6 +15,7 @@ import {
   acceptFriendRequest,
   rejectFriendRequest,
   removeFriend,
+  blockUser,
   getFriends,
   getPendingFriendships,
 } from '../../server/modules/friends/friends.service'
@@ -45,6 +46,14 @@ const PENDING_RECORD = {
 const ACCEPTED_RECORD = {
   ...PENDING_RECORD,
   status: FriendshipStatus.ACCEPTED,
+}
+
+const BLOCKED_RECORD = {
+  id: 'f-9',
+  userAId: 'blocker',
+  userBId: 'blocked',
+  status: FriendshipStatus.BLOCKED,
+  createdAt: new Date(),
 }
 
 beforeEach(() => {
@@ -336,6 +345,49 @@ describe('friends.service.removeFriend', () => {
   it('throws NotFoundError when friendship does not exist', async () => {
     vi.mocked(repo.findFriendshipById).mockResolvedValue(null)
     await expect(removeFriend('requester', 'ghost')).rejects.toThrow(NotFoundError)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// blockUser
+// ---------------------------------------------------------------------------
+describe('friends.service.blockUser', () => {
+  it('throws ConflictError on self-block before any repo call', async () => {
+    await expect(blockUser('user-1', 'user-1')).rejects.toThrow(ConflictError)
+    expect(usersService.getProfile).not.toHaveBeenCalled()
+    expect(repo.blockFriendship).not.toHaveBeenCalled()
+  })
+
+  it('propagates NotFoundError when the target user does not exist', async () => {
+    vi.mocked(usersService.getProfile).mockRejectedValue(new NotFoundError('User'))
+    await expect(blockUser('blocker', 'ghost')).rejects.toThrow(NotFoundError)
+    expect(repo.blockFriendship).not.toHaveBeenCalled()
+  })
+
+  it('blocks the target and returns the BLOCKED mutation response', async () => {
+    vi.mocked(repo.blockFriendship).mockResolvedValue(BLOCKED_RECORD)
+    const result = await blockUser('blocker', 'blocked')
+    expect(repo.blockFriendship).toHaveBeenCalledWith('blocker', 'blocked')
+    expect(result).toEqual({ friendship: { id: 'f-9', status: FriendshipStatus.BLOCKED } })
+  })
+
+  it('emits a USER_BLOCKED event (fire-and-forget)', async () => {
+    vi.mocked(repo.blockFriendship).mockResolvedValue(BLOCKED_RECORD)
+    await blockUser('blocker', 'blocked')
+    expect(repo.persistEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'USER_BLOCKED',
+        userId: 'blocker',
+        payload: { friendshipId: 'f-9', blockerId: 'blocker', blockedId: 'blocked' },
+        source: 'friends.service',
+      })
+    )
+  })
+
+  it('does not throw if event persistence fails', async () => {
+    vi.mocked(repo.blockFriendship).mockResolvedValue(BLOCKED_RECORD)
+    vi.mocked(repo.persistEvent).mockRejectedValue(new Error('db down'))
+    await expect(blockUser('blocker', 'blocked')).resolves.toBeDefined()
   })
 })
 

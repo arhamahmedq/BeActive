@@ -169,6 +169,34 @@ export async function removeFriend(userId: string, friendshipId: string): Promis
   }
 }
 
+export async function blockUser(
+  userId: string,
+  targetUserId: string
+): Promise<FriendshipMutationResponse> {
+  if (userId === targetUserId) {
+    throw new ConflictError('You cannot block yourself')
+  }
+
+  // Validate the target exists before any write (throws NotFoundError → 404).
+  await getProfile(targetUserId)
+
+  // Replaces any existing friendship/request with a BLOCKED row (userA = blocker).
+  // Once present, searchUsers excludes the pair (both directions) and the pull-model
+  // feed/friends list never surface blocked users — they only read ACCEPTED rows.
+  const friendship = await friendsRepo.blockFriendship(userId, targetUserId)
+
+  void friendsRepo.persistEvent({
+    type: EventType.USER_BLOCKED,
+    userId,
+    payload: { friendshipId: friendship.id, blockerId: userId, blockedId: targetUserId },
+    source: 'friends.service',
+  }).catch((err: unknown) => {
+    logger.error('Failed to persist USER_BLOCKED event', { error: String(err) })
+  })
+
+  return { friendship: { id: friendship.id, status: friendship.status } }
+}
+
 export async function getFriends(userId: string): Promise<FriendsListResponse> {
   const rows = await friendsRepo.getAcceptedFriends(userId)
   const friends: FriendUser[] = rows.map((row) => {

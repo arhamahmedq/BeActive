@@ -79,6 +79,31 @@ export async function deleteFriendship(id: string): Promise<void> {
   await prisma.friendship.delete({ where: { id } })
 }
 
+// Block is destructive-and-create: any existing relationship (either direction,
+// PENDING or ACCEPTED) is dropped and replaced by a single BLOCKED row whose
+// direction encodes the blocker (userAId) → blocked (userBId). Wrapped in a
+// transaction so the delete + create are atomic. deleteMany (not delete) tolerates
+// 0, 1, or — defensively — duplicate rows for the pair.
+export async function blockFriendship(
+  blockerId: string,
+  blockedId: string
+): Promise<FriendshipRecord> {
+  return prisma.$transaction(async (tx) => {
+    await tx.friendship.deleteMany({
+      where: {
+        OR: [
+          { userAId: blockerId, userBId: blockedId },
+          { userAId: blockedId, userBId: blockerId },
+        ],
+      },
+    })
+    return tx.friendship.create({
+      data: { userAId: blockerId, userBId: blockedId, status: FriendshipStatus.BLOCKED },
+      select: friendshipSelect,
+    })
+  })
+}
+
 export async function getAcceptedFriends(userId: string): Promise<FriendRowData[]> {
   return prisma.friendship.findMany({
     where: {

@@ -10,6 +10,7 @@ import {
   handleSendFriendRequest,
   handleAcceptFriendRequest,
   handleRemoveFriend,
+  handleBlockUser,
   handleGetFriends,
   handleRejectFriendRequest,
   handleGetPendingFriendships,
@@ -253,6 +254,61 @@ describe('handleRemoveFriend — 200 Success', () => {
 
     await handleRemoveFriend(mockRequest)
     expect(friendsService.removeFriend).toHaveBeenCalledWith('user-1', 'f-1')
+  })
+})
+
+// ===========================================================================
+// POST /api/friends/block — handleBlockUser
+// ===========================================================================
+
+describe('handleBlockUser', () => {
+  const BLOCKED_RESPONSE = { friendship: { id: 'f-9', status: FriendshipStatus.BLOCKED } }
+
+  it('returns 401 when auth fails (and does not call the service)', async () => {
+    vi.mocked(authMiddleware.requireAuth).mockResolvedValue(AUTH_FAIL)
+    const res = await handleBlockUser(mockRequest)
+    expect(res.status).toBe(401)
+    expect(friendsService.blockUser).not.toHaveBeenCalled()
+  })
+
+  it('returns 429 when rate limited (and does not call the service)', async () => {
+    vi.mocked(authMiddleware.requireAuth).mockResolvedValue(AUTH_SUCCESS)
+    vi.mocked(rateLimitMiddleware.friendActionUserRateLimit).mockReturnValue(
+      NextResponse.json({ error: { code: 'RATE_LIMITED', message: 'Too many requests' } }, { status: 429 })
+    )
+    const res = await handleBlockUser(mockRequest)
+    expect(res.status).toBe(429)
+    expect(friendsService.blockUser).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when body validation fails', async () => {
+    vi.mocked(authMiddleware.requireAuth).mockResolvedValue(AUTH_SUCCESS)
+    vi.mocked(rateLimitMiddleware.friendActionUserRateLimit).mockReturnValue(null)
+    vi.mocked(validateMiddleware.validateBody).mockResolvedValue(VALIDATION_FAIL)
+    const res = await handleBlockUser(mockRequest)
+    expect(res.status).toBe(400)
+    expect(friendsService.blockUser).not.toHaveBeenCalled()
+  })
+
+  it('returns 200 and calls blockUser with the authenticated userId + targetUserId', async () => {
+    vi.mocked(authMiddleware.requireAuth).mockResolvedValue(AUTH_SUCCESS)
+    vi.mocked(rateLimitMiddleware.friendActionUserRateLimit).mockReturnValue(null)
+    vi.mocked(validateMiddleware.validateBody).mockResolvedValue({ targetUserId: 'u-2' })
+    vi.mocked(friendsService.blockUser).mockResolvedValue(BLOCKED_RESPONSE)
+
+    const res = await handleBlockUser(mockRequest)
+    expect(res.status).toBe(200)
+    expect(friendsService.blockUser).toHaveBeenCalledWith('user-1', 'u-2')
+  })
+
+  it('maps a service ConflictError (e.g. self-block) to 409', async () => {
+    vi.mocked(authMiddleware.requireAuth).mockResolvedValue(AUTH_SUCCESS)
+    vi.mocked(rateLimitMiddleware.friendActionUserRateLimit).mockReturnValue(null)
+    vi.mocked(validateMiddleware.validateBody).mockResolvedValue({ targetUserId: 'user-1' })
+    vi.mocked(friendsService.blockUser).mockRejectedValue(new ConflictError('You cannot block yourself'))
+
+    const res = await handleBlockUser(mockRequest)
+    expect(res.status).toBe(409)
   })
 })
 

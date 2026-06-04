@@ -1,22 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { FriendshipStatus } from '@prisma/client'
 
-const mockPrisma = vi.hoisted(() => ({
-  friendship: {
-    findMany: vi.fn(),
-    findFirst: vi.fn(),
-    findUnique: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-  },
-  event: {
-    create: vi.fn(),
-  },
-  user: {
-    findMany: vi.fn(),
-  },
-}))
+const mockPrisma = vi.hoisted(() => {
+  const p = {
+    friendship: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      deleteMany: vi.fn(),
+    },
+    event: {
+      create: vi.fn(),
+    },
+    user: {
+      findMany: vi.fn(),
+    },
+    $transaction: vi.fn(),
+  }
+  // Interactive transaction: run the callback against the same mock client.
+  p.$transaction.mockImplementation((cb: (tx: typeof p) => unknown) => cb(p))
+  return p
+})
 
 vi.mock('../../app/web/lib/prisma', () => ({ prisma: mockPrisma }))
 
@@ -27,6 +34,7 @@ import {
   createFriendship,
   updateFriendshipStatus,
   deleteFriendship,
+  blockFriendship,
   getAcceptedFriends,
   getPendingFriendships,
   persistEvent,
@@ -214,6 +222,41 @@ describe('friends.repo.deleteFriendship', () => {
     mockPrisma.friendship.delete.mockResolvedValue({})
     await deleteFriendship('f-1')
     expect(mockPrisma.friendship.delete).toHaveBeenCalledWith({ where: { id: 'f-1' } })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// blockFriendship
+// ---------------------------------------------------------------------------
+describe('friends.repo.blockFriendship', () => {
+  it('runs inside a transaction and deletes any existing pair row (both directions) before creating BLOCKED', async () => {
+    const blockedRow = { id: 'f-9', userAId: 'blocker', userBId: 'blocked', status: FriendshipStatus.BLOCKED, createdAt: new Date() }
+    mockPrisma.friendship.deleteMany.mockResolvedValue({ count: 1 })
+    mockPrisma.friendship.create.mockResolvedValue(blockedRow)
+
+    const result = await blockFriendship('blocker', 'blocked')
+
+    expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+    expect(mockPrisma.friendship.deleteMany).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { userAId: 'blocker', userBId: 'blocked' },
+          { userAId: 'blocked', userBId: 'blocker' },
+        ],
+      },
+    })
+    expect(result).toEqual(blockedRow)
+  })
+
+  it('creates the BLOCKED row with blocker as userAId (direction = who blocked whom)', async () => {
+    mockPrisma.friendship.deleteMany.mockResolvedValue({ count: 0 })
+    mockPrisma.friendship.create.mockResolvedValue({})
+    await blockFriendship('blocker', 'blocked')
+    expect(mockPrisma.friendship.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { userAId: 'blocker', userBId: 'blocked', status: FriendshipStatus.BLOCKED },
+      })
+    )
   })
 })
 

@@ -15,6 +15,7 @@ import {
   acceptFriendSchema,
   rejectFriendSchema,
   removeFriendSchema,
+  blockUserSchema,
   searchUsersSchema,
 } from './friends.schema'
 import {
@@ -22,6 +23,7 @@ import {
   acceptFriendRequest,
   rejectFriendRequest,
   removeFriend,
+  blockUser,
   getFriends,
   getPendingFriendships,
   searchUsers,
@@ -83,6 +85,25 @@ export async function handleRemoveFriend(request: NextRequest): Promise<NextResp
   try {
     await removeFriend(auth.userId, bodyOrError.friendshipId)
     return NextResponse.json({ success: true }, { status: 200 })
+  } catch (err) {
+    if (isAppError(err)) return NextResponse.json(toErrorResponse(err), { status: err.statusCode })
+    return NextResponse.json(toErrorResponse(new InternalError()), { status: 500 })
+  }
+}
+
+export async function handleBlockUser(request: NextRequest): Promise<NextResponse> {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+
+  const rateLimitResponse = friendActionUserRateLimit(auth.userId, 'friends/block')
+  if (rateLimitResponse) return rateLimitResponse
+
+  const bodyOrError = await validateBody(request, blockUserSchema)
+  if (bodyOrError instanceof NextResponse) return bodyOrError
+
+  try {
+    const result = await blockUser(auth.userId, bodyOrError.targetUserId)
+    return NextResponse.json(result, { status: 200 })
   } catch (err) {
     if (isAppError(err)) return NextResponse.json(toErrorResponse(err), { status: err.statusCode })
     return NextResponse.json(toErrorResponse(new InternalError()), { status: 500 })

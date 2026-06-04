@@ -4,6 +4,7 @@ import {
   acceptFriendSchema,
   rejectFriendSchema,
   removeFriendSchema,
+  blockUserSchema,
   searchUsersSchema,
 } from '../../server/modules/friends/friends.schema'
 
@@ -43,6 +44,20 @@ describe('acceptFriendSchema / rejectFriendSchema / removeFriendSchema', () => {
       expect(schema.safeParse({}).success).toBe(false)
     })
   }
+})
+
+describe('blockUserSchema', () => {
+  it('accepts a valid non-empty targetUserId', () => {
+    expect(blockUserSchema.safeParse({ targetUserId: 'user-cuid' }).success).toBe(true)
+  })
+
+  it('rejects empty string', () => {
+    expect(blockUserSchema.safeParse({ targetUserId: '' }).success).toBe(false)
+  })
+
+  it('rejects missing field', () => {
+    expect(blockUserSchema.safeParse({}).success).toBe(false)
+  })
 })
 
 // ---------------------------------------------------------------------------

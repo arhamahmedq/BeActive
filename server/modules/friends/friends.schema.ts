@@ -16,6 +16,10 @@ export const removeFriendSchema = z.object({
   friendshipId: z.string().min(1, 'friendshipId is required'),
 })
 
+export const blockUserSchema = z.object({
+  targetUserId: z.string().min(1, 'targetUserId is required'),
+})
+
 export const searchUsersSchema = z.object({
   // max(50) runs BEFORE transform to reject oversized payloads immediately.
   // transform: trim whitespace, NFKC-normalize (collapses Unicode lookalikes),
@@ -32,4 +36,5 @@ export type RequestFriendInput = z.infer<typeof requestFriendSchema>
 export type AcceptFriendInput = z.infer<typeof acceptFriendSchema>
 export type RejectFriendInput = z.infer<typeof rejectFriendSchema>
 export type RemoveFriendInput = z.infer<typeof removeFriendSchema>
+export type BlockUserInput = z.infer<typeof blockUserSchema>
 export type SearchUsersInput = z.infer<typeof searchUsersSchema>
