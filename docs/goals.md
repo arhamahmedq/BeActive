@@ -183,20 +183,22 @@ A slice is COMPLETE only when: deployed to production, all tests pass, QA approv
 - User search
 - Add/accept/reject/remove buttons
 
-**Events emitted:** FRIEND_REQUEST_SENT, FRIEND_REQUEST_ACCEPTED, FRIEND_REMOVED, USER_BLOCKED
+**Events emitted:** FRIEND_REQUEST_SENT, FRIEND_REQUEST_ACCEPTED, FRIEND_REMOVED, USER_BLOCKED, USER_UNBLOCKED
 
 **Definition of Done:** Can send request, accept, see friends list. Blocked users fully hidden. No self-friendship. No duplicate requests.
 
-**DoD status (2026-06-04):**
-- ✅ Send / accept / reject / remove / list / pending / search — all implemented + unit-tested.
-- ✅ Block — `POST /api/friends/block` writes a BLOCKED row (no migration; reuses existing enum). Blocked users are fully hidden: excluded from search (both directions), absent from the pull-model feed + friends list (ACCEPTED-only reads), and new requests are rejected (409).
-- ✅ No self-friendship — guarded in `sendFriendRequest` and `blockUser`.
-- ✅ No duplicate requests — `findFriendshipBetween` pre-check + P2002 race guard (409). **Limitation:** reciprocal A→B / B→A under true concurrency can still create two rows (the unique index is directional); structural fix = `pairKey` migration, deferred (see below).
+**DoD status (2026-06-04, after 3 review rounds + F1–F6 hardening):**
+- ✅ Send / accept / reject / remove / list / pending / search — implemented + unit-tested.
+- ✅ Cancel outgoing — dedicated `POST /api/friends/cancel` (requester-only, PENDING-only) so it can't unfriend an accepted friend (F5).
+- ✅ Block — `POST /api/friends/block` (no migration; reuses the BLOCKED enum). Fully hidden: excluded from search (both directions), absent from pull-model feed + friends list (ACCEPTED-only), and re-requests 409. Block is directional — A blocking B never erases B's block of A (F2). Idempotent on a concurrent double-block (F3). `POST /api/friends/unblock` (blocker-only) lifts it (F1); `/remove` refuses BLOCKED rows so it can never silently unblock (F1).
+- ✅ No self-friendship — guarded in `sendFriendRequest` and `blockUser`/`unblockUser`.
+- ✅ No duplicate requests — `findFriendshipBetween` pre-check + P2002 race guard (409). Concurrency 500s (row-vanished-mid-write, P2025) mapped to domain errors on accept/reject/remove/cancel (F4). **Limitation:** reciprocal A→B / B→A under true concurrency can still create two rows (the unique index is directional); structural fix = `pairKey` migration, deferred.
 
 **Deferred (post-review / pre-production, NOT blocking Slice 6 PR):**
-- Unblock endpoint + a "Block" button in the web UI (DoD only requires block + "fully hidden").
+- Unblock + Block **UI** (the endpoints exist; web buttons deferred).
 - `pairKey` unique + dedupe/backfill migration to eliminate the reciprocal-duplicate race (HIGH migration risk — isolate).
-- Durable rate limiter (the in-memory Map is per-serverless-instance on Vercel).
+- Durable rate limiter (the in-memory Map is per-serverless-instance on Vercel) — incl. F7 (friend-action limiter buckets per endpoint, not aggregate).
+- Best-effort events (not transactional with the mutation) — accepted for MVP, flagged.
 - Friends integration tests (real Postgres) + E2E happy path.
 
 ---
