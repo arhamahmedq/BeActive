@@ -163,6 +163,8 @@ A slice is COMPLETE only when: deployed to production, all tests pass, QA approv
 
 ## SLICE 6 — FRIENDS SYSTEM (Social Graph)
 
+**Status:** ✅ REVIEW-READY (2026-06-04) — implemented on `feature/slice-6-friends`, pending PR. All DoD criteria met. Deferred items (unblock, durable rate limiting, reciprocal-duplicate pairKey, integration/E2E) tracked below.
+
 **Objective:** Send/accept/remove friend requests. Foundation for feed, notifications, DMs.
 
 **Backend:**
@@ -181,9 +183,21 @@ A slice is COMPLETE only when: deployed to production, all tests pass, QA approv
 - User search
 - Add/accept/reject/remove buttons
 
-**Events emitted:** FRIEND_REQUEST_SENT, FRIEND_REQUEST_ACCEPTED, FRIEND_REMOVED
+**Events emitted:** FRIEND_REQUEST_SENT, FRIEND_REQUEST_ACCEPTED, FRIEND_REMOVED, USER_BLOCKED
 
 **Definition of Done:** Can send request, accept, see friends list. Blocked users fully hidden. No self-friendship. No duplicate requests.
+
+**DoD status (2026-06-04):**
+- ✅ Send / accept / reject / remove / list / pending / search — all implemented + unit-tested.
+- ✅ Block — `POST /api/friends/block` writes a BLOCKED row (no migration; reuses existing enum). Blocked users are fully hidden: excluded from search (both directions), absent from the pull-model feed + friends list (ACCEPTED-only reads), and new requests are rejected (409).
+- ✅ No self-friendship — guarded in `sendFriendRequest` and `blockUser`.
+- ✅ No duplicate requests — `findFriendshipBetween` pre-check + P2002 race guard (409). **Limitation:** reciprocal A→B / B→A under true concurrency can still create two rows (the unique index is directional); structural fix = `pairKey` migration, deferred (see below).
+
+**Deferred (post-review / pre-production, NOT blocking Slice 6 PR):**
+- Unblock endpoint + a "Block" button in the web UI (DoD only requires block + "fully hidden").
+- `pairKey` unique + dedupe/backfill migration to eliminate the reciprocal-duplicate race (HIGH migration risk — isolate).
+- Durable rate limiter (the in-memory Map is per-serverless-instance on Vercel).
+- Friends integration tests (real Postgres) + E2E happy path.
 
 ---
 
