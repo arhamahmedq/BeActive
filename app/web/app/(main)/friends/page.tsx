@@ -25,6 +25,7 @@ export default function FriendsPage() {
   const [removingFriendshipId, setRemovingFriendshipId] = useState<string | null>(null)
   const [acceptingId, setAcceptingId] = useState<string | null>(null)
   const [rejectingId, setRejectingId] = useState<string | null>(null)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [sendingUserId, setSendingUserId] = useState<string | null>(null)
 
   const friendUserIds = new Set(friends.map((f) => f.id))
@@ -48,6 +49,15 @@ export default function FriendsPage() {
     setRejectingId(friendshipId)
     rejectRequest.mutate(friendshipId, {
       onSettled: () => setRejectingId(null),
+    })
+  }
+
+  // Cancelling an outgoing request reuses the remove path: the backend lets the
+  // requester (userAId) delete their own PENDING friendship row.
+  function handleCancel(friendshipId: string) {
+    setCancellingId(friendshipId)
+    removeFriend.mutate(friendshipId, {
+      onSettled: () => setCancellingId(null),
     })
   }
 
@@ -100,8 +110,10 @@ export default function FriendsPage() {
             isLoading={isLoading}
             acceptingId={acceptingId}
             rejectingId={rejectingId}
+            cancellingId={cancellingId}
             onAccept={handleAccept}
             onReject={handleReject}
+            onCancel={handleCancel}
           />
         </section>
       )}

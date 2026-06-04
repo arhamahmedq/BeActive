@@ -8,8 +8,10 @@ interface FriendRequestsProps {
   isLoading: boolean
   acceptingId: string | null
   rejectingId: string | null
+  cancellingId: string | null
   onAccept: (friendshipId: string) => void
   onReject: (friendshipId: string) => void
+  onCancel: (friendshipId: string) => void
 }
 
 function PendingEntry({
@@ -47,8 +49,10 @@ export function FriendRequests({
   isLoading,
   acceptingId,
   rejectingId,
+  cancellingId,
   onAccept,
   onReject,
+  onCancel,
 }: FriendRequestsProps) {
   if (isLoading) {
     return (
@@ -111,7 +115,14 @@ export function FriendRequests({
               key={entry.friendshipId}
               entry={entry}
               actions={
-                <span className="text-xs text-gray-400">Pending</span>
+                <Button
+                  variant="ghost"
+                  onClick={() => onCancel(entry.friendshipId)}
+                  isLoading={cancellingId === entry.friendshipId}
+                  className="text-xs py-1.5 px-3 text-gray-400 hover:text-red-500"
+                >
+                  Cancel
+                </Button>
               }
             />
           ))}
