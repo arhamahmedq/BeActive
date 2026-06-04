@@ -17,6 +17,7 @@ export default function FriendsPage() {
     acceptRequest,
     rejectRequest,
     removeFriend,
+    cancelRequest,
   } = useFriends()
 
   const search = useUserSearch()
@@ -52,11 +53,11 @@ export default function FriendsPage() {
     })
   }
 
-  // Cancelling an outgoing request reuses the remove path: the backend lets the
-  // requester (userAId) delete their own PENDING friendship row.
+  // Cancel an outgoing request via the dedicated cancel path (PENDING-only on the
+  // server) so a request accepted between render and click can't silently unfriend.
   function handleCancel(friendshipId: string) {
     setCancellingId(friendshipId)
-    removeFriend.mutate(friendshipId, {
+    cancelRequest.mutate(friendshipId, {
       onSettled: () => setCancellingId(null),
     })
   }

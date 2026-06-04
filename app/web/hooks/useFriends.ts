@@ -7,6 +7,7 @@ import {
   acceptFriendRequest,
   rejectFriendRequest,
   removeFriend,
+  cancelFriendRequest,
   ApiError,
 } from '@/lib/api/friends.api'
 import type { FriendClient, PendingFriendEntry } from '@/lib/api/friends.api'
@@ -97,6 +98,20 @@ export function useFriends() {
     },
   })
 
+  const cancelRequestMutation = useMutation({
+    mutationFn: (friendshipId: string) => cancelFriendRequest(friendshipId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['friends', 'pending'] })
+    },
+    onError: (error) => {
+      // 404 (already gone) or 409 (no longer pending — e.g. just accepted) → reconcile.
+      if (error instanceof ApiError && (error.status === 404 || error.status === 409)) {
+        void queryClient.invalidateQueries({ queryKey: ['friends', 'pending'] })
+        void queryClient.invalidateQueries({ queryKey: ['friends'] })
+      }
+    },
+  })
+
   return {
     // Data (always arrays — never undefined in consumers)
     friends: friendsQuery.data?.friends ?? [] as FriendClient[],
@@ -114,5 +129,6 @@ export function useFriends() {
     acceptRequest: acceptRequestMutation,
     rejectRequest: rejectRequestMutation,
     removeFriend: removeFriendMutation,
+    cancelRequest: cancelRequestMutation,
   }
 }

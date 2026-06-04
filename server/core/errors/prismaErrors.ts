@@ -9,3 +9,13 @@ export function isUniqueConstraintError(err: unknown): boolean {
   }
   return err instanceof Error && err.message.includes('P2002')
 }
+
+// Detects a Prisma "record required but not found" error (P2025) — thrown by
+// update/delete when the target row vanished (e.g. deleted by a concurrent op
+// between a read and the write). Same typed-check-with-message-fallback shape.
+export function isRecordNotFoundError(err: unknown): boolean {
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    return err.code === 'P2025'
+  }
+  return err instanceof Error && err.message.includes('P2025')
+}

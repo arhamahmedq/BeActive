@@ -10,7 +10,9 @@ import {
   handleSendFriendRequest,
   handleAcceptFriendRequest,
   handleRemoveFriend,
+  handleCancelFriendRequest,
   handleBlockUser,
+  handleUnblockUser,
   handleGetFriends,
   handleRejectFriendRequest,
   handleGetPendingFriendships,
@@ -254,6 +256,93 @@ describe('handleRemoveFriend — 200 Success', () => {
 
     await handleRemoveFriend(mockRequest)
     expect(friendsService.removeFriend).toHaveBeenCalledWith('user-1', 'f-1')
+  })
+})
+
+// ===========================================================================
+// POST /api/friends/cancel — handleCancelFriendRequest
+// ===========================================================================
+
+describe('handleCancelFriendRequest', () => {
+  it('returns 401 when auth fails (service not called)', async () => {
+    vi.mocked(authMiddleware.requireAuth).mockResolvedValue(AUTH_FAIL)
+    const res = await handleCancelFriendRequest(mockRequest)
+    expect(res.status).toBe(401)
+    expect(friendsService.cancelFriendRequest).not.toHaveBeenCalled()
+  })
+
+  it('returns 429 when rate limited', async () => {
+    vi.mocked(authMiddleware.requireAuth).mockResolvedValue(AUTH_SUCCESS)
+    vi.mocked(rateLimitMiddleware.friendActionUserRateLimit).mockReturnValue(
+      NextResponse.json({ error: { code: 'RATE_LIMITED', message: 'Too many requests' } }, { status: 429 })
+    )
+    const res = await handleCancelFriendRequest(mockRequest)
+    expect(res.status).toBe(429)
+    expect(friendsService.cancelFriendRequest).not.toHaveBeenCalled()
+  })
+
+  it('returns 200 and calls cancelFriendRequest with userId + friendshipId', async () => {
+    vi.mocked(authMiddleware.requireAuth).mockResolvedValue(AUTH_SUCCESS)
+    vi.mocked(rateLimitMiddleware.friendActionUserRateLimit).mockReturnValue(null)
+    vi.mocked(validateMiddleware.validateBody).mockResolvedValue({ friendshipId: 'f-1' })
+    vi.mocked(friendsService.cancelFriendRequest).mockResolvedValue(undefined)
+
+    const res = await handleCancelFriendRequest(mockRequest)
+    expect(res.status).toBe(200)
+    expect(friendsService.cancelFriendRequest).toHaveBeenCalledWith('user-1', 'f-1')
+  })
+
+  it('maps a service ConflictError (no longer pending) to 409', async () => {
+    vi.mocked(authMiddleware.requireAuth).mockResolvedValue(AUTH_SUCCESS)
+    vi.mocked(rateLimitMiddleware.friendActionUserRateLimit).mockReturnValue(null)
+    vi.mocked(validateMiddleware.validateBody).mockResolvedValue({ friendshipId: 'f-1' })
+    vi.mocked(friendsService.cancelFriendRequest).mockRejectedValue(new ConflictError('This request can no longer be cancelled'))
+
+    const res = await handleCancelFriendRequest(mockRequest)
+    expect(res.status).toBe(409)
+  })
+})
+
+// ===========================================================================
+// POST /api/friends/unblock — handleUnblockUser
+// ===========================================================================
+
+describe('handleUnblockUser', () => {
+  it('returns 401 when auth fails (service not called)', async () => {
+    vi.mocked(authMiddleware.requireAuth).mockResolvedValue(AUTH_FAIL)
+    const res = await handleUnblockUser(mockRequest)
+    expect(res.status).toBe(401)
+    expect(friendsService.unblockUser).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when body validation fails', async () => {
+    vi.mocked(authMiddleware.requireAuth).mockResolvedValue(AUTH_SUCCESS)
+    vi.mocked(rateLimitMiddleware.friendActionUserRateLimit).mockReturnValue(null)
+    vi.mocked(validateMiddleware.validateBody).mockResolvedValue(VALIDATION_FAIL)
+    const res = await handleUnblockUser(mockRequest)
+    expect(res.status).toBe(400)
+    expect(friendsService.unblockUser).not.toHaveBeenCalled()
+  })
+
+  it('returns 200 and calls unblockUser with userId + targetUserId', async () => {
+    vi.mocked(authMiddleware.requireAuth).mockResolvedValue(AUTH_SUCCESS)
+    vi.mocked(rateLimitMiddleware.friendActionUserRateLimit).mockReturnValue(null)
+    vi.mocked(validateMiddleware.validateBody).mockResolvedValue({ targetUserId: 'u-2' })
+    vi.mocked(friendsService.unblockUser).mockResolvedValue(undefined)
+
+    const res = await handleUnblockUser(mockRequest)
+    expect(res.status).toBe(200)
+    expect(friendsService.unblockUser).toHaveBeenCalledWith('user-1', 'u-2')
+  })
+
+  it('maps a service NotFoundError (no such block) to 404', async () => {
+    vi.mocked(authMiddleware.requireAuth).mockResolvedValue(AUTH_SUCCESS)
+    vi.mocked(rateLimitMiddleware.friendActionUserRateLimit).mockReturnValue(null)
+    vi.mocked(validateMiddleware.validateBody).mockResolvedValue({ targetUserId: 'u-2' })
+    vi.mocked(friendsService.unblockUser).mockRejectedValue(new NotFoundError('Block'))
+
+    const res = await handleUnblockUser(mockRequest)
+    expect(res.status).toBe(404)
   })
 })
 

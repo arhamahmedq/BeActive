@@ -16,6 +16,8 @@ import {
   rejectFriendSchema,
   removeFriendSchema,
   blockUserSchema,
+  unblockUserSchema,
+  cancelFriendSchema,
   searchUsersSchema,
 } from './friends.schema'
 import {
@@ -23,7 +25,9 @@ import {
   acceptFriendRequest,
   rejectFriendRequest,
   removeFriend,
+  cancelFriendRequest,
   blockUser,
+  unblockUser,
   getFriends,
   getPendingFriendships,
   searchUsers,
@@ -91,6 +95,25 @@ export async function handleRemoveFriend(request: NextRequest): Promise<NextResp
   }
 }
 
+export async function handleCancelFriendRequest(request: NextRequest): Promise<NextResponse> {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+
+  const rateLimitResponse = friendActionUserRateLimit(auth.userId, 'friends/cancel')
+  if (rateLimitResponse) return rateLimitResponse
+
+  const bodyOrError = await validateBody(request, cancelFriendSchema)
+  if (bodyOrError instanceof NextResponse) return bodyOrError
+
+  try {
+    await cancelFriendRequest(auth.userId, bodyOrError.friendshipId)
+    return NextResponse.json({ success: true }, { status: 200 })
+  } catch (err) {
+    if (isAppError(err)) return NextResponse.json(toErrorResponse(err), { status: err.statusCode })
+    return NextResponse.json(toErrorResponse(new InternalError()), { status: 500 })
+  }
+}
+
 export async function handleBlockUser(request: NextRequest): Promise<NextResponse> {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
@@ -104,6 +127,25 @@ export async function handleBlockUser(request: NextRequest): Promise<NextRespons
   try {
     const result = await blockUser(auth.userId, bodyOrError.targetUserId)
     return NextResponse.json(result, { status: 200 })
+  } catch (err) {
+    if (isAppError(err)) return NextResponse.json(toErrorResponse(err), { status: err.statusCode })
+    return NextResponse.json(toErrorResponse(new InternalError()), { status: 500 })
+  }
+}
+
+export async function handleUnblockUser(request: NextRequest): Promise<NextResponse> {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+
+  const rateLimitResponse = friendActionUserRateLimit(auth.userId, 'friends/unblock')
+  if (rateLimitResponse) return rateLimitResponse
+
+  const bodyOrError = await validateBody(request, unblockUserSchema)
+  if (bodyOrError instanceof NextResponse) return bodyOrError
+
+  try {
+    await unblockUser(auth.userId, bodyOrError.targetUserId)
+    return NextResponse.json({ success: true }, { status: 200 })
   } catch (err) {
     if (isAppError(err)) return NextResponse.json(toErrorResponse(err), { status: err.statusCode })
     return NextResponse.json(toErrorResponse(new InternalError()), { status: 500 })

@@ -5,6 +5,8 @@ import {
   rejectFriendSchema,
   removeFriendSchema,
   blockUserSchema,
+  unblockUserSchema,
+  cancelFriendSchema,
   searchUsersSchema,
 } from '../../server/modules/friends/friends.schema'
 
@@ -46,17 +48,32 @@ describe('acceptFriendSchema / rejectFriendSchema / removeFriendSchema', () => {
   }
 })
 
-describe('blockUserSchema', () => {
-  it('accepts a valid non-empty targetUserId', () => {
-    expect(blockUserSchema.safeParse({ targetUserId: 'user-cuid' }).success).toBe(true)
-  })
+describe('blockUserSchema / unblockUserSchema', () => {
+  for (const [name, schema] of [
+    ['blockUserSchema', blockUserSchema],
+    ['unblockUserSchema', unblockUserSchema],
+  ] as const) {
+    it(`${name}: accepts a valid non-empty targetUserId`, () => {
+      expect(schema.safeParse({ targetUserId: 'user-cuid' }).success).toBe(true)
+    })
+    it(`${name}: rejects empty string`, () => {
+      expect(schema.safeParse({ targetUserId: '' }).success).toBe(false)
+    })
+    it(`${name}: rejects missing field`, () => {
+      expect(schema.safeParse({}).success).toBe(false)
+    })
+  }
+})
 
+describe('cancelFriendSchema', () => {
+  it('accepts a valid friendshipId', () => {
+    expect(cancelFriendSchema.safeParse({ friendshipId: 'f-cuid' }).success).toBe(true)
+  })
   it('rejects empty string', () => {
-    expect(blockUserSchema.safeParse({ targetUserId: '' }).success).toBe(false)
+    expect(cancelFriendSchema.safeParse({ friendshipId: '' }).success).toBe(false)
   })
-
   it('rejects missing field', () => {
-    expect(blockUserSchema.safeParse({}).success).toBe(false)
+    expect(cancelFriendSchema.safeParse({}).success).toBe(false)
   })
 })
 

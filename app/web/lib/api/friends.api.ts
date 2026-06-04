@@ -104,3 +104,13 @@ export async function removeFriend(friendshipId: string): Promise<void> {
     body: JSON.stringify({ friendshipId }),
   })
 }
+
+// Cancel an outgoing request. Separate endpoint from remove: the server rejects
+// non-PENDING rows, so a request that was just accepted won't be silently unfriended.
+export async function cancelFriendRequest(friendshipId: string): Promise<void> {
+  await apiFetch('/api/friends/cancel', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ friendshipId }),
+  })
+}

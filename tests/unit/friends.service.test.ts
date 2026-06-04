@@ -15,7 +15,9 @@ import {
   acceptFriendRequest,
   rejectFriendRequest,
   removeFriend,
+  cancelFriendRequest,
   blockUser,
+  unblockUser,
   getFriends,
   getPendingFriendships,
 } from '../../server/modules/friends/friends.service'
@@ -260,6 +262,12 @@ describe('friends.service.acceptFriendRequest', () => {
 
     await expect(acceptFriendRequest('recipient', 'f-1')).resolves.toBeDefined()
   })
+
+  it('maps a P2025 (row deleted mid-accept) to ConflictError, not 500', async () => {
+    vi.mocked(repo.findFriendshipById).mockResolvedValue(PENDING_RECORD)
+    vi.mocked(repo.updateFriendshipStatus).mockRejectedValue(new Error('Record to update not found (P2025)'))
+    await expect(acceptFriendRequest('recipient', 'f-1')).rejects.toThrow(ConflictError)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -288,6 +296,12 @@ describe('friends.service.rejectFriendRequest', () => {
 
   it('throws ConflictError when friendship is not PENDING', async () => {
     vi.mocked(repo.findFriendshipById).mockResolvedValue(ACCEPTED_RECORD)
+    await expect(rejectFriendRequest('recipient', 'f-1')).rejects.toThrow(ConflictError)
+  })
+
+  it('maps a P2025 (row deleted mid-reject) to ConflictError, not 500', async () => {
+    vi.mocked(repo.findFriendshipById).mockResolvedValue(PENDING_RECORD)
+    vi.mocked(repo.deleteFriendship).mockRejectedValue(new Error('Record to delete does not exist (P2025)'))
     await expect(rejectFriendRequest('recipient', 'f-1')).rejects.toThrow(ConflictError)
   })
 })
@@ -346,6 +360,57 @@ describe('friends.service.removeFriend', () => {
     vi.mocked(repo.findFriendshipById).mockResolvedValue(null)
     await expect(removeFriend('requester', 'ghost')).rejects.toThrow(NotFoundError)
   })
+
+  it('refuses to delete a BLOCKED row (remove must never silently unblock) — F1', async () => {
+    vi.mocked(repo.findFriendshipById).mockResolvedValue(BLOCKED_RECORD)
+    // caller is the blocker (a participant) but the row is BLOCKED → treated as absent
+    await expect(removeFriend('blocker', 'f-9')).rejects.toThrow(NotFoundError)
+    expect(repo.deleteFriendship).not.toHaveBeenCalled()
+  })
+
+  it('maps a P2025 (row deleted mid-remove) to NotFoundError, not 500', async () => {
+    vi.mocked(repo.findFriendshipById).mockResolvedValue(ACCEPTED_RECORD)
+    vi.mocked(repo.deleteFriendship).mockRejectedValue(new Error('Record to delete does not exist (P2025)'))
+    await expect(removeFriend('requester', 'f-1')).rejects.toThrow(NotFoundError)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// cancelFriendRequest (F5)
+// ---------------------------------------------------------------------------
+describe('friends.service.cancelFriendRequest', () => {
+  it('deletes a PENDING outgoing request when called by the requester', async () => {
+    vi.mocked(repo.findFriendshipById).mockResolvedValue(PENDING_RECORD)
+    vi.mocked(repo.deleteFriendship).mockResolvedValue(undefined)
+
+    await cancelFriendRequest('requester', 'f-1')
+
+    expect(repo.deleteFriendship).toHaveBeenCalledWith('f-1')
+    expect(repo.persistEvent).not.toHaveBeenCalled()
+  })
+
+  it('throws ForbiddenError when caller is not the requester (userAId)', async () => {
+    vi.mocked(repo.findFriendshipById).mockResolvedValue(PENDING_RECORD)
+    await expect(cancelFriendRequest('recipient', 'f-1')).rejects.toThrow(ForbiddenError)
+    expect(repo.deleteFriendship).not.toHaveBeenCalled()
+  })
+
+  it('throws ConflictError when the request is no longer PENDING (e.g. just accepted) — never unfriends', async () => {
+    vi.mocked(repo.findFriendshipById).mockResolvedValue(ACCEPTED_RECORD)
+    await expect(cancelFriendRequest('requester', 'f-1')).rejects.toThrow(ConflictError)
+    expect(repo.deleteFriendship).not.toHaveBeenCalled()
+  })
+
+  it('throws NotFoundError when the request does not exist', async () => {
+    vi.mocked(repo.findFriendshipById).mockResolvedValue(null)
+    await expect(cancelFriendRequest('requester', 'ghost')).rejects.toThrow(NotFoundError)
+  })
+
+  it('maps a P2025 (row deleted mid-cancel) to ConflictError', async () => {
+    vi.mocked(repo.findFriendshipById).mockResolvedValue(PENDING_RECORD)
+    vi.mocked(repo.deleteFriendship).mockRejectedValue(new Error('Record to delete does not exist (P2025)'))
+    await expect(cancelFriendRequest('requester', 'f-1')).rejects.toThrow(ConflictError)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -388,6 +453,57 @@ describe('friends.service.blockUser', () => {
     vi.mocked(repo.blockFriendship).mockResolvedValue(BLOCKED_RECORD)
     vi.mocked(repo.persistEvent).mockRejectedValue(new Error('db down'))
     await expect(blockUser('blocker', 'blocked')).resolves.toBeDefined()
+  })
+
+  it('is idempotent on a P2002 race — returns the existing BLOCKED row instead of 500 (F3)', async () => {
+    vi.mocked(repo.blockFriendship).mockRejectedValue(new Error('Unique constraint failed (P2002)'))
+    vi.mocked(repo.findDirectedFriendship).mockResolvedValue(BLOCKED_RECORD)
+    const result = await blockUser('blocker', 'blocked')
+    expect(result).toEqual({ friendship: { id: 'f-9', status: FriendshipStatus.BLOCKED } })
+  })
+
+  it('throws ConflictError on P2002 if no BLOCKED row is found on re-read', async () => {
+    vi.mocked(repo.blockFriendship).mockRejectedValue(new Error('Unique constraint failed (P2002)'))
+    vi.mocked(repo.findDirectedFriendship).mockResolvedValue(null)
+    await expect(blockUser('blocker', 'blocked')).rejects.toThrow(ConflictError)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// unblockUser (F1)
+// ---------------------------------------------------------------------------
+describe('friends.service.unblockUser', () => {
+  it('throws ConflictError on self-unblock', async () => {
+    await expect(unblockUser('user-1', 'user-1')).rejects.toThrow(ConflictError)
+    expect(repo.findDirectedFriendship).not.toHaveBeenCalled()
+  })
+
+  it('deletes the caller’s own BLOCKED row and emits USER_UNBLOCKED', async () => {
+    vi.mocked(repo.findDirectedFriendship).mockResolvedValue(BLOCKED_RECORD)
+    vi.mocked(repo.deleteFriendship).mockResolvedValue(undefined)
+
+    await unblockUser('blocker', 'blocked')
+
+    expect(repo.findDirectedFriendship).toHaveBeenCalledWith('blocker', 'blocked')
+    expect(repo.deleteFriendship).toHaveBeenCalledWith('f-9')
+    expect(repo.persistEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'USER_UNBLOCKED',
+        payload: { friendshipId: 'f-9', blockerId: 'blocker', unblockedId: 'blocked' },
+      })
+    )
+  })
+
+  it('throws NotFoundError when the caller has no block on the target', async () => {
+    vi.mocked(repo.findDirectedFriendship).mockResolvedValue(null)
+    await expect(unblockUser('blocker', 'blocked')).rejects.toThrow(NotFoundError)
+    expect(repo.deleteFriendship).not.toHaveBeenCalled()
+  })
+
+  it('throws NotFoundError when the directed row exists but is not BLOCKED (e.g. ACCEPTED)', async () => {
+    vi.mocked(repo.findDirectedFriendship).mockResolvedValue(ACCEPTED_RECORD)
+    await expect(unblockUser('blocker', 'blocked')).rejects.toThrow(NotFoundError)
+    expect(repo.deleteFriendship).not.toHaveBeenCalled()
   })
 })
 

@@ -35,6 +35,7 @@ import {
   updateFriendshipStatus,
   deleteFriendship,
   blockFriendship,
+  findDirectedFriendship,
   getAcceptedFriends,
   getPendingFriendships,
   persistEvent,
@@ -229,7 +230,7 @@ describe('friends.repo.deleteFriendship', () => {
 // blockFriendship
 // ---------------------------------------------------------------------------
 describe('friends.repo.blockFriendship', () => {
-  it('runs inside a transaction and deletes any existing pair row (both directions) before creating BLOCKED', async () => {
+  it('runs in a txn, directional delete (preserves the counter-party BLOCKED row) before creating BLOCKED', async () => {
     const blockedRow = { id: 'f-9', userAId: 'blocker', userBId: 'blocked', status: FriendshipStatus.BLOCKED, createdAt: new Date() }
     mockPrisma.friendship.deleteMany.mockResolvedValue({ count: 1 })
     mockPrisma.friendship.create.mockResolvedValue(blockedRow)
@@ -237,11 +238,13 @@ describe('friends.repo.blockFriendship', () => {
     const result = await blockFriendship('blocker', 'blocked')
 
     expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+    // F2: deletes the blocker's own row (any status) + the target's NON-block row,
+    // but never the target's BLOCKED row (status: { not: BLOCKED }).
     expect(mockPrisma.friendship.deleteMany).toHaveBeenCalledWith({
       where: {
         OR: [
           { userAId: 'blocker', userBId: 'blocked' },
-          { userAId: 'blocked', userBId: 'blocker' },
+          { userAId: 'blocked', userBId: 'blocker', status: { not: FriendshipStatus.BLOCKED } },
         ],
       },
     })
@@ -257,6 +260,26 @@ describe('friends.repo.blockFriendship', () => {
         data: { userAId: 'blocker', userBId: 'blocked', status: FriendshipStatus.BLOCKED },
       })
     )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// findDirectedFriendship
+// ---------------------------------------------------------------------------
+describe('friends.repo.findDirectedFriendship', () => {
+  it('looks up exactly one ordered pair via the compound unique index', async () => {
+    const row = { id: 'f-1', userAId: 'a', userBId: 'b', status: FriendshipStatus.BLOCKED, createdAt: new Date() }
+    mockPrisma.friendship.findUnique.mockResolvedValue(row)
+    const result = await findDirectedFriendship('a', 'b')
+    expect(mockPrisma.friendship.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userAId_userBId: { userAId: 'a', userBId: 'b' } } })
+    )
+    expect(result).toEqual(row)
+  })
+
+  it('returns null when the directed pair does not exist', async () => {
+    mockPrisma.friendship.findUnique.mockResolvedValue(null)
+    expect(await findDirectedFriendship('a', 'b')).toBeNull()
   })
 })
 
