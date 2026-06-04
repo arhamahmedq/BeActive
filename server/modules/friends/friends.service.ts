@@ -5,6 +5,8 @@ import { createNotification } from '../notifications/notifications.service'
 import { logger } from '../../core/logger/index'
 import { EventType } from '../../core/events/index'
 import { ConflictError, ForbiddenError, NotFoundError } from '../../core/errors/AppError'
+import { isUniqueConstraintError } from '../../core/errors/prismaErrors'
+import type { FriendshipRecord } from './friends.types'
 import type {
   FriendsListResponse,
   PendingFriendsResponse,
@@ -48,7 +50,18 @@ export async function sendFriendRequest(
   }
 
   // Convention: userAId = requester, userBId = recipient — enforced here, never elsewhere.
-  const friendship = await friendsRepo.createFriendship(requesterId, targetUserId)
+  let friendship: FriendshipRecord
+  try {
+    friendship = await friendsRepo.createFriendship(requesterId, targetUserId)
+  } catch (err) {
+    // Race guard: two identical requests can both pass findFriendshipBetween above,
+    // then the @@unique([userAId, userBId]) constraint rejects the second insert.
+    // Map that to the same 409 the pre-check returns instead of a leaked 500.
+    if (isUniqueConstraintError(err)) {
+      throw new ConflictError('A friend request or friendship already exists between these users')
+    }
+    throw err
+  }
 
   void friendsRepo.persistEvent({
     type: EventType.FRIEND_REQUEST_SENT,

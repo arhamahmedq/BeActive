@@ -114,6 +114,20 @@ describe('friends.service.sendFriendRequest', () => {
     expect(repo.createFriendship).not.toHaveBeenCalled()
   })
 
+  it('maps a P2002 unique-constraint race to ConflictError (not a leaked 500)', async () => {
+    // Both concurrent requests pass findFriendshipBetween, then the unique index
+    // rejects the second insert — it must surface as 409, not 500.
+    vi.mocked(repo.findFriendshipBetween).mockResolvedValue(null)
+    vi.mocked(repo.createFriendship).mockRejectedValue(new Error('Unique constraint failed (P2002)'))
+    await expect(sendFriendRequest('requester', 'target-1')).rejects.toThrow(ConflictError)
+  })
+
+  it('rethrows a non-P2002 create failure unchanged', async () => {
+    vi.mocked(repo.findFriendshipBetween).mockResolvedValue(null)
+    vi.mocked(repo.createFriendship).mockRejectedValue(new Error('connection reset'))
+    await expect(sendFriendRequest('requester', 'target-1')).rejects.toThrow('connection reset')
+  })
+
   it('emits FRIEND_REQUEST_SENT event (fire-and-forget)', async () => {
     vi.mocked(repo.findFriendshipBetween).mockResolvedValue(null)
     vi.mocked(repo.createFriendship).mockResolvedValue(PENDING_RECORD)
