@@ -16,6 +16,8 @@ model User {
   avatarUrl        String?
   bio              String?           @db.VarChar(160)
   timezone         String            @default("UTC")
+  tzChangedAt      DateTime?
+  tzChangeCount    Int               @default(0)
   role             UserRole          @default(USER)
   onboarded        Boolean           @default(false)
   createdAt        DateTime          @default(now())

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { isValidIANATimezone } from '../../../shared/utils/timezone.js'
+import { isValidIANATimezone } from '../../../shared/utils/timezone'
 
 export const updateProfileSchema = z.object({
   displayName: z
