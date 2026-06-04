@@ -409,6 +409,10 @@ describe('friends.service.getFriends', () => {
     expect(result.friends).toHaveLength(1)
     expect(result.friends[0]?.username).toBe('bob')
     expect(result.friends[0]?.streak.current).toBe(5)
+    // friendshipId comes from the friendship row id (not the friend's user id),
+    // so the remove flow no longer needs a separate lookup round-trip.
+    expect(result.friends[0]?.friendshipId).toBe('f-1')
+    expect(result.friends[0]?.id).toBe('bob')
   })
 
   it('returns the correct friend when viewer is userBId', async () => {
@@ -424,6 +428,8 @@ describe('friends.service.getFriends', () => {
 
     expect(result.friends[0]?.username).toBe('alice')
     expect(result.friends[0]?.streak.current).toBe(3)
+    expect(result.friends[0]?.friendshipId).toBe('f-1')
+    expect(result.friends[0]?.id).toBe('alice')
   })
 
   it('defaults streak to { current: 0 } when streak row is null', async () => {

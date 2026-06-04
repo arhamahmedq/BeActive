@@ -5,8 +5,8 @@ import { FriendCard } from './FriendCard'
 interface FriendsListProps {
   friends: FriendClient[]
   isLoading: boolean
-  removingUserId: string | null
-  onRemove: (userId: string) => void
+  removingFriendshipId: string | null
+  onRemove: (friendshipId: string) => void
 }
 
 function FriendSkeleton() {
@@ -21,7 +21,7 @@ function FriendSkeleton() {
   )
 }
 
-export function FriendsList({ friends, isLoading, removingUserId, onRemove }: FriendsListProps) {
+export function FriendsList({ friends, isLoading, removingFriendshipId, onRemove }: FriendsListProps) {
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -46,7 +46,7 @@ export function FriendsList({ friends, isLoading, removingUserId, onRemove }: Fr
           key={friend.id}
           friend={friend}
           onRemove={onRemove}
-          isRemoving={removingUserId === friend.id}
+          isRemoving={removingFriendshipId === friend.friendshipId}
         />
       ))}
     </div>

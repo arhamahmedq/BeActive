@@ -38,7 +38,7 @@ const MOCK_ACCEPTED_RESPONSE = {
 }
 const MOCK_FRIENDS_LIST = {
   friends: [
-    { id: 'u-2', username: 'bob', displayName: null, avatarUrl: null, streak: { current: 5 } },
+    { id: 'u-2', friendshipId: 'f-1', username: 'bob', displayName: null, avatarUrl: null, streak: { current: 5 } },
   ],
 }
 

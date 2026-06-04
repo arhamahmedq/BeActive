@@ -28,8 +28,6 @@ async function apiFetch(input: string, init?: RequestInit): Promise<Response> {
 
 // ---------------------------------------------------------------------------
 // Extended client-side types
-// The backend GET /api/friends includes friendshipId at runtime even though
-// the shared FriendUser type does not declare it. Typed here for the frontend.
 // ---------------------------------------------------------------------------
 
 export interface FriendClient {
@@ -73,17 +71,6 @@ export async function fetchPendingFriends(): Promise<PendingFriendsClient> {
   return res.json() as Promise<PendingFriendsClient>
 }
 
-export async function lookupFriendshipId(userId: string): Promise<string | null> {
-  try {
-    const res = await apiFetch(`/api/friends/lookup?userId=${encodeURIComponent(userId)}`)
-    const data = await res.json() as { friendshipId: string }
-    return data.friendshipId
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 404) return null
-    throw err
-  }
-}
-
 export async function sendFriendRequest(targetUserId: string): Promise<FriendshipMutation> {
   const res = await apiFetch('/api/friends/request', {
     method: 'POST',
@@ -110,10 +97,7 @@ export async function rejectFriendRequest(friendshipId: string): Promise<void> {
   })
 }
 
-export async function removeFriend(friendUserId: string): Promise<void> {
-  // Resolve friendship ID first (lookup endpoint), then remove.
-  const friendshipId = await lookupFriendshipId(friendUserId)
-  if (!friendshipId) return // already removed or never friends
+export async function removeFriend(friendshipId: string): Promise<void> {
   await apiFetch('/api/friends/remove', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

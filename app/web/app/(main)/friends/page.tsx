@@ -22,7 +22,7 @@ export default function FriendsPage() {
   const search = useUserSearch()
 
   // Track which specific user IDs have in-flight mutations for per-button loading states
-  const [removingUserId, setRemovingUserId] = useState<string | null>(null)
+  const [removingFriendshipId, setRemovingFriendshipId] = useState<string | null>(null)
   const [acceptingId, setAcceptingId] = useState<string | null>(null)
   const [rejectingId, setRejectingId] = useState<string | null>(null)
   const [sendingUserId, setSendingUserId] = useState<string | null>(null)
@@ -30,10 +30,10 @@ export default function FriendsPage() {
   const friendUserIds = new Set(friends.map((f) => f.id))
   const outgoingUserIds = new Set(outgoing.map((e) => e.user.id))
 
-  function handleRemove(userId: string) {
-    setRemovingUserId(userId)
-    removeFriend.mutate(userId, {
-      onSettled: () => setRemovingUserId(null),
+  function handleRemove(friendshipId: string) {
+    setRemovingFriendshipId(friendshipId)
+    removeFriend.mutate(friendshipId, {
+      onSettled: () => setRemovingFriendshipId(null),
     })
   }
 
@@ -114,7 +114,7 @@ export default function FriendsPage() {
         <FriendsList
           friends={friends}
           isLoading={isLoading}
-          removingUserId={removingUserId}
+          removingFriendshipId={removingFriendshipId}
           onRemove={handleRemove}
         />
       </section>

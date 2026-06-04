@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button'
 
 interface FriendCardProps {
   friend: FriendClient
-  onRemove: (userId: string) => void
+  onRemove: (friendshipId: string) => void
   isRemoving: boolean
 }
 
@@ -38,7 +38,7 @@ export function FriendCard({ friend, onRemove, isRemoving }: FriendCardProps) {
       </div>
       <Button
         variant="ghost"
-        onClick={() => onRemove(friend.id)}
+        onClick={() => onRemove(friend.friendshipId)}
         isLoading={isRemoving}
         className="text-xs text-gray-400 hover:text-red-500"
       >

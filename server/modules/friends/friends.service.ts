@@ -203,6 +203,7 @@ export async function getFriends(userId: string): Promise<FriendsListResponse> {
     const friend = row.userAId === userId ? row.userB : row.userA
     return {
       id: friend.id,
+      friendshipId: row.id,
       username: friend.username,
       displayName: friend.displayName,
       avatarUrl: friend.avatarUrl,

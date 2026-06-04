@@ -5,6 +5,7 @@
 
 export interface FriendUser {
   id: string
+  friendshipId: string
   username: string
   displayName: string | null
   avatarUrl: string | null

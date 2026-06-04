@@ -85,7 +85,7 @@ export function useFriends() {
   })
 
   const removeFriendMutation = useMutation({
-    mutationFn: (friendUserId: string) => removeFriend(friendUserId),
+    mutationFn: (friendshipId: string) => removeFriend(friendshipId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['friends'] })
       void queryClient.invalidateQueries({ queryKey: ['feed'] })
