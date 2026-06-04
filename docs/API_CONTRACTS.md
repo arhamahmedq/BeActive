@@ -243,7 +243,34 @@ Errors: NOT_FOUND, FORBIDDEN
 Auth: Required
 Request: { "friendshipId": "string" }
 Response 200: { "success": true }
-Events: FRIEND_REMOVED
+Errors: NOT_FOUND (missing, or a BLOCKED row — remove never unblocks), FORBIDDEN (non-participant; recipient cancelling a PENDING request must use reject)
+Events: FRIEND_REMOVED (ACCEPTED only; cancelling a PENDING request is silent)
+```
+
+### POST /api/friends/cancel
+```
+Auth: Required
+Request: { "friendshipId": "string" }
+Response 200: { "success": true }
+Errors: NOT_FOUND, FORBIDDEN (only the requester/userAId), CONFLICT (no longer PENDING — never deletes an accepted friendship)
+```
+
+### POST /api/friends/block
+```
+Auth: Required
+Request: { "targetUserId": "string" }
+Response 200: { "friendship": { "id", "status": "BLOCKED" } }   # idempotent on a concurrent duplicate block
+Errors: CONFLICT (self-block), NOT_FOUND (target user), VALIDATION_ERROR
+Events: USER_BLOCKED
+```
+
+### POST /api/friends/unblock
+```
+Auth: Required
+Request: { "targetUserId": "string" }
+Response 200: { "success": true }
+Errors: CONFLICT (self-unblock), NOT_FOUND (caller has no block on target), VALIDATION_ERROR
+Events: USER_UNBLOCKED
 ```
 
 ### GET /api/friends
@@ -252,7 +279,7 @@ Auth: Required
 Response 200:
 {
   "friends": [
-    { "id", "username", "displayName", "avatarUrl", "streak": { "current" } }
+    { "id", "friendshipId", "username", "displayName", "avatarUrl", "streak": { "current" } }
   ]
 }
 ```
