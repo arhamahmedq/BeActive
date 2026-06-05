@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 import type { FriendClient } from '@/hooks/useFriends'
 import { Button } from '@/components/ui/Button'
 
@@ -14,7 +15,10 @@ export function FriendCard({ friend, onRemove, isRemoving }: FriendCardProps) {
 
   return (
     <div className="flex items-center justify-between py-3 px-4 bg-white rounded-xl border border-gray-100">
-      <div className="flex items-center gap-3">
+      <Link
+        href={`/u/${friend.username}`}
+        className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
+      >
         {friend.avatarUrl ? (
           <img
             src={friend.avatarUrl}
@@ -26,8 +30,8 @@ export function FriendCard({ friend, onRemove, isRemoving }: FriendCardProps) {
             {initials}
           </div>
         )}
-        <div>
-          <p className="text-sm font-medium leading-none">{displayName}</p>
+        <div className="min-w-0">
+          <p className="text-sm font-medium leading-none truncate">{displayName}</p>
           {friend.displayName && (
             <p className="text-xs text-gray-400 mt-0.5">@{friend.username}</p>
           )}
@@ -35,7 +39,7 @@ export function FriendCard({ friend, onRemove, isRemoving }: FriendCardProps) {
             {friend.streak.current > 0 ? `${friend.streak.current} day streak` : 'No active streak'}
           </p>
         </div>
-      </div>
+      </Link>
       <Button
         variant="ghost"
         onClick={() => onRemove(friend.friendshipId)}

@@ -1,5 +1,6 @@
+import { PostStatus, FriendshipStatus } from '@prisma/client'
 import { prisma } from '../../../app/web/lib/prisma'
-import type { UserProfile, UpdateProfileInput } from './users.types'
+import type { UserProfile, UpdateProfileInput, ProfileUserRow, ProfilePostRow } from './users.types'
 
 export async function getUserById(userId: string): Promise<UserProfile | null> {
   return prisma.user.findUnique({
@@ -53,6 +54,67 @@ export async function updateUserProfile(
       timezone: true,
       onboarded: true,
       createdAt: true,
+    },
+  })
+}
+
+// --- Public profile (Slice 8A) ---
+
+export async function getUserByUsername(username: string): Promise<ProfileUserRow | null> {
+  return prisma.user.findUnique({
+    where: { username },
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      avatarUrl: true,
+      bio: true,
+      streak: { select: { current: true, best: true } },
+    },
+  })
+}
+
+export async function getFriendCount(userId: string): Promise<number> {
+  return prisma.friendship.count({
+    where: {
+      status: FriendshipStatus.ACCEPTED,
+      OR: [{ userAId: userId }, { userBId: userId }],
+    },
+  })
+}
+
+export async function getVerifiedPostCount(userId: string): Promise<number> {
+  return prisma.post.count({ where: { userId, status: PostStatus.VERIFIED } })
+}
+
+// Keyset pagination on (createdAt DESC, id DESC) — stable, no offset (per data
+// rules). Returns up to `limit + 1` rows so the caller can derive nextCursor.
+export async function getUserVerifiedPosts(
+  userId: string,
+  cursor: { createdAt: Date; id: string } | null,
+  limit: number,
+): Promise<ProfilePostRow[]> {
+  return prisma.post.findMany({
+    where: {
+      userId,
+      status: PostStatus.VERIFIED,
+      ...(cursor
+        ? {
+            OR: [
+              { createdAt: { lt: cursor.createdAt } },
+              { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+            ],
+          }
+        : {}),
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: limit + 1,
+    select: {
+      id: true,
+      imageUrl: true,
+      caption: true,
+      createdAt: true,
+      workout: { select: { type: true } },
     },
   })
 }

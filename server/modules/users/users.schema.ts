@@ -19,3 +19,11 @@ export const updateProfileSchema = z.object({
 })
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>
+
+// Query params for GET /api/users/[username]/posts (Slice 8A).
+export const profilePostsQuerySchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(30).default(20),
+})
+
+export type ProfilePostsQueryInput = z.infer<typeof profilePostsQuerySchema>

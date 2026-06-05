@@ -12,6 +12,7 @@ vi.mock('../../server/core/logger/index', () => ({
 import {
   getAcceptedFriendIds,
   areFriends,
+  getRelationshipState,
   sendFriendRequest,
   acceptFriendRequest,
   rejectFriendRequest,
@@ -117,6 +118,41 @@ describe('friends.service.areFriends', () => {
   it('returns false when there is no relationship row', async () => {
     vi.mocked(repo.findFriendshipBetween).mockResolvedValue(null)
     expect(await areFriends('a', 'b')).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getRelationshipState (profile header)
+// ---------------------------------------------------------------------------
+describe('friends.service.getRelationshipState', () => {
+  it('returns "self" without any repo lookup', async () => {
+    expect(await getRelationshipState('u1', 'u1')).toBe('self')
+    expect(repo.findFriendshipBetween).not.toHaveBeenCalled()
+  })
+
+  it('returns "none" when there is no relationship', async () => {
+    vi.mocked(repo.findFriendshipBetween).mockResolvedValue(null)
+    expect(await getRelationshipState('viewer', 'target')).toBe('none')
+  })
+
+  it('returns "friends" for an ACCEPTED row', async () => {
+    vi.mocked(repo.findFriendshipBetween).mockResolvedValue(ACCEPTED_RECORD)
+    expect(await getRelationshipState('viewer', 'target')).toBe('friends')
+  })
+
+  it('returns "blocked" for a BLOCKED row', async () => {
+    vi.mocked(repo.findFriendshipBetween).mockResolvedValue(BLOCKED_RECORD)
+    expect(await getRelationshipState('viewer', 'target')).toBe('blocked')
+  })
+
+  it('returns "outgoing" when the viewer is the PENDING requester (userAId)', async () => {
+    vi.mocked(repo.findFriendshipBetween).mockResolvedValue(PENDING_RECORD)
+    expect(await getRelationshipState('requester', 'recipient')).toBe('outgoing')
+  })
+
+  it('returns "incoming" when the viewer is the PENDING recipient (userBId)', async () => {
+    vi.mocked(repo.findFriendshipBetween).mockResolvedValue(PENDING_RECORD)
+    expect(await getRelationshipState('recipient', 'requester')).toBe('incoming')
   })
 })
 

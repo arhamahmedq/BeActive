@@ -15,6 +15,7 @@ import type {
   PendingFriendEntry,
   UserSearchResponse,
 } from '../../../shared/types/friends'
+import type { RelationshipState } from '../../../shared/types/profile'
 
 // ---------------------------------------------------------------------------
 // Existing — used by the feed pipeline (Slice 5)
@@ -30,6 +31,30 @@ export async function getAcceptedFriendIds(userId: string): Promise<string[]> {
 export async function areFriends(userId: string, otherUserId: string): Promise<boolean> {
   const friendship = await friendsRepo.findFriendshipBetween(userId, otherUserId)
   return friendship?.status === FriendshipStatus.ACCEPTED
+}
+
+// Viewer→target relationship for the profile header. Superset of the public
+// RelationshipState (adds 'blocked', which callers translate into a hidden 404).
+export type FriendRelationship = RelationshipState | 'blocked'
+
+export async function getRelationshipState(
+  viewerId: string,
+  targetId: string,
+): Promise<FriendRelationship> {
+  if (viewerId === targetId) return 'self'
+  const f = await friendsRepo.findFriendshipBetween(viewerId, targetId)
+  if (!f) return 'none'
+  switch (f.status) {
+    case FriendshipStatus.ACCEPTED:
+      return 'friends'
+    case FriendshipStatus.BLOCKED:
+      return 'blocked'
+    case FriendshipStatus.PENDING:
+      // userAId is always the requester (Slice 6 convention).
+      return f.userAId === viewerId ? 'outgoing' : 'incoming'
+    default:
+      return 'none'
+  }
 }
 
 // ---------------------------------------------------------------------------
