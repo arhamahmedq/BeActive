@@ -10,6 +10,10 @@ export interface FeedPostResponse {
     streak: { current: number }      // 0 when the author has no Streak row
   }
   workout: { type: string } | null
+  // Slice 8B — engagement summary (computed per-page, bounded; never affects ranking)
+  likeCount: number
+  commentCount: number
+  likedByMe: boolean
 }
 
 export type FeedEmptyReason = 'NO_CONNECTIONS' | 'NO_RECENT_ACTIVITY'

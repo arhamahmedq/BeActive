@@ -2,10 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('../../../server/modules/friends/friends.service')
 vi.mock('../../../server/modules/feed/feed.repo')
+vi.mock('../../../server/modules/interactions/interactions.service')
 
 import { getFeed } from '../../../server/modules/feed/feed.service'
 import * as friendsService from '../../../server/modules/friends/friends.service'
 import * as feedRepo from '../../../server/modules/feed/feed.repo'
+import * as interactionsService from '../../../server/modules/interactions/interactions.service'
 import { encodeCursor } from '../../../server/modules/feed/feed.cursor'
 import { ValidationError } from '../../../server/core/errors/AppError'
 import { FEED_WINDOW_DAYS, FEED_CANDIDATE_CAP } from '../../../shared/constants/index'
@@ -36,6 +38,7 @@ function makeCandidate(
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.mocked(interactionsService.getEngagementSummaries).mockResolvedValue(new Map())
 })
 
 // ---------------------------------------------------------------------------
