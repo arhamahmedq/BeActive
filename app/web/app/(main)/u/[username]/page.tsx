@@ -5,7 +5,6 @@ import { useProfile, useProfilePosts } from '@/hooks/useProfile'
 import { ApiError } from '@/lib/api/friends.api'
 import { Button } from '@/components/ui/Button'
 import { ProfileRelationshipControl } from '@/components/features/ProfileRelationshipControl'
-import { ProfilePostCard } from '@/components/features/ProfilePostCard'
 
 export default function ProfilePage() {
   const params = useParams<{ username: string }>()
@@ -86,7 +85,7 @@ export default function ProfilePage() {
 
       {/* Posts grid (friends/self) or gated message — the action lives in the header */}
       {canViewPosts ? (
-        <PostsList query={posts} />
+        <PostsGrid query={posts} username={profile.username} />
       ) : (
         <div className="bg-white rounded-xl border border-gray-100 p-8 text-center space-y-2">
           <p className="text-2xl" aria-hidden>
@@ -116,17 +115,23 @@ function Stat({ label, value, suffix }: { label: string; value: number; suffix?:
   )
 }
 
-// Profile posts: profile-specific presentation (ProfilePostCard — no author
-// header) embedding the SHARED PostEngagementBar. Feature parity with the feed
-// (like/comment/share), profile-specific layout (not the feed card).
-function PostsList({ query }: { query: ReturnType<typeof useProfilePosts> }) {
+// Profile = discovery GRID (Instagram-style): thumbnails in rows, many posts at a
+// glance, NOT a feed. Tapping a tile opens the dedicated post viewer
+// (/u/[username]/p/[id]) where engagement + vertical browsing live.
+function PostsGrid({
+  query,
+  username,
+}: {
+  query: ReturnType<typeof useProfilePosts>
+  username: string
+}) {
   const { data, isLoading, isError, hasNextPage, fetchNextPage, isFetchingNextPage } = query
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        {[1, 2].map((i) => (
-          <div key={i} className="bg-white rounded-xl border border-gray-100 h-72 animate-pulse" />
+      <div className="grid grid-cols-3 gap-1">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="aspect-square bg-gray-100 animate-pulse" />
         ))}
       </div>
     )
@@ -141,10 +146,29 @@ function PostsList({ query }: { query: ReturnType<typeof useProfilePosts> }) {
   }
 
   return (
-    <div className="space-y-4">
-      {allPosts.map((post) => (
-        <ProfilePostCard key={post.id} post={post} />
-      ))}
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-1">
+        {allPosts.map((post) => (
+          <Link
+            key={post.id}
+            href={`/u/${username}/p/${post.id}`}
+            className="group relative block aspect-square overflow-hidden bg-gray-50"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={post.imageUrl}
+              alt={post.caption ?? `${username}'s workout`}
+              className="h-full w-full object-cover transition-opacity group-hover:opacity-90"
+            />
+            {(post.likeCount > 0 || post.commentCount > 0) && (
+              <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 bg-gradient-to-t from-black/50 to-transparent px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+                {post.likeCount > 0 && <span>♥ {post.likeCount}</span>}
+                {post.commentCount > 0 && <span>💬 {post.commentCount}</span>}
+              </div>
+            )}
+          </Link>
+        ))}
+      </div>
       {hasNextPage && (
         <div className="text-center">
           <Button variant="ghost" onClick={() => fetchNextPage()} isLoading={isFetchingNextPage}>
