@@ -36,8 +36,11 @@ export function useProfileRelationship(username: string) {
       onError: (_e: unknown, _v: unknown, ctx: { prev?: PublicProfileResponse } | undefined) => {
         if (ctx?.prev) qc.setQueryData(key, ctx.prev)
       },
+      // Single cache-invalidation contract (mirrors useFriends.syncSocialGraph):
+      // re-sync friends, feed, and ALL profiles (counterparty's relationship +
+      // friend counts on both sides), not just this one.
       onSettled: () => {
-        void qc.invalidateQueries({ queryKey: key })
+        void qc.invalidateQueries({ queryKey: ['profile'] })
         void qc.invalidateQueries({ queryKey: ['friends'] })
         void qc.invalidateQueries({ queryKey: ['feed'] })
       },
