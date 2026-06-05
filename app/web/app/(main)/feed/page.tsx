@@ -1,5 +1,6 @@
 'use client'
 import { useRef, useEffect, type ReactNode } from 'react'
+import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
 import { useStreak } from '@/hooks/useStreak'
 import { useFeed } from '@/hooks/useFeed'
@@ -95,11 +96,17 @@ export default function FeedPage() {
     if (emptyReason === 'NO_CONNECTIONS') {
       feedContent = (
         <div className="bg-white rounded-xl border border-gray-100 p-8 text-center space-y-3">
-          <p className="text-sm font-medium text-gray-700">Add friends to see their workouts!</p>
+          <p className="text-2xl" aria-hidden>👥</p>
+          <p className="text-sm font-medium text-gray-700">Find friends — grow your streak together</p>
           <p className="text-xs text-gray-400">
-            Connect with people to build accountability together.
+            Connect with people to build accountability and see their workouts here.
           </p>
-          <p className="text-xs text-gray-300">Friends coming soon.</p>
+          <Link
+            href="/friends"
+            className="inline-flex items-center gap-1.5 bg-black text-white text-sm font-medium px-4 py-2 rounded-full hover:bg-gray-800 transition-colors mt-1"
+          >
+            Find friends →
+          </Link>
         </div>
       )
     } else {
