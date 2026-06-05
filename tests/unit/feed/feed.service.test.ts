@@ -329,3 +329,31 @@ describe('getFeed — cursor error handling', () => {
     await expect(getFeed('viewer-1', { cursor: '', limit: 20 }, NOW)).resolves.toBeDefined()
   })
 })
+
+// ---------------------------------------------------------------------------
+// Slice 8B — engagement enrichment wiring (feed ↔ interactions)
+// ---------------------------------------------------------------------------
+describe('getFeed — engagement enrichment', () => {
+  it('merges per-page engagement summaries onto the posts', async () => {
+    vi.mocked(friendsService.getAcceptedFriendIds).mockResolvedValue([])
+    vi.mocked(feedRepo.getFeedCandidates).mockResolvedValue([makeCandidate('p1', 1)])
+    vi.mocked(interactionsService.getEngagementSummaries).mockResolvedValue(
+      new Map([['p1', { likeCount: 4, commentCount: 2, likedByMe: true }]]),
+    )
+
+    const result = await getFeed('viewer-1', { limit: 20 }, NOW)
+
+    expect(result.posts[0]).toMatchObject({ id: 'p1', likeCount: 4, commentCount: 2, likedByMe: true })
+    // enrichment is bounded to the sliced page ids
+    expect(interactionsService.getEngagementSummaries).toHaveBeenCalledWith(['p1'], 'viewer-1')
+  })
+
+  it('defaults to zero counts when a post has no summary', async () => {
+    vi.mocked(friendsService.getAcceptedFriendIds).mockResolvedValue([])
+    vi.mocked(feedRepo.getFeedCandidates).mockResolvedValue([makeCandidate('p2', 1)])
+    vi.mocked(interactionsService.getEngagementSummaries).mockResolvedValue(new Map())
+
+    const result = await getFeed('viewer-1', { limit: 20 }, NOW)
+    expect(result.posts[0]).toMatchObject({ likeCount: 0, commentCount: 0, likedByMe: false })
+  })
+})
