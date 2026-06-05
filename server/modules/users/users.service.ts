@@ -9,12 +9,10 @@ import {
   getUserVerifiedPosts,
 } from './users.repo'
 import { areFriends, getRelationship } from '../friends/friends.service'
+import { getEngagementSummaries } from '../interactions/interactions.service'
 import type { UserProfile, UpdateProfileInput } from './users.types'
-import type {
-  PublicProfileResponse,
-  ProfilePostsResponse,
-  ProfilePost,
-} from '../../../shared/types/profile'
+import type { PublicProfileResponse, ProfilePostsResponse } from '../../../shared/types/profile'
+import type { FeedPostResponse } from '../../../shared/types/feed'
 
 // Anti-cheat: the streak's "today" is derived from the user's timezone, so an
 // unthrottled timezone field is a streak-inflation lever (move the clock forward
@@ -138,13 +136,30 @@ export async function getUserPostsByUsername(
   const last = pageRows[pageRows.length - 1]
   const nextCursor = hasMore && last ? encodeProfileCursor({ createdAt: last.createdAt, id: last.id }) : null
 
-  const posts: ProfilePost[] = pageRows.map((r) => ({
-    id: r.id,
-    imageUrl: r.imageUrl,
-    caption: r.caption,
-    createdAt: r.createdAt.toISOString(),
-    workout: r.workout ? { type: r.workout.type } : null,
-  }))
+  // Same FeedPostResponse shape as the feed (incl. engagement) so the profile
+  // renders the identical FeedCard. Engagement is bounded to the page (viewer is
+  // owner/friend → already authorized to view these posts).
+  const summaries = await getEngagementSummaries(pageRows.map((r) => r.id), viewerId)
+
+  const posts: FeedPostResponse[] = pageRows.map((r) => {
+    const s = summaries.get(r.id)
+    return {
+      id: r.id,
+      imageUrl: r.imageUrl,
+      caption: r.caption,
+      createdAt: r.createdAt.toISOString(),
+      user: {
+        id: r.user.id,
+        username: r.user.username,
+        avatarUrl: r.user.avatarUrl,
+        streak: { current: r.user.streak?.current ?? 0 },
+      },
+      workout: r.workout ? { type: r.workout.type } : null,
+      likeCount: s?.likeCount ?? 0,
+      commentCount: s?.commentCount ?? 0,
+      likedByMe: s?.likedByMe ?? false,
+    }
+  })
 
   return { posts, nextCursor }
 }

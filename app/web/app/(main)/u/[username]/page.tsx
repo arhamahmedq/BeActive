@@ -5,6 +5,7 @@ import { useProfile, useProfilePosts } from '@/hooks/useProfile'
 import { ApiError } from '@/lib/api/friends.api'
 import { Button } from '@/components/ui/Button'
 import { ProfileRelationshipControl } from '@/components/features/ProfileRelationshipControl'
+import { FeedCard } from '@/components/features/FeedCard'
 
 export default function ProfilePage() {
   const params = useParams<{ username: string }>()
@@ -85,7 +86,7 @@ export default function ProfilePage() {
 
       {/* Posts grid (friends/self) or gated message — the action lives in the header */}
       {canViewPosts ? (
-        <PostsGrid query={posts} username={profile.username} />
+        <PostsList query={posts} />
       ) : (
         <div className="bg-white rounded-xl border border-gray-100 p-8 text-center space-y-2">
           <p className="text-2xl" aria-hidden>
@@ -115,20 +116,16 @@ function Stat({ label, value, suffix }: { label: string; value: number; suffix?:
   )
 }
 
-function PostsGrid({
-  query,
-  username,
-}: {
-  query: ReturnType<typeof useProfilePosts>
-  username: string
-}) {
+// Profile posts render through the SAME FeedCard as the main feed, so like /
+// comment / share behave identically — one source of truth, no duplicated UI.
+function PostsList({ query }: { query: ReturnType<typeof useProfilePosts> }) {
   const { data, isLoading, isError, hasNextPage, fetchNextPage, isFetchingNextPage } = query
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-3 gap-1.5">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="aspect-square bg-gray-100 rounded-lg animate-pulse" />
+      <div className="space-y-4">
+        {[1, 2].map((i) => (
+          <div key={i} className="bg-white rounded-xl border border-gray-100 h-72 animate-pulse" />
         ))}
       </div>
     )
@@ -143,15 +140,10 @@ function PostsGrid({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-1.5">
-        {allPosts.map((post) => (
-          <Link key={post.id} href={`/p/${post.id}`} className="block aspect-square overflow-hidden rounded-lg bg-gray-50">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={post.imageUrl} alt={post.caption ?? `${username}'s workout`} className="h-full w-full object-cover" />
-          </Link>
-        ))}
-      </div>
+    <div className="space-y-4">
+      {allPosts.map((post) => (
+        <FeedCard key={post.id} post={post} />
+      ))}
       {hasNextPage && (
         <div className="text-center">
           <Button variant="ghost" onClick={() => fetchNextPage()} isLoading={isFetchingNextPage}>

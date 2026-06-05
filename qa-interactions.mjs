@@ -81,6 +81,13 @@ async function run() {
   check(!!fp, 'A’s post appears in B’s feed')
   check(fp?.likeCount === 1 && fp?.likedByMe === true, `feed shows likeCount 1 + likedByMe true (got ${fp?.likeCount}/${fp?.likedByMe})`)
 
+  console.log('3b) PROFILE posts carry the same engagement shape (B views A’s profile)')
+  r = await api(B.jar, 'GET', `/api/users/${encodeURIComponent(A.username)}/posts`)
+  const pp = r.json?.posts?.find((p) => p.id === postId)
+  check(!!pp, 'A’s post appears in A’s profile posts')
+  check(pp?.likeCount === 1 && pp?.likedByMe === true, `profile post shows likeCount 1 + likedByMe true (got ${pp?.likeCount}/${pp?.likedByMe})`)
+  check(!!pp?.user?.username && typeof pp?.commentCount === 'number', 'profile post is in FeedCard shape (user + commentCount) → renders like/comment/share')
+
   console.log('4) comments: create, validate, list')
   r = await api(B.jar, 'POST', `/api/posts/${postId}/comments`, { body: 'great work!' })
   check(r.status === 201 && r.json?.comment?.body === 'great work!', `B comment → 201 (got ${r.status})`)

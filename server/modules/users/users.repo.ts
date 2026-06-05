@@ -114,6 +114,9 @@ export async function getUserVerifiedPosts(
       imageUrl: true,
       caption: true,
       createdAt: true,
+      user: {
+        select: { id: true, username: true, avatarUrl: true, streak: { select: { current: true } } },
+      },
       workout: { select: { type: true } },
     },
   })

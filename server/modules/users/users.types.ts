@@ -32,5 +32,6 @@ export interface ProfilePostRow {
   imageUrl: string
   caption: string | null
   createdAt: Date
+  user: { id: string; username: string; avatarUrl: string | null; streak: { current: number } | null }
   workout: { type: string } | null
 }
