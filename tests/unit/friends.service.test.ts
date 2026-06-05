@@ -12,7 +12,7 @@ vi.mock('../../server/core/logger/index', () => ({
 import {
   getAcceptedFriendIds,
   areFriends,
-  getRelationshipState,
+  getRelationship,
   sendFriendRequest,
   acceptFriendRequest,
   rejectFriendRequest,
@@ -122,37 +122,49 @@ describe('friends.service.areFriends', () => {
 })
 
 // ---------------------------------------------------------------------------
-// getRelationshipState (profile header)
+// getRelationship (profile header) — { state, friendshipId }
 // ---------------------------------------------------------------------------
-describe('friends.service.getRelationshipState', () => {
-  it('returns "self" without any repo lookup', async () => {
-    expect(await getRelationshipState('u1', 'u1')).toBe('self')
+describe('friends.service.getRelationship', () => {
+  it('returns self/null without any repo lookup', async () => {
+    expect(await getRelationship('u1', 'u1')).toEqual({ state: 'self', friendshipId: null })
     expect(repo.findFriendshipBetween).not.toHaveBeenCalled()
   })
 
-  it('returns "none" when there is no relationship', async () => {
+  it('returns none/null when there is no relationship', async () => {
     vi.mocked(repo.findFriendshipBetween).mockResolvedValue(null)
-    expect(await getRelationshipState('viewer', 'target')).toBe('none')
+    expect(await getRelationship('viewer', 'target')).toEqual({ state: 'none', friendshipId: null })
   })
 
-  it('returns "friends" for an ACCEPTED row', async () => {
+  it('returns friends + the friendship id for an ACCEPTED row', async () => {
     vi.mocked(repo.findFriendshipBetween).mockResolvedValue(ACCEPTED_RECORD)
-    expect(await getRelationshipState('viewer', 'target')).toBe('friends')
+    expect(await getRelationship('viewer', 'target')).toEqual({
+      state: 'friends',
+      friendshipId: ACCEPTED_RECORD.id,
+    })
   })
 
-  it('returns "blocked" for a BLOCKED row', async () => {
+  it('returns blocked + id for a BLOCKED row', async () => {
     vi.mocked(repo.findFriendshipBetween).mockResolvedValue(BLOCKED_RECORD)
-    expect(await getRelationshipState('viewer', 'target')).toBe('blocked')
+    expect(await getRelationship('viewer', 'target')).toEqual({
+      state: 'blocked',
+      friendshipId: BLOCKED_RECORD.id,
+    })
   })
 
-  it('returns "outgoing" when the viewer is the PENDING requester (userAId)', async () => {
+  it('returns outgoing + id when the viewer is the PENDING requester (userAId)', async () => {
     vi.mocked(repo.findFriendshipBetween).mockResolvedValue(PENDING_RECORD)
-    expect(await getRelationshipState('requester', 'recipient')).toBe('outgoing')
+    expect(await getRelationship('requester', 'recipient')).toEqual({
+      state: 'outgoing',
+      friendshipId: PENDING_RECORD.id,
+    })
   })
 
-  it('returns "incoming" when the viewer is the PENDING recipient (userBId)', async () => {
+  it('returns incoming + id when the viewer is the PENDING recipient (userBId)', async () => {
     vi.mocked(repo.findFriendshipBetween).mockResolvedValue(PENDING_RECORD)
-    expect(await getRelationshipState('recipient', 'requester')).toBe('incoming')
+    expect(await getRelationship('recipient', 'requester')).toEqual({
+      state: 'incoming',
+      friendshipId: PENDING_RECORD.id,
+    })
   })
 })
 

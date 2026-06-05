@@ -1,22 +1,16 @@
 'use client'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useProfile, useProfilePosts } from '@/hooks/useProfile'
-import { sendFriendRequest, ApiError } from '@/lib/api/friends.api'
+import { ApiError } from '@/lib/api/friends.api'
 import { Button } from '@/components/ui/Button'
+import { ProfileRelationshipControl } from '@/components/features/ProfileRelationshipControl'
 
 export default function ProfilePage() {
   const params = useParams<{ username: string }>()
   const username = params?.username ?? ''
-  const queryClient = useQueryClient()
 
   const { data, isLoading, isError, error } = useProfile(username)
-
-  const addFriend = useMutation({
-    mutationFn: () => sendFriendRequest(data!.profile.id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profile', username] }),
-  })
 
   const relationship = data?.relationship
   const canViewPosts = relationship === 'self' || relationship === 'friends'
@@ -71,10 +65,11 @@ export default function ProfilePage() {
             )}
             <p className="text-sm text-gray-500 truncate">@{profile.username}</p>
           </div>
-          <ProfileAction
+          <ProfileRelationshipControl
+            username={username}
+            profileId={profile.id}
             relationship={relationship!}
-            onAdd={() => addFriend.mutate()}
-            adding={addFriend.isPending}
+            friendshipId={data.friendshipId}
           />
         </div>
 
@@ -88,26 +83,22 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Posts grid (friends/self) or gated CTA */}
+      {/* Posts grid (friends/self) or gated message — the action lives in the header */}
       {canViewPosts ? (
         <PostsGrid query={posts} username={profile.username} />
       ) : (
-        <div className="bg-white rounded-xl border border-gray-100 p-8 text-center space-y-3">
+        <div className="bg-white rounded-xl border border-gray-100 p-8 text-center space-y-2">
           <p className="text-2xl" aria-hidden>
             🔒
           </p>
           <p className="text-sm font-medium text-gray-700">Add friend to see workouts</p>
-          {relationship === 'none' && (
-            <Button onClick={() => addFriend.mutate()} isLoading={addFriend.isPending}>
-              Add friend
-            </Button>
-          )}
-          {relationship === 'outgoing' && <p className="text-xs text-gray-400">Request pending</p>}
-          {relationship === 'incoming' && (
-            <Link href="/friends" className="text-xs font-medium text-black hover:opacity-70">
-              Respond to their request ↗
-            </Link>
-          )}
+          <p className="text-xs text-gray-400">
+            {relationship === 'outgoing'
+              ? 'Your friend request is pending.'
+              : relationship === 'incoming'
+                ? 'They’ve requested you — accept above to connect.'
+                : 'Their workouts are visible to friends only.'}
+          </p>
         </div>
       )}
     </div>
@@ -122,43 +113,6 @@ function Stat({ label, value, suffix }: { label: string; value: number; suffix?:
       <span className="text-gray-400">{label}</span>
     </div>
   )
-}
-
-function ProfileAction({
-  relationship,
-  onAdd,
-  adding,
-}: {
-  relationship: 'self' | 'friends' | 'incoming' | 'outgoing' | 'none'
-  onAdd: () => void
-  adding: boolean
-}) {
-  const pill =
-    'inline-flex items-center text-sm font-medium px-4 py-2 rounded-full transition-colors flex-shrink-0'
-  switch (relationship) {
-    case 'self':
-      return null
-    case 'friends':
-      return (
-        <Link href="/friends" className={`${pill} bg-gray-100 text-gray-700 hover:bg-gray-200`}>
-          ✓ Friends
-        </Link>
-      )
-    case 'outgoing':
-      return <span className={`${pill} bg-gray-100 text-gray-400`}>Requested</span>
-    case 'incoming':
-      return (
-        <Link href="/friends" className={`${pill} bg-black text-white hover:bg-gray-800`}>
-          Respond
-        </Link>
-      )
-    default:
-      return (
-        <Button onClick={onAdd} isLoading={adding} className="px-4 py-2 rounded-full">
-          Add friend
-        </Button>
-      )
-  }
 }
 
 function PostsGrid({

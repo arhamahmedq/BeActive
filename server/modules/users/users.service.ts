@@ -8,7 +8,7 @@ import {
   getVerifiedPostCount,
   getUserVerifiedPosts,
 } from './users.repo'
-import { areFriends, getRelationshipState } from '../friends/friends.service'
+import { areFriends, getRelationship } from '../friends/friends.service'
 import type { UserProfile, UpdateProfileInput } from './users.types'
 import type {
   PublicProfileResponse,
@@ -91,7 +91,7 @@ export async function getPublicProfile(
   const user = await getUserByUsername(username)
   if (!user) throw new NotFoundError('User')
 
-  const relationship = await getRelationshipState(viewerId, user.id)
+  const { state: relationship, friendshipId } = await getRelationship(viewerId, user.id)
   // A blocked pair is fully hidden — same response as a non-existent user.
   if (relationship === 'blocked') throw new NotFoundError('User')
 
@@ -112,6 +112,7 @@ export async function getPublicProfile(
       postCount,
     },
     relationship, // narrowed: 'blocked' already threw above
+    friendshipId, // null for self/none; the row id for pending/friends
   }
 }
 

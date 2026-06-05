@@ -37,23 +37,30 @@ export async function areFriends(userId: string, otherUserId: string): Promise<b
 // RelationshipState (adds 'blocked', which callers translate into a hidden 404).
 export type FriendRelationship = RelationshipState | 'blocked'
 
-export async function getRelationshipState(
+export interface RelationshipInfo {
+  state: FriendRelationship
+  // The friendship row id — needed to accept/decline/cancel/remove from the
+  // profile. null for 'self' and 'none' (no row to act on).
+  friendshipId: string | null
+}
+
+export async function getRelationship(
   viewerId: string,
   targetId: string,
-): Promise<FriendRelationship> {
-  if (viewerId === targetId) return 'self'
+): Promise<RelationshipInfo> {
+  if (viewerId === targetId) return { state: 'self', friendshipId: null }
   const f = await friendsRepo.findFriendshipBetween(viewerId, targetId)
-  if (!f) return 'none'
+  if (!f) return { state: 'none', friendshipId: null }
   switch (f.status) {
     case FriendshipStatus.ACCEPTED:
-      return 'friends'
+      return { state: 'friends', friendshipId: f.id }
     case FriendshipStatus.BLOCKED:
-      return 'blocked'
+      return { state: 'blocked', friendshipId: f.id }
     case FriendshipStatus.PENDING:
       // userAId is always the requester (Slice 6 convention).
-      return f.userAId === viewerId ? 'outgoing' : 'incoming'
+      return { state: f.userAId === viewerId ? 'outgoing' : 'incoming', friendshipId: f.id }
     default:
-      return 'none'
+      return { state: 'none', friendshipId: null }
   }
 }
 

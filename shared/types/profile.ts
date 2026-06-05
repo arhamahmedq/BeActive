@@ -19,6 +19,9 @@ export interface PublicProfile {
 export interface PublicProfileResponse {
   profile: PublicProfile
   relationship: RelationshipState
+  // Friendship row id for the viewer↔owner pair — needed to accept/decline/
+  // cancel/remove from the profile. null for 'self' and 'none'.
+  friendshipId: string | null
 }
 
 export interface ProfilePost {

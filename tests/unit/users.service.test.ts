@@ -114,7 +114,7 @@ describe('getPublicProfile', () => {
     vi.mocked(repo.getUserByUsername).mockResolvedValue(PROFILE_ROW)
     vi.mocked(repo.getFriendCount).mockResolvedValue(3)
     vi.mocked(repo.getVerifiedPostCount).mockResolvedValue(7)
-    vi.mocked(friendsService.getRelationshipState).mockResolvedValue('none')
+    vi.mocked(friendsService.getRelationship).mockResolvedValue({ state: 'none', friendshipId: null })
   })
 
   it('returns identity + counts + relationship for a visible user', async () => {
@@ -127,6 +127,14 @@ describe('getPublicProfile', () => {
       postCount: 7,
     })
     expect(res.relationship).toBe('none')
+    expect(res.friendshipId).toBeNull()
+  })
+
+  it('surfaces the friendshipId for a pending/friends relationship', async () => {
+    vi.mocked(friendsService.getRelationship).mockResolvedValue({ state: 'friends', friendshipId: 'f-42' })
+    const res = await getPublicProfile('viewer-1', 'targetuser')
+    expect(res.relationship).toBe('friends')
+    expect(res.friendshipId).toBe('f-42')
   })
 
   it('throws NotFoundError when the username does not exist', async () => {
@@ -135,7 +143,7 @@ describe('getPublicProfile', () => {
   })
 
   it('hides a blocked profile as NotFoundError (no existence leak)', async () => {
-    vi.mocked(friendsService.getRelationshipState).mockResolvedValue('blocked')
+    vi.mocked(friendsService.getRelationship).mockResolvedValue({ state: 'blocked', friendshipId: 'f-b' })
     await expect(getPublicProfile('viewer-1', 'targetuser')).rejects.toThrow(NotFoundError)
     expect(repo.getFriendCount).not.toHaveBeenCalled() // short-circuits before counts
   })
