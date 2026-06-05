@@ -6,6 +6,7 @@ import { ApiError } from '@/lib/api/friends.api'
 import { Button } from '@/components/ui/Button'
 import { ProfileRelationshipControl } from '@/components/features/ProfileRelationshipControl'
 import { ProfileAvatar } from '@/components/features/ProfileAvatar'
+import { EditProfile } from '@/components/features/EditProfile'
 
 export default function ProfilePage() {
   const params = useParams<{ username: string }>()
@@ -79,6 +80,15 @@ export default function ProfilePage() {
           <Stat label="Workouts" value={profile.postCount} />
         </div>
       </div>
+
+      {/* Owner-only profile info editing (avatar edit lives in the header). */}
+      {relationship === 'self' && (
+        <EditProfile
+          username={profile.username}
+          displayName={profile.displayName}
+          bio={profile.bio}
+        />
+      )}
 
       {/* Posts grid (friends/self) or gated message — the action lives in the header */}
       {canViewPosts ? (
