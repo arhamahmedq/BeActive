@@ -80,3 +80,8 @@ export const friendActionUserRateLimit = createUserRateLimiter({ maxRequests: 10
 // User search: 15/min (down from 30) — 15 × 20 results = 300 profiles/min,
 // enough for legitimate UX, reduces scraping yield by 50%.
 export const userSearchRateLimit = createUserRateLimiter({ maxRequests: 15, windowMs: 60_000 })
+
+// Post engagement (Slice 8B): like/unlike is high-frequency UX (30/min);
+// comment writes are lower (15/min) to curb spam.
+export const likeUserRateLimit = createUserRateLimiter({ maxRequests: 30, windowMs: 60_000 })
+export const commentUserRateLimit = createUserRateLimiter({ maxRequests: 15, windowMs: 60_000 })

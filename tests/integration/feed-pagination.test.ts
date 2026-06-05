@@ -12,10 +12,12 @@ import { FEED_CANDIDATE_CAP } from '../../shared/constants/index'
 
 vi.mock('../../server/modules/feed/feed.repo')
 vi.mock('../../server/modules/friends/friends.service')
+vi.mock('../../server/modules/interactions/interactions.service')
 
 import { getFeed } from '../../server/modules/feed/feed.service'
 import * as feedRepo from '../../server/modules/feed/feed.repo'
 import * as friendsService from '../../server/modules/friends/friends.service'
+import * as interactionsService from '../../server/modules/interactions/interactions.service'
 
 const NOW = new Date('2026-06-03T12:00:00Z')
 const T0 = NOW.getTime()
@@ -81,6 +83,7 @@ beforeEach(() => {
   )
 
   vi.mocked(friendsService.getAcceptedFriendIds).mockResolvedValue([])
+  vi.mocked(interactionsService.getEngagementSummaries).mockResolvedValue(new Map())
 })
 
 describe('feed pagination — stitched snapshot', () => {

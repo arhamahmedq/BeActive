@@ -30,6 +30,8 @@ model User {
   sentMessages     Message[]         @relation("Sender")
   notifications    Notification[]
   posts            Post[]
+  postLikes        PostLike[]
+  postComments     PostComment[]
   streak           Streak?
 }
 
@@ -45,9 +47,36 @@ model Post {
   dailyCompletion DailyCompletion?
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   workout         Workout?
+  likes           PostLike[]
+  comments        PostComment[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])
+}
+
+// Slice 8B — post engagement (interactions module). Isolated from posts core.
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId]) // one like per user per post (DB-enforced dedup)
+  @@index([postId])
+}
+
+model PostComment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  body      String   @db.VarChar(300)
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt(sort: Desc)])
 }
 
 model Workout {

@@ -13,10 +13,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('../../server/modules/feed/feed.repo')
 vi.mock('../../server/modules/friends/friends.service')
+vi.mock('../../server/modules/interactions/interactions.service')
 
 import { getFeed } from '../../server/modules/feed/feed.service'
 import * as feedRepo from '../../server/modules/feed/feed.repo'
 import * as friendsService from '../../server/modules/friends/friends.service'
+import * as interactionsService from '../../server/modules/interactions/interactions.service'
 import { encodeCursor } from '../../server/modules/feed/feed.cursor'
 
 const NOW = new Date('2026-06-03T12:00:00Z')
@@ -89,6 +91,9 @@ beforeEach(() => {
   )
 
   vi.mocked(friendsService.getAcceptedFriendIds).mockImplementation(async () => store.friendIds)
+  // Engagement enrichment is additive and bounded to the page; default to empty so
+  // these isolation/whitelist assertions test the feed pipeline in isolation.
+  vi.mocked(interactionsService.getEngagementSummaries).mockResolvedValue(new Map())
 })
 
 describe('feed isolation — author-set enforcement', () => {
@@ -145,7 +150,7 @@ describe('feed isolation — field whitelist', () => {
     const post = result.posts[0]
 
     expect(Object.keys(post).sort()).toEqual(
-      ['caption', 'createdAt', 'id', 'imageUrl', 'user', 'workout'].sort()
+      ['caption', 'commentCount', 'createdAt', 'id', 'imageUrl', 'likeCount', 'likedByMe', 'user', 'workout'].sort()
     )
     expect((post as Record<string, unknown>).imageKey).toBeUndefined()
 

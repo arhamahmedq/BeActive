@@ -1,4 +1,5 @@
 import { getAcceptedFriendIds } from '../friends/friends.service'
+import { getEngagementSummaries } from '../interactions/interactions.service'
 import { getFeedCandidates } from './feed.repo'
 import { rankPosts } from './feed.ranking'
 import { parseCursor, sliceByCursor } from './feed.cursor'
@@ -29,19 +30,30 @@ export async function getFeed(
   const ranked = rankPosts(rankable, new Date(T0))
   const { page, nextCursor } = sliceByCursor(ranked, cursor, query.limit, T0)
 
-  const posts: FeedPostResponse[] = page.map((r) => ({
-    id: r.id,
-    imageUrl: r.imageUrl,
-    caption: r.caption,
-    createdAt: r.createdAt.toISOString(),
-    user: {
-      id: r.user.id,
-      username: r.user.username,
-      avatarUrl: r.user.avatarUrl,
-      streak: { current: r.user.streak?.current ?? 0 },
-    },
-    workout: r.workout ? { type: r.workout.type } : null,
-  }))
+  // Engagement enrichment (Slice 8B): bounded to the sliced PAGE only (≤ limit) —
+  // never the candidate set — and never feeds back into ranking. The page IDs are
+  // already self+accepted-friends (visibility pre-authorized by the pipeline).
+  const summaries = await getEngagementSummaries(page.map((r) => r.id), userId)
+
+  const posts: FeedPostResponse[] = page.map((r) => {
+    const s = summaries.get(r.id)
+    return {
+      id: r.id,
+      imageUrl: r.imageUrl,
+      caption: r.caption,
+      createdAt: r.createdAt.toISOString(),
+      user: {
+        id: r.user.id,
+        username: r.user.username,
+        avatarUrl: r.user.avatarUrl,
+        streak: { current: r.user.streak?.current ?? 0 },
+      },
+      workout: r.workout ? { type: r.workout.type } : null,
+      likeCount: s?.likeCount ?? 0,
+      commentCount: s?.commentCount ?? 0,
+      likedByMe: s?.likedByMe ?? false,
+    }
+  })
 
   // emptyReason is a first-page-only discriminator (§4/§9). cursor === null is the
   // definitive "first page" signal — guarding on it prevents a forged/replayed

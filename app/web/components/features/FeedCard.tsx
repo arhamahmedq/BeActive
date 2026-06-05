@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import type { FeedPostResponse } from '@/shared/types/feed'
+import { PostEngagementBar } from './PostEngagementBar'
 
 function relativeTime(isoStr: string): string {
   const diffMs = Date.now() - new Date(isoStr).getTime()
@@ -70,6 +71,9 @@ export function FeedCard({ post }: FeedCardProps) {
           )}
         </div>
       )}
+
+      {/* Slice 8B — like / comment / share */}
+      <PostEngagementBar post={post} />
     </div>
   )
 }
