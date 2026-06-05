@@ -2,6 +2,7 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { Avatar } from '@/components/ui/Avatar'
 import { AvatarViewer } from './AvatarViewer'
+import { AvatarEditor } from './AvatarEditor'
 import { useUpdateAvatar } from '@/hooks/useUpdateAvatar'
 
 // Profile-header avatar: tap to open the full-screen viewer; for the owner, also
@@ -16,13 +17,16 @@ export function ProfileAvatar({
   isSelf: boolean
 }) {
   const [viewerOpen, setViewerOpen] = useState(false)
+  const [editingFile, setEditingFile] = useState<File | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
   const { set, remove } = useUpdateAvatar()
   const error = (set.error ?? remove.error) as Error | undefined
 
+  // Selecting a file opens the editor — the raw image never becomes the avatar
+  // until the user crops/zooms/rotates and saves.
   function onPick(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) set.mutate(file)
+    if (file) setEditingFile(file)
     e.target.value = '' // allow re-selecting the same file
   }
 
@@ -71,6 +75,16 @@ export function ProfileAvatar({
       {viewerOpen && avatarUrl && (
         <AvatarViewer src={avatarUrl} name={name} onClose={() => setViewerOpen(false)} />
       )}
+
+      {editingFile && (
+        <AvatarEditor
+          file={editingFile}
+          saving={set.isPending}
+          onCancel={() => setEditingFile(null)}
+          onSave={(blob) => set.mutate(blob, { onSuccess: () => setEditingFile(null) })}
+        />
+      )}
     </div>
   )
 }
+

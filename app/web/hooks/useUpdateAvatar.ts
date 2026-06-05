@@ -6,22 +6,23 @@ const MAX_BYTES = 5 * 1024 * 1024 // 5 MB
 
 // Reuses the existing R2 upload infra: sign (kind:'avatar') → PUT to R2 → PATCH
 // /api/users/me with the key (server validates ownership + derives the URL).
-async function uploadAvatar(file: File): Promise<void> {
-  if (!ALLOWED.includes(file.type)) throw new Error('Use a JPEG, PNG, or WebP image.')
-  if (file.size > MAX_BYTES) throw new Error('Image too large — max 5 MB.')
+// Accepts a Blob — typically the editor's processed square JPEG, or a raw File.
+async function uploadAvatar(image: Blob): Promise<void> {
+  if (!ALLOWED.includes(image.type)) throw new Error('Use a JPEG, PNG, or WebP image.')
+  if (image.size > MAX_BYTES) throw new Error('Image too large — max 5 MB.')
 
   const signRes = await fetch('/api/uploads/sign', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mimeType: file.type, fileSize: file.size, kind: 'avatar' }),
+    body: JSON.stringify({ mimeType: image.type, fileSize: image.size, kind: 'avatar' }),
   })
   if (!signRes.ok) throw new Error('Could not start the upload. Please try again.')
   const { uploadUrl, key } = (await signRes.json()) as { uploadUrl: string; key: string }
 
   const putRes = await fetch(uploadUrl, {
     method: 'PUT',
-    headers: { 'Content-Type': file.type },
-    body: file,
+    headers: { 'Content-Type': image.type },
+    body: image,
   })
   if (!putRes.ok) throw new Error('Upload failed. Please try again.')
 
