@@ -5,7 +5,7 @@ import { useProfile, useProfilePosts } from '@/hooks/useProfile'
 import { ApiError } from '@/lib/api/friends.api'
 import { Button } from '@/components/ui/Button'
 import { ProfileRelationshipControl } from '@/components/features/ProfileRelationshipControl'
-import { FeedCard } from '@/components/features/FeedCard'
+import { ProfilePostCard } from '@/components/features/ProfilePostCard'
 
 export default function ProfilePage() {
   const params = useParams<{ username: string }>()
@@ -116,8 +116,9 @@ function Stat({ label, value, suffix }: { label: string; value: number; suffix?:
   )
 }
 
-// Profile posts render through the SAME FeedCard as the main feed, so like /
-// comment / share behave identically — one source of truth, no duplicated UI.
+// Profile posts: profile-specific presentation (ProfilePostCard — no author
+// header) embedding the SHARED PostEngagementBar. Feature parity with the feed
+// (like/comment/share), profile-specific layout (not the feed card).
 function PostsList({ query }: { query: ReturnType<typeof useProfilePosts> }) {
   const { data, isLoading, isError, hasNextPage, fetchNextPage, isFetchingNextPage } = query
 
@@ -142,7 +143,7 @@ function PostsList({ query }: { query: ReturnType<typeof useProfilePosts> }) {
   return (
     <div className="space-y-4">
       {allPosts.map((post) => (
-        <FeedCard key={post.id} post={post} />
+        <ProfilePostCard key={post.id} post={post} />
       ))}
       {hasNextPage && (
         <div className="text-center">
