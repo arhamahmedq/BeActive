@@ -10,7 +10,8 @@ import {
 } from './users.repo'
 import { areFriends, getRelationship } from '../friends/friends.service'
 import { getEngagementSummaries } from '../interactions/interactions.service'
-import type { UserProfile, UpdateProfileInput } from './users.types'
+import { buildPublicUrl } from '../../../app/web/lib/storage/r2'
+import type { UserProfile, UpdateProfileInput, ProfileUpdateData } from './users.types'
 import type { PublicProfileResponse, ProfilePostsResponse } from '../../../shared/types/profile'
 import type { FeedPostResponse } from '../../../shared/types/feed'
 
@@ -35,11 +36,25 @@ export async function updateProfile(
   const existing = await getUserById(userId)
   if (!existing) throw new NotFoundError('User')
 
+  // Resolve avatarKey → avatarUrl (server-derived; clients never send URLs).
+  // string → set (must be the caller's own avatars/{userId}/ key); null → remove;
+  // undefined → leave unchanged.
+  const { avatarKey, ...rest } = input
+  const data: ProfileUpdateData = { ...rest }
+  if (avatarKey !== undefined) {
+    if (avatarKey === null) {
+      data.avatarUrl = null
+    } else {
+      if (!avatarKey.startsWith(`avatars/${userId}/`)) throw new ForbiddenError()
+      data.avatarUrl = buildPublicUrl(avatarKey)
+    }
+  }
+
   // Throttle only a genuine change to a new timezone value (re-submitting the
-  // same timezone, or updating only displayName/bio, never counts).
-  const isRealTzChange = input.timezone !== undefined && input.timezone !== existing.timezone
+  // same timezone, or updating only displayName/bio/avatar, never counts).
+  const isRealTzChange = data.timezone !== undefined && data.timezone !== existing.timezone
   if (!isRealTzChange) {
-    return updateUserProfile(userId, input)
+    return updateUserProfile(userId, data)
   }
 
   const throttle = (await getTimezoneThrottleState(userId)) ?? { tzChangedAt: null, tzChangeCount: 0 }
@@ -53,7 +68,7 @@ export async function updateProfile(
 
   // Keep the window anchored at its first change; reset the anchor when the
   // previous 24h window has lapsed.
-  return updateUserProfile(userId, input, {
+  return updateUserProfile(userId, data, {
     tzChangedAt: windowActive ? throttle.tzChangedAt! : _now,
     tzChangeCount: countInWindow + 1,
   })

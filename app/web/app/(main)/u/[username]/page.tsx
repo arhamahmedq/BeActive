@@ -5,6 +5,7 @@ import { useProfile, useProfilePosts } from '@/hooks/useProfile'
 import { ApiError } from '@/lib/api/friends.api'
 import { Button } from '@/components/ui/Button'
 import { ProfileRelationshipControl } from '@/components/features/ProfileRelationshipControl'
+import { ProfileAvatar } from '@/components/features/ProfileAvatar'
 
 export default function ProfilePage() {
   const params = useParams<{ username: string }>()
@@ -44,22 +45,18 @@ export default function ProfilePage() {
   }
 
   const { profile } = data
-  const initial = (profile.displayName || profile.username).charAt(0).toUpperCase()
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-xl border border-gray-100 p-6">
-        <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-gray-100 flex-shrink-0 overflow-hidden flex items-center justify-center text-xl font-semibold text-gray-500">
-            {profile.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={profile.avatarUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              initial
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
+        <div className="flex items-start gap-4">
+          <ProfileAvatar
+            name={profile.displayName || profile.username}
+            avatarUrl={profile.avatarUrl}
+            isSelf={relationship === 'self'}
+          />
+          <div className="flex-1 min-w-0 pt-1">
             {profile.displayName && (
               <p className="text-lg font-semibold text-gray-900 truncate">{profile.displayName}</p>
             )}

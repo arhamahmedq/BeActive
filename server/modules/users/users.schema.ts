@@ -16,6 +16,14 @@ export const updateProfileSchema = z.object({
     .max(160, 'Bio must be at most 160 characters')
     .nullable()
     .optional(),
+  // Avatar: the R2 key returned by the (kind:'avatar') sign upload. A string sets
+  // the picture; null removes it; undefined leaves it unchanged. The server
+  // validates ownership and derives the public URL — clients never send a URL.
+  avatarKey: z
+    .string()
+    .max(500, 'Avatar key too long')
+    .nullable()
+    .optional(),
 })
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>

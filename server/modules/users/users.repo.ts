@@ -1,6 +1,6 @@
 import { PostStatus, FriendshipStatus } from '@prisma/client'
 import { prisma } from '../../../app/web/lib/prisma'
-import type { UserProfile, UpdateProfileInput, ProfileUserRow, ProfilePostRow } from './users.types'
+import type { UserProfile, ProfileUpdateData, ProfileUserRow, ProfilePostRow } from './users.types'
 
 export async function getUserById(userId: string): Promise<UserProfile | null> {
   return prisma.user.findUnique({
@@ -31,7 +31,7 @@ export async function getTimezoneThrottleState(
 
 export async function updateUserProfile(
   userId: string,
-  data: UpdateProfileInput,
+  data: ProfileUpdateData,
   // Optional throttle bookkeeping — set only when the timezone actually changes.
   throttle?: { tzChangedAt: Date; tzChangeCount: number }
 ): Promise<UserProfile> {
@@ -41,6 +41,7 @@ export async function updateUserProfile(
       ...(data.displayName !== undefined && { displayName: data.displayName }),
       ...(data.timezone !== undefined && { timezone: data.timezone }),
       ...(data.bio !== undefined && { bio: data.bio }),
+      ...(data.avatarUrl !== undefined && { avatarUrl: data.avatarUrl }),
       ...(throttle && { tzChangedAt: throttle.tzChangedAt, tzChangeCount: throttle.tzChangeCount }),
       onboarded: true,
     },

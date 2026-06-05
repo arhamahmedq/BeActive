@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import type { FriendClient } from '@/hooks/useFriends'
 import { Button } from '@/components/ui/Button'
+import { Avatar } from '@/components/ui/Avatar'
 
 interface FriendCardProps {
   friend: FriendClient
@@ -11,7 +12,6 @@ interface FriendCardProps {
 
 export function FriendCard({ friend, onRemove, isRemoving }: FriendCardProps) {
   const displayName = friend.displayName ?? `@${friend.username}`
-  const initials = friend.username.slice(0, 2).toUpperCase()
 
   return (
     <div className="flex items-center justify-between py-3 px-4 bg-white rounded-xl border border-gray-100">
@@ -19,17 +19,7 @@ export function FriendCard({ friend, onRemove, isRemoving }: FriendCardProps) {
         href={`/u/${friend.username}`}
         className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
       >
-        {friend.avatarUrl ? (
-          <img
-            src={friend.avatarUrl}
-            alt={friend.username}
-            className="h-10 w-10 rounded-full object-cover"
-          />
-        ) : (
-          <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-500">
-            {initials}
-          </div>
-        )}
+        <Avatar src={friend.avatarUrl} name={friend.username} size="lg" />
         <div className="min-w-0">
           <p className="text-sm font-medium leading-none truncate">{displayName}</p>
           {friend.displayName && (

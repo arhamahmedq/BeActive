@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import type { UserSearchResult } from '@/lib/api/users.api'
+import { Avatar } from '@/components/ui/Avatar'
 
 interface UserSearchProps {
   query: string
@@ -56,7 +57,6 @@ export function UserSearch({
             const isFriend = friendUserIds.has(user.id)
             const isPending = sentUserIds.has(user.id)
             const isSending = sendingUserId === user.id
-            const initials = user.username.slice(0, 2).toUpperCase()
 
             return (
               <div
@@ -67,13 +67,7 @@ export function UserSearch({
                   href={`/u/${user.username}`}
                   className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
                 >
-                  {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.username} className="h-8 w-8 rounded-full object-cover" />
-                  ) : (
-                    <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-500">
-                      {initials}
-                    </div>
-                  )}
+                  <Avatar src={user.avatarUrl} name={user.username} size="sm" />
                   <p className="text-sm font-medium truncate">@{user.username}</p>
                 </Link>
 

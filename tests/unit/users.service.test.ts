@@ -100,6 +100,39 @@ describe('updateProfile — timezone-change throttle', () => {
 })
 
 // ---------------------------------------------------------------------------
+// updateProfile — avatar (avatarKey → avatarUrl, server-derived + ownership)
+// ---------------------------------------------------------------------------
+describe('updateProfile — avatar', () => {
+  beforeEach(() => {
+    process.env.R2_PUBLIC_URL = 'https://cdn.example.com'
+  })
+
+  it('sets avatarUrl, derived server-side, from the caller’s own avatar key', async () => {
+    await updateProfile('user-1', { avatarKey: 'avatars/user-1/abc.jpg' }, NOW)
+    expect(repo.updateUserProfile).toHaveBeenCalledWith('user-1', {
+      avatarUrl: 'https://cdn.example.com/avatars/user-1/abc.jpg',
+    })
+  })
+
+  it('clears avatarUrl when avatarKey is null (remove)', async () => {
+    await updateProfile('user-1', { avatarKey: null }, NOW)
+    expect(repo.updateUserProfile).toHaveBeenCalledWith('user-1', { avatarUrl: null })
+  })
+
+  it('rejects an avatar key that is not the caller’s own (ownership guard)', async () => {
+    await expect(
+      updateProfile('user-1', { avatarKey: 'avatars/other-user/x.jpg' }, NOW),
+    ).rejects.toThrow(AppError)
+    expect(repo.updateUserProfile).not.toHaveBeenCalled()
+  })
+
+  it('leaves avatar unchanged (no avatarUrl key) when avatarKey is omitted', async () => {
+    await updateProfile('user-1', { displayName: 'New Name' }, NOW)
+    expect(repo.updateUserProfile).toHaveBeenCalledWith('user-1', { displayName: 'New Name' })
+  })
+})
+
+// ---------------------------------------------------------------------------
 // getPublicProfile (Slice 8A)
 // ---------------------------------------------------------------------------
 const PROFILE_ROW = {

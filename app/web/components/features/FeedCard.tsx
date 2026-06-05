@@ -1,6 +1,7 @@
 'use client'
 import Link from 'next/link'
 import type { FeedPostResponse } from '@/shared/types/feed'
+import { Avatar } from '@/components/ui/Avatar'
 import { PostEngagementBar } from './PostEngagementBar'
 
 function relativeTime(isoStr: string): string {
@@ -28,14 +29,7 @@ export function FeedCard({ post }: FeedCardProps) {
           href={`/u/${user.username}`}
           className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity"
         >
-          <div className="h-9 w-9 rounded-full bg-gray-100 flex-shrink-0 overflow-hidden flex items-center justify-center text-sm font-medium text-gray-500">
-            {user.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              user.username.charAt(0).toUpperCase()
-            )}
-          </div>
+          <Avatar src={user.avatarUrl} name={user.username} size="md" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">@{user.username}</p>
             <p className="text-xs text-gray-400">{relativeTime(createdAt)}</p>

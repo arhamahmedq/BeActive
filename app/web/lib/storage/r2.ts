@@ -26,13 +26,22 @@ function getR2Client(): S3Client {
   })
 }
 
+// Public CDN URL for a stored object. Single place that knows R2_PUBLIC_URL so
+// callers (posts, avatars) never construct URLs from raw env.
+export function buildPublicUrl(key: string): string {
+  const base = process.env.R2_PUBLIC_URL
+  if (!base) throw new Error('R2_PUBLIC_URL env var is missing')
+  return `${base.replace(/\/$/, '')}/${key}`
+}
+
 export async function createSignedUploadUrl(
   userId: string,
   mimeType: string,
-  fileSize: number
+  fileSize: number,
+  prefix: 'posts' | 'avatars' = 'posts'
 ): Promise<SignedUploadResult> {
   const ext = MIME_TO_EXT[mimeType] ?? 'bin'
-  const key = `posts/${userId}/${randomUUID()}.${ext}`
+  const key = `${prefix}/${userId}/${randomUUID()}.${ext}`
   const bucket = process.env.R2_BUCKET_NAME!
 
   const client = getR2Client()
