@@ -15,3 +15,22 @@ export interface UpdateProfileInput {
   timezone?: string
   bio?: string | null
 }
+
+// --- Public profile (Slice 8A) repo row shapes ---
+
+export interface ProfileUserRow {
+  id: string
+  username: string
+  displayName: string | null
+  avatarUrl: string | null
+  bio: string | null
+  streak: { current: number; best: number } | null
+}
+
+export interface ProfilePostRow {
+  id: string
+  imageUrl: string
+  caption: string | null
+  createdAt: Date
+  workout: { type: string } | null
+}

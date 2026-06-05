@@ -43,72 +43,58 @@ export function useFriends() {
     },
   })
 
+  // SINGLE CACHE-INVALIDATION CONTRACT (shared with useProfileRelationship):
+  // any friendship mutation can change the friends list, the pending lists, feed
+  // visibility, and any cached profile (relationship + friend counts on BOTH
+  // sides). Invalidate all four namespaces so every surface re-syncs. Note
+  // ['friends'] is a prefix that also matches ['friends','pending'].
+  const syncSocialGraph = () => {
+    void queryClient.invalidateQueries({ queryKey: ['friends'] })
+    void queryClient.invalidateQueries({ queryKey: ['feed'] })
+    void queryClient.invalidateQueries({ queryKey: ['profile'] })
+  }
+
   const sendRequestMutation = useMutation({
     mutationFn: (targetUserId: string) => sendFriendRequest(targetUserId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['friends', 'pending'] })
-    },
+    onSuccess: syncSocialGraph,
     onError: (error) => {
-      // 409 = duplicate request — reconcile by refreshing pending state
-      if (error instanceof ApiError && error.status === 409) {
-        void queryClient.invalidateQueries({ queryKey: ['friends', 'pending'] })
-      }
+      // 409 = duplicate request — reconcile by re-syncing
+      if (error instanceof ApiError && error.status === 409) syncSocialGraph()
     },
   })
 
   const acceptRequestMutation = useMutation({
     mutationFn: (friendshipId: string) => acceptFriendRequest(friendshipId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['friends'] })
-      void queryClient.invalidateQueries({ queryKey: ['friends', 'pending'] })
-      void queryClient.invalidateQueries({ queryKey: ['feed'] }) // new friend's posts now visible
-    },
+    onSuccess: syncSocialGraph,
     onError: (error) => {
-      if (error instanceof ApiError && error.status === 409) {
-        // Already accepted — reconcile server state
-        void queryClient.invalidateQueries({ queryKey: ['friends'] })
-        void queryClient.invalidateQueries({ queryKey: ['friends', 'pending'] })
-      }
+      // Already accepted — reconcile server state
+      if (error instanceof ApiError && error.status === 409) syncSocialGraph()
     },
   })
 
   const rejectRequestMutation = useMutation({
     mutationFn: (friendshipId: string) => rejectFriendRequest(friendshipId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['friends', 'pending'] })
-    },
+    onSuccess: syncSocialGraph,
     onError: (error) => {
-      if (error instanceof ApiError && error.status === 404) {
-        // Already gone — reconcile
-        void queryClient.invalidateQueries({ queryKey: ['friends', 'pending'] })
-      }
+      // Already gone — reconcile
+      if (error instanceof ApiError && error.status === 404) syncSocialGraph()
     },
   })
 
   const removeFriendMutation = useMutation({
     mutationFn: (friendshipId: string) => removeFriend(friendshipId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['friends'] })
-      void queryClient.invalidateQueries({ queryKey: ['feed'] })
-    },
+    onSuccess: syncSocialGraph,
     onError: (error) => {
-      if (error instanceof ApiError && error.status === 404) {
-        void queryClient.invalidateQueries({ queryKey: ['friends'] })
-      }
+      if (error instanceof ApiError && error.status === 404) syncSocialGraph()
     },
   })
 
   const cancelRequestMutation = useMutation({
     mutationFn: (friendshipId: string) => cancelFriendRequest(friendshipId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['friends', 'pending'] })
-    },
+    onSuccess: syncSocialGraph,
     onError: (error) => {
       // 404 (already gone) or 409 (no longer pending — e.g. just accepted) → reconcile.
-      if (error instanceof ApiError && (error.status === 404 || error.status === 409)) {
-        void queryClient.invalidateQueries({ queryKey: ['friends', 'pending'] })
-        void queryClient.invalidateQueries({ queryKey: ['friends'] })
-      }
+      if (error instanceof ApiError && (error.status === 404 || error.status === 409)) syncSocialGraph()
     },
   })
 

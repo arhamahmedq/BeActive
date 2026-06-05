@@ -12,7 +12,7 @@ export async function GET(
 
   try {
     const { id } = await params
-    const post = await getPost(id)
+    const post = await getPost(auth.userId, id)
     return NextResponse.json({ post }, { status: 200 })
   } catch (err) {
     if (isAppError(err)) {

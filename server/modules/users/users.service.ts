@@ -1,6 +1,20 @@
-import { NotFoundError, RateLimitError } from '../../core/errors/AppError'
-import { getUserById, updateUserProfile, getTimezoneThrottleState } from './users.repo'
+import { NotFoundError, RateLimitError, ForbiddenError } from '../../core/errors/AppError'
+import {
+  getUserById,
+  updateUserProfile,
+  getTimezoneThrottleState,
+  getUserByUsername,
+  getFriendCount,
+  getVerifiedPostCount,
+  getUserVerifiedPosts,
+} from './users.repo'
+import { areFriends, getRelationship } from '../friends/friends.service'
 import type { UserProfile, UpdateProfileInput } from './users.types'
+import type {
+  PublicProfileResponse,
+  ProfilePostsResponse,
+  ProfilePost,
+} from '../../../shared/types/profile'
 
 // Anti-cheat: the streak's "today" is derived from the user's timezone, so an
 // unthrottled timezone field is a streak-inflation lever (move the clock forward
@@ -45,4 +59,92 @@ export async function updateProfile(
     tzChangedAt: windowActive ? throttle.tzChangedAt! : _now,
     tzChangeCount: countInWindow + 1,
   })
+}
+
+// ---------------------------------------------------------------------------
+// Public profile (Slice 8A) — identity is discoverable; the posts grid is
+// friends-only (mirrors the feed; honors "no public feed"). Blocked = hidden.
+// ---------------------------------------------------------------------------
+
+const PROFILE_POSTS_MAX_LIMIT = 30
+
+function encodeProfileCursor(p: { createdAt: Date; id: string }): string {
+  return Buffer.from(JSON.stringify({ c: p.createdAt.toISOString(), i: p.id })).toString('base64url')
+}
+
+function decodeProfileCursor(raw: string | undefined): { createdAt: Date; id: string } | null {
+  if (!raw) return null
+  try {
+    const o = JSON.parse(Buffer.from(raw, 'base64url').toString()) as { c: string; i: string }
+    const createdAt = new Date(o.c)
+    if (Number.isNaN(createdAt.getTime()) || typeof o.i !== 'string') return null
+    return { createdAt, id: o.i }
+  } catch {
+    return null
+  }
+}
+
+export async function getPublicProfile(
+  viewerId: string,
+  username: string,
+): Promise<PublicProfileResponse> {
+  const user = await getUserByUsername(username)
+  if (!user) throw new NotFoundError('User')
+
+  const { state: relationship, friendshipId } = await getRelationship(viewerId, user.id)
+  // A blocked pair is fully hidden — same response as a non-existent user.
+  if (relationship === 'blocked') throw new NotFoundError('User')
+
+  const [friendCount, postCount] = await Promise.all([
+    getFriendCount(user.id),
+    getVerifiedPostCount(user.id),
+  ])
+
+  return {
+    profile: {
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      bio: user.bio,
+      streak: { current: user.streak?.current ?? 0, best: user.streak?.best ?? 0 },
+      friendCount,
+      postCount,
+    },
+    relationship, // narrowed: 'blocked' already threw above
+    friendshipId, // null for self/none; the row id for pending/friends
+  }
+}
+
+export async function getUserPostsByUsername(
+  viewerId: string,
+  username: string,
+  cursorRaw: string | undefined,
+  limit: number,
+): Promise<ProfilePostsResponse> {
+  const user = await getUserByUsername(username)
+  if (!user) throw new NotFoundError('User')
+
+  // Friends-only: the workout grid is visible only to the owner or accepted friends.
+  const canView = viewerId === user.id || (await areFriends(viewerId, user.id))
+  if (!canView) throw new ForbiddenError()
+
+  const effectiveLimit = Math.min(Math.max(limit, 1), PROFILE_POSTS_MAX_LIMIT)
+  const cursor = decodeProfileCursor(cursorRaw)
+  const rows = await getUserVerifiedPosts(user.id, cursor, effectiveLimit)
+
+  const hasMore = rows.length > effectiveLimit
+  const pageRows = hasMore ? rows.slice(0, effectiveLimit) : rows
+  const last = pageRows[pageRows.length - 1]
+  const nextCursor = hasMore && last ? encodeProfileCursor({ createdAt: last.createdAt, id: last.id }) : null
+
+  const posts: ProfilePost[] = pageRows.map((r) => ({
+    id: r.id,
+    imageUrl: r.imageUrl,
+    caption: r.caption,
+    createdAt: r.createdAt.toISOString(),
+    workout: r.workout ? { type: r.workout.type } : null,
+  }))
+
+  return { posts, nextCursor }
 }

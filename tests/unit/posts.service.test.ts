@@ -2,10 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createPost, getPost } from '../../server/modules/posts/posts.service'
 import * as repo from '../../server/modules/posts/posts.repo'
 import * as usersService from '../../server/modules/users/users.service'
+import * as friendsService from '../../server/modules/friends/friends.service'
 import { ConflictError, ForbiddenError, NotFoundError } from '../../server/core/errors/AppError'
 
 vi.mock('../../server/modules/posts/posts.repo')
 vi.mock('../../server/modules/users/users.service')
+vi.mock('../../server/modules/friends/friends.service')
 vi.mock('../../server/core/logger/index', () => ({
   logger: { info: vi.fn(), error: vi.fn() },
 }))
@@ -17,6 +19,7 @@ const MOCK_POST = {
   caption: null,
   status: 'PENDING',
   createdAt: new Date(),
+  user: { id: 'author-1', username: 'author1', avatarUrl: null },
 }
 
 const MOCK_PROFILE = {
@@ -123,17 +126,35 @@ describe('createPost', () => {
 // ---------------------------------------------------------------------------
 // getPost
 // ---------------------------------------------------------------------------
-describe('getPost', () => {
-  it('returns post when found', async () => {
+describe('getPost (viewer-aware visibility — Step 1 security fix)', () => {
+  it('returns the post when the viewer is the author (no friendship lookup needed)', async () => {
     vi.mocked(repo.findPostById).mockResolvedValue(MOCK_POST)
 
-    const result = await getPost('post-1')
+    const result = await getPost('author-1', 'post-1')
     expect(result.id).toBe('post-1')
+    expect(friendsService.areFriends).not.toHaveBeenCalled() // self short-circuit
   })
 
-  it('throws NotFoundError when post does not exist', async () => {
+  it('returns the post when the viewer is an accepted friend of the author', async () => {
+    vi.mocked(repo.findPostById).mockResolvedValue(MOCK_POST)
+    vi.mocked(friendsService.areFriends).mockResolvedValue(true)
+
+    const result = await getPost('friend-2', 'post-1')
+    expect(result.id).toBe('post-1')
+    expect(friendsService.areFriends).toHaveBeenCalledWith('friend-2', 'author-1')
+  })
+
+  it('throws NotFoundError (not 403) when the viewer is NOT a friend — no existence leak', async () => {
+    vi.mocked(repo.findPostById).mockResolvedValue(MOCK_POST)
+    vi.mocked(friendsService.areFriends).mockResolvedValue(false)
+
+    await expect(getPost('stranger-3', 'post-1')).rejects.toThrow(NotFoundError)
+  })
+
+  it('throws NotFoundError when the post does not exist', async () => {
     vi.mocked(repo.findPostById).mockResolvedValue(null)
 
-    await expect(getPost('nonexistent')).rejects.toThrow(NotFoundError)
+    await expect(getPost('anyone', 'nonexistent')).rejects.toThrow(NotFoundError)
+    expect(friendsService.areFriends).not.toHaveBeenCalled()
   })
 })

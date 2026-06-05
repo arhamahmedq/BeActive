@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 import type { UserSearchResult } from '@/lib/api/users.api'
 
 interface UserSearchProps {
@@ -62,7 +63,10 @@ export function UserSearch({
                 key={user.id}
                 className="flex items-center justify-between py-2.5 px-4 bg-white rounded-xl border border-gray-100"
               >
-                <div className="flex items-center gap-3">
+                <Link
+                  href={`/u/${user.username}`}
+                  className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
+                >
                   {user.avatarUrl ? (
                     <img src={user.avatarUrl} alt={user.username} className="h-8 w-8 rounded-full object-cover" />
                   ) : (
@@ -70,8 +74,8 @@ export function UserSearch({
                       {initials}
                     </div>
                   )}
-                  <p className="text-sm font-medium">@{user.username}</p>
-                </div>
+                  <p className="text-sm font-medium truncate">@{user.username}</p>
+                </Link>
 
                 {isFriend ? (
                   <span className="text-xs text-gray-400">Friends</span>

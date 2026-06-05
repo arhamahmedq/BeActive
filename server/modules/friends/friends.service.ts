@@ -15,6 +15,7 @@ import type {
   PendingFriendEntry,
   UserSearchResponse,
 } from '../../../shared/types/friends'
+import type { RelationshipState } from '../../../shared/types/profile'
 
 // ---------------------------------------------------------------------------
 // Existing — used by the feed pipeline (Slice 5)
@@ -22,6 +23,45 @@ import type {
 
 export async function getAcceptedFriendIds(userId: string): Promise<string[]> {
   return friendsRepo.getAcceptedFriendIds(userId)
+}
+
+// Single-pair friendship check (visibility primitive, reused by post/profile
+// authorization). True ONLY for an ACCEPTED friendship in either direction —
+// false for self, none, pending, or blocked.
+export async function areFriends(userId: string, otherUserId: string): Promise<boolean> {
+  const friendship = await friendsRepo.findFriendshipBetween(userId, otherUserId)
+  return friendship?.status === FriendshipStatus.ACCEPTED
+}
+
+// Viewer→target relationship for the profile header. Superset of the public
+// RelationshipState (adds 'blocked', which callers translate into a hidden 404).
+export type FriendRelationship = RelationshipState | 'blocked'
+
+export interface RelationshipInfo {
+  state: FriendRelationship
+  // The friendship row id — needed to accept/decline/cancel/remove from the
+  // profile. null for 'self' and 'none' (no row to act on).
+  friendshipId: string | null
+}
+
+export async function getRelationship(
+  viewerId: string,
+  targetId: string,
+): Promise<RelationshipInfo> {
+  if (viewerId === targetId) return { state: 'self', friendshipId: null }
+  const f = await friendsRepo.findFriendshipBetween(viewerId, targetId)
+  if (!f) return { state: 'none', friendshipId: null }
+  switch (f.status) {
+    case FriendshipStatus.ACCEPTED:
+      return { state: 'friends', friendshipId: f.id }
+    case FriendshipStatus.BLOCKED:
+      return { state: 'blocked', friendshipId: f.id }
+    case FriendshipStatus.PENDING:
+      // userAId is always the requester (Slice 6 convention).
+      return { state: f.userAId === viewerId ? 'outgoing' : 'incoming', friendshipId: f.id }
+    default:
+      return { state: 'none', friendshipId: null }
+  }
 }
 
 // ---------------------------------------------------------------------------

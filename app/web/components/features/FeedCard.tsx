@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 import type { FeedPostResponse } from '@/shared/types/feed'
 
 function relativeTime(isoStr: string): string {
@@ -22,18 +23,23 @@ export function FeedCard({ post }: FeedCardProps) {
     <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3">
-        <div className="h-9 w-9 rounded-full bg-gray-100 flex-shrink-0 overflow-hidden flex items-center justify-center text-sm font-medium text-gray-500">
-          {user.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            user.username.charAt(0).toUpperCase()
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-900 truncate">@{user.username}</p>
-          <p className="text-xs text-gray-400">{relativeTime(createdAt)}</p>
-        </div>
+        <Link
+          href={`/u/${user.username}`}
+          className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity"
+        >
+          <div className="h-9 w-9 rounded-full bg-gray-100 flex-shrink-0 overflow-hidden flex items-center justify-center text-sm font-medium text-gray-500">
+            {user.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              user.username.charAt(0).toUpperCase()
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900 truncate">@{user.username}</p>
+            <p className="text-xs text-gray-400">{relativeTime(createdAt)}</p>
+          </div>
+        </Link>
         {user.streak.current > 0 && (
           <div className="flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full flex-shrink-0">
             <span>{user.streak.current}</span>
