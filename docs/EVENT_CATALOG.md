@@ -86,6 +86,8 @@ interface DomainEvent {
 | `FRIEND_REQUEST_SENT` | friends.service | `{ fromUserId, toUserId, friendshipId }` | notifications | No |
 | `FRIEND_REQUEST_ACCEPTED` | friends.service | `{ friendshipId, userAId, userBId }` | notifications, feed visibility | No |
 | `FRIEND_REMOVED` | friends.service | `{ friendshipId, removedBy }` | feed cache invalidation | Yes |
+| `USER_BLOCKED` | friends.service | `{ friendshipId, blockerId, blockedId }` | feed cache invalidation, search exclusion | Yes |
+| `USER_UNBLOCKED` | friends.service | `{ friendshipId, blockerId, unblockedId }` | search re-inclusion | Yes |
 
 ### STORY EVENTS
 
