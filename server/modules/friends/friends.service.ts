@@ -24,6 +24,14 @@ export async function getAcceptedFriendIds(userId: string): Promise<string[]> {
   return friendsRepo.getAcceptedFriendIds(userId)
 }
 
+// Single-pair friendship check (visibility primitive, reused by post/profile
+// authorization). True ONLY for an ACCEPTED friendship in either direction —
+// false for self, none, pending, or blocked.
+export async function areFriends(userId: string, otherUserId: string): Promise<boolean> {
+  const friendship = await friendsRepo.findFriendshipBetween(userId, otherUserId)
+  return friendship?.status === FriendshipStatus.ACCEPTED
+}
+
 // ---------------------------------------------------------------------------
 // Slice 6 — friendship management
 // ---------------------------------------------------------------------------

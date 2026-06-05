@@ -8,6 +8,7 @@ import {
   persistEvent,
 } from './posts.repo'
 import { getProfile } from '../users/users.service'
+import { areFriends } from '../friends/friends.service'
 import type { CreatePostInput, PostResponse } from './posts.types'
 
 function buildPublicUrl(key: string): string {
@@ -62,8 +63,23 @@ export async function createPost(
   return post
 }
 
-export async function getPost(postId: string): Promise<PostResponse> {
+// Central post-visibility guard. A post is viewable ONLY by its author or an
+// accepted friend of the author (reuses the Friends graph — no new graph logic).
+// A non-viewer gets NotFoundError (404), never 403, so this can't be used to
+// probe which post IDs exist. Apply to every post read endpoint.
+export async function assertCanViewPost(viewerId: string, authorId: string): Promise<void> {
+  if (viewerId === authorId) return
+  if (await areFriends(viewerId, authorId)) return
+  throw new NotFoundError('Post')
+}
+
+export async function getPost(viewerId: string, postId: string): Promise<PostResponse> {
   const post = await findPostById(postId)
   if (!post) throw new NotFoundError('Post')
+
+  const authorId = post.user?.id
+  if (!authorId) throw new NotFoundError('Post')
+  await assertCanViewPost(viewerId, authorId)
+
   return post
 }
