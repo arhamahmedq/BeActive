@@ -163,7 +163,7 @@ A slice is COMPLETE only when: deployed to production, all tests pass, QA approv
 
 ## SLICE 6 — FRIENDS SYSTEM (Social Graph)
 
-**Status:** ✅ REVIEW-READY (2026-06-04) — implemented on `feature/slice-6-friends`, pending PR. All DoD criteria met. Deferred items (unblock, durable rate limiting, reciprocal-duplicate pairKey, integration/E2E) tracked below.
+**Status:** ✅ COMPLETE — merged to master via PR #3 (2026-06-05). All DoD criteria met. Deferred items (durable rate limiting, reciprocal-duplicate pairKey, block/unblock UI, integration/E2E) tracked below. (Unblock endpoint shipped; only its UI button is deferred.)
 
 **Objective:** Send/accept/remove friend requests. Foundation for feed, notifications, DMs.
 
@@ -200,6 +200,37 @@ A slice is COMPLETE only when: deployed to production, all tests pass, QA approv
 - Durable rate limiter (the in-memory Map is per-serverless-instance on Vercel) — incl. F7 (friend-action limiter buckets per endpoint, not aggregate).
 - Best-effort events (not transactional with the mutation) — accepted for MVP, flagged.
 - Friends integration tests (real Postgres) + E2E happy path.
+
+---
+
+## SLICE 8A — PROFILES + POST-VISIBILITY SECURITY (Social Identity)
+
+**Status:** ✅ COMPLETE — merged to master via PR #4 (2026-06-05), stacked on Slice 6. No schema change.
+
+**Objective:** Give the social graph a face — viewable profiles, friends-only post grids, and full relationship management from the profile — and close a pre-existing post-visibility hole.
+
+**Security fix (priority):** `GET /api/posts/[id]` returned any post to any authenticated user. Added `posts.service.assertCanViewPost(viewerId, authorId)` (author OR accepted friend, else 404 — no existence leak), enforced in `getPost`. Central guard for all post read paths.
+
+**Backend:**
+- `friends.service.areFriends` + `getRelationship` (`{ state, friendshipId }`) — visibility/relationship primitives (reuse `findFriendshipBetween`).
+- `GET /api/users/[username]` → identity + counts + relationship (blocked → 404 hidden).
+- `GET /api/users/[username]/posts` → friends-only grid, keyset cursor (no offset).
+
+**Frontend:**
+- `/u/[username]` profile page (header, streak/friend/post counts, relationship control).
+- `/p/[postId]` read-only post view.
+- `ProfileRelationshipControl`: Add / Requested✕ (cancel) / Accept+Decline / ✓Friends→Remove — optimistic, reuses existing friends endpoints (no new relationship endpoints; reject = decline).
+- Username/avatar across feed/friends/search link to `/u/[username]`.
+
+**Hybrid visibility:** identity is discoverable to any authed user; the workout grid is friends-only (honors "no public feed"). Blocked pairs are hidden (404).
+
+**Consistency:** single cache-invalidation contract — every friendship mutation invalidates `['friends']` + `['feed']` + `['profile']`.
+
+**Definition of Done:** ✅ Click a username anywhere → profile. ✅ Non-friends see identity but not the grid ("Add friend to see workouts"). ✅ Add/cancel/accept/decline/unfriend from the profile. ✅ No post viewable by a non-friend via any path. type-check + build + 552 tests + lint green.
+
+**Deferred (the Social Interactions epic — architecture prepped, NOT built):**
+- **8B Likes**, **8C Comments**, **8D Share** (share = profile/invite link, not post-share — post-share waits for DMs/Slice 9).
+- Self profile-edit UI; block/unblock UI buttons; profile integration/E2E tests.
 
 ---
 
