@@ -1,6 +1,10 @@
 // Render the crop region (from react-easy-crop, in source-image pixels) — with
 // rotation applied — into a square output canvas and return a JPEG Blob. Standard
 // react-easy-crop canvas recipe; pixelCrop is square (aspect=1) so output is square.
+//
+// Accepts File | Blob directly (matching stripExif's pattern) so the function owns
+// the object URL lifecycle internally. This avoids React Strict Mode's double-effect
+// cleanup revoking a component-managed URL before canvas processing starts.
 
 interface PixelCrop {
   x: number
@@ -12,8 +16,8 @@ interface PixelCrop {
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image()
-    img.addEventListener('load', () => resolve(img))
-    img.addEventListener('error', () => reject(new Error('Could not load image')))
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('Could not load image'))
     img.src = url
   })
 }
@@ -21,12 +25,13 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 const toRad = (deg: number) => (deg * Math.PI) / 180
 
 export async function getCroppedBlob(
-  imageSrc: string,
+  imageSource: File | Blob,
   pixelCrop: PixelCrop,
   rotation = 0,
   outputSize = 512,
 ): Promise<Blob> {
-  const image = await loadImage(imageSrc)
+  const url = URL.createObjectURL(imageSource)
+  const image = await loadImage(url).finally(() => URL.revokeObjectURL(url))
   const rot = toRad(rotation)
 
   // 1) Draw the (rotated) image onto a canvas sized to its rotated bounding box.
