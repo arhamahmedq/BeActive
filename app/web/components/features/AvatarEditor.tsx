@@ -53,7 +53,10 @@ export function AvatarEditor({
     if (!areaPixels) return
     setError(null)
     try {
-      const blob = await getCroppedBlob(imageSrc, areaPixels, rotation)
+      // Pass the raw File so getCroppedBlob manages its own URL lifecycle.
+      // Component-managed imageSrc is for Cropper display only — it may be
+      // revoked by React Strict Mode's effect cleanup before this runs.
+      const blob = await getCroppedBlob(file, areaPixels, rotation)
       onSave(blob)
     } catch {
       setError('Could not process the image. Please try another.')
