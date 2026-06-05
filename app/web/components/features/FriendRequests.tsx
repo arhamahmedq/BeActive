@@ -1,6 +1,8 @@
 'use client'
+import Link from 'next/link'
 import type { PendingFriendEntry } from '@/hooks/useFriends'
 import { Button } from '@/components/ui/Button'
+import { Avatar } from '@/components/ui/Avatar'
 
 interface FriendRequestsProps {
   incoming: PendingFriendEntry[]
@@ -21,23 +23,15 @@ function PendingEntry({
   entry: PendingFriendEntry
   actions: React.ReactNode
 }) {
-  const initials = entry.user.username.slice(0, 2).toUpperCase()
   return (
     <div className="flex items-center justify-between py-3 px-4 bg-white rounded-xl border border-gray-100">
-      <div className="flex items-center gap-3">
-        {entry.user.avatarUrl ? (
-          <img
-            src={entry.user.avatarUrl}
-            alt={entry.user.username}
-            className="h-9 w-9 rounded-full object-cover"
-          />
-        ) : (
-          <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-500">
-            {initials}
-          </div>
-        )}
-        <p className="text-sm font-medium">@{entry.user.username}</p>
-      </div>
+      <Link
+        href={`/u/${entry.user.username}`}
+        className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
+      >
+        <Avatar src={entry.user.avatarUrl} name={entry.user.username} size="md" />
+        <p className="text-sm font-medium truncate">@{entry.user.username}</p>
+      </Link>
       <div className="flex items-center gap-2">{actions}</div>
     </div>
   )

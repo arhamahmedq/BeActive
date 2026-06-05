@@ -3,6 +3,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { usePost } from '@/hooks/usePost'
 import { ApiError } from '@/lib/api/friends.api'
+import { Avatar } from '@/components/ui/Avatar'
 
 function relativeTime(isoStr: string): string {
   const diffMs = Date.now() - new Date(isoStr).getTime()
@@ -40,20 +41,12 @@ export default function PostDetailPage() {
   }
 
   const author = post.user
-  const initial = author?.username.charAt(0).toUpperCase() ?? '?'
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
       {author && (
         <Link href={`/u/${author.username}`} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
-          <div className="h-9 w-9 rounded-full bg-gray-100 flex-shrink-0 overflow-hidden flex items-center justify-center text-sm font-medium text-gray-500">
-            {author.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={author.avatarUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              initial
-            )}
-          </div>
+          <Avatar src={author.avatarUrl} name={author.username} size="md" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">@{author.username}</p>
             <p className="text-xs text-gray-400">{relativeTime(post.createdAt)}</p>

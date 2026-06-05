@@ -1,5 +1,6 @@
 // Shared API response types for the public profile (Slice 8A).
 // Imported by the profile page/hooks (frontend) and the users controller (backend).
+import type { FeedPostResponse } from './feed'
 
 // Relationship of the VIEWER to the profile owner. 'blocked' is never exposed —
 // a blocked profile is hidden (404) — so the public union excludes it.
@@ -24,15 +25,10 @@ export interface PublicProfileResponse {
   friendshipId: string | null
 }
 
-export interface ProfilePost {
-  id: string
-  imageUrl: string
-  caption: string | null
-  createdAt: string // ISO 8601
-  workout: { type: string } | null
-}
-
+// Profile posts use the SAME shape as the feed (FeedPostResponse) so the profile
+// can render the same FeedCard — including the like/comment/share engagement bar.
+// Single source of truth for a post-as-rendered.
 export interface ProfilePostsResponse {
-  posts: ProfilePost[]
+  posts: FeedPostResponse[]
   nextCursor: string | null
 }

@@ -2,6 +2,7 @@
 import { useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { useComments, useAddComment } from '@/hooks/useComments'
+import { Avatar } from '@/components/ui/Avatar'
 
 // Lightweight comments under a post card: list + composer. Only mounted when the
 // card's comment toggle is open (useComments fires on mount).
@@ -32,12 +33,17 @@ export function CommentsSection({ postId }: { postId: string }) {
         <p className="text-xs text-gray-400">No comments yet — be the first.</p>
       ) : (
         comments.map((c) => (
-          <p key={c.id} className="text-sm leading-snug">
-            <Link href={`/u/${c.user.username}`} className="font-semibold text-gray-900 hover:opacity-70">
-              @{c.user.username}
-            </Link>{' '}
-            <span className="text-gray-700">{c.body}</span>
-          </p>
+          <div key={c.id} className="flex items-start gap-2">
+            <Link href={`/u/${c.user.username}`} className="flex-shrink-0">
+              <Avatar src={c.user.avatarUrl} name={c.user.username} size="xs" />
+            </Link>
+            <p className="text-sm leading-snug">
+              <Link href={`/u/${c.user.username}`} className="font-semibold text-gray-900 hover:opacity-70">
+                @{c.user.username}
+              </Link>{' '}
+              <span className="text-gray-700">{c.body}</span>
+            </p>
+          </div>
         ))
       )}
 

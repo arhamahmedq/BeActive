@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('../../server/modules/users/users.repo')
 vi.mock('../../server/modules/friends/friends.service')
+vi.mock('../../server/modules/interactions/interactions.service')
 
 import {
   updateProfile,
@@ -10,6 +11,7 @@ import {
 } from '../../server/modules/users/users.service'
 import * as repo from '../../server/modules/users/users.repo'
 import * as friendsService from '../../server/modules/friends/friends.service'
+import * as interactionsService from '../../server/modules/interactions/interactions.service'
 import { AppError, NotFoundError, ForbiddenError } from '../../server/core/errors/AppError'
 
 const NOW = new Date('2024-06-01T12:00:00Z')
@@ -98,6 +100,39 @@ describe('updateProfile — timezone-change throttle', () => {
 })
 
 // ---------------------------------------------------------------------------
+// updateProfile — avatar (avatarKey → avatarUrl, server-derived + ownership)
+// ---------------------------------------------------------------------------
+describe('updateProfile — avatar', () => {
+  beforeEach(() => {
+    process.env.R2_PUBLIC_URL = 'https://cdn.example.com'
+  })
+
+  it('sets avatarUrl, derived server-side, from the caller’s own avatar key', async () => {
+    await updateProfile('user-1', { avatarKey: 'avatars/user-1/abc.jpg' }, NOW)
+    expect(repo.updateUserProfile).toHaveBeenCalledWith('user-1', {
+      avatarUrl: 'https://cdn.example.com/avatars/user-1/abc.jpg',
+    })
+  })
+
+  it('clears avatarUrl when avatarKey is null (remove)', async () => {
+    await updateProfile('user-1', { avatarKey: null }, NOW)
+    expect(repo.updateUserProfile).toHaveBeenCalledWith('user-1', { avatarUrl: null })
+  })
+
+  it('rejects an avatar key that is not the caller’s own (ownership guard)', async () => {
+    await expect(
+      updateProfile('user-1', { avatarKey: 'avatars/other-user/x.jpg' }, NOW),
+    ).rejects.toThrow(AppError)
+    expect(repo.updateUserProfile).not.toHaveBeenCalled()
+  })
+
+  it('leaves avatar unchanged (no avatarUrl key) when avatarKey is omitted', async () => {
+    await updateProfile('user-1', { displayName: 'New Name' }, NOW)
+    expect(repo.updateUserProfile).toHaveBeenCalledWith('user-1', { displayName: 'New Name' })
+  })
+})
+
+// ---------------------------------------------------------------------------
 // getPublicProfile (Slice 8A)
 // ---------------------------------------------------------------------------
 const PROFILE_ROW = {
@@ -163,6 +198,7 @@ const POST_ROW = (id: string) => ({
   imageUrl: `https://r2/${id}.jpg`,
   caption: null,
   createdAt: new Date('2024-05-01T00:00:00Z'),
+  user: { id: 'target-1', username: 'targetuser', avatarUrl: null, streak: { current: 5 } },
   workout: { type: 'GYM' },
 })
 
@@ -170,12 +206,19 @@ describe('getUserPostsByUsername', () => {
   beforeEach(() => {
     vi.mocked(repo.getUserByUsername).mockResolvedValue(PROFILE_ROW)
     vi.mocked(repo.getUserVerifiedPosts).mockResolvedValue([POST_ROW('p1')])
+    vi.mocked(interactionsService.getEngagementSummaries).mockResolvedValue(new Map())
   })
 
-  it('returns posts when the viewer is the owner (no friendship lookup)', async () => {
+  it('returns posts in FeedPostResponse shape (engagement + author) when viewer is owner', async () => {
     const res = await getUserPostsByUsername('target-1', 'targetuser', undefined, 20)
     expect(res.posts).toHaveLength(1)
-    expect(res.posts[0]?.id).toBe('p1')
+    expect(res.posts[0]).toMatchObject({
+      id: 'p1',
+      user: { id: 'target-1', username: 'targetuser' },
+      likeCount: 0,
+      commentCount: 0,
+      likedByMe: false,
+    })
     expect(friendsService.areFriends).not.toHaveBeenCalled()
   })
 

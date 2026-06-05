@@ -20,7 +20,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const result = await createSignedUploadUrl(
       auth.userId,
       bodyOrError.mimeType,
-      bodyOrError.fileSize
+      bodyOrError.fileSize,
+      bodyOrError.kind === 'avatar' ? 'avatars' : 'posts'
     )
     return NextResponse.json({ uploadUrl: result.uploadUrl, key: result.key }, { status: 200 })
   } catch (err) {

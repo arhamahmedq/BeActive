@@ -81,6 +81,13 @@ async function run() {
   check(!!fp, 'A’s post appears in B’s feed')
   check(fp?.likeCount === 1 && fp?.likedByMe === true, `feed shows likeCount 1 + likedByMe true (got ${fp?.likeCount}/${fp?.likedByMe})`)
 
+  console.log('3b) PROFILE posts carry the same engagement shape (B views A’s profile)')
+  r = await api(B.jar, 'GET', `/api/users/${encodeURIComponent(A.username)}/posts`)
+  const pp = r.json?.posts?.find((p) => p.id === postId)
+  check(!!pp, 'A’s post appears in A’s profile posts')
+  check(pp?.likeCount === 1 && pp?.likedByMe === true, `profile post shows likeCount 1 + likedByMe true (got ${pp?.likeCount}/${pp?.likedByMe})`)
+  check(!!pp?.user?.username && typeof pp?.commentCount === 'number', 'profile post is in FeedCard shape (user + commentCount) → renders like/comment/share')
+
   console.log('4) comments: create, validate, list')
   r = await api(B.jar, 'POST', `/api/posts/${postId}/comments`, { body: 'great work!' })
   check(r.status === 201 && r.json?.comment?.body === 'great work!', `B comment → 201 (got ${r.status})`)
@@ -98,6 +105,16 @@ async function run() {
 
   console.log('6) auth guard')
   check((await api({ cookies: '' }, 'POST', `/api/posts/${postId}/like`)).status === 401, 'unauthenticated like → 401')
+
+  console.log('7) avatar: set / ownership / public visibility / remove')
+  r = await api(A.jar, 'PATCH', '/api/users/me', { avatarKey: `avatars/${A.id}/qa.jpg` })
+  check(r.status === 200 && (r.json?.user?.avatarUrl ?? '').endsWith(`avatars/${A.id}/qa.jpg`), `A sets avatar → avatarUrl stored (got ${r.status})`)
+  r = await api(B.jar, 'GET', `/api/users/${encodeURIComponent(A.username)}`)
+  check(!!r.json?.profile?.avatarUrl, 'A’s avatar is visible on A’s public profile (to friend B)')
+  r = await api(A.jar, 'PATCH', '/api/users/me', { avatarKey: `avatars/${B.id}/x.jpg` })
+  check(r.status === 403, `A cannot claim B’s avatar key → 403 (ownership) (got ${r.status})`)
+  r = await api(A.jar, 'PATCH', '/api/users/me', { avatarKey: null })
+  check(r.status === 200 && !r.json?.user?.avatarUrl, 'A removes avatar → avatarUrl cleared')
 }
 
 async function cleanup() {

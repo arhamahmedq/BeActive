@@ -5,6 +5,8 @@ import { useProfile, useProfilePosts } from '@/hooks/useProfile'
 import { ApiError } from '@/lib/api/friends.api'
 import { Button } from '@/components/ui/Button'
 import { ProfileRelationshipControl } from '@/components/features/ProfileRelationshipControl'
+import { ProfileAvatar } from '@/components/features/ProfileAvatar'
+import { EditProfile } from '@/components/features/EditProfile'
 
 export default function ProfilePage() {
   const params = useParams<{ username: string }>()
@@ -44,22 +46,18 @@ export default function ProfilePage() {
   }
 
   const { profile } = data
-  const initial = (profile.displayName || profile.username).charAt(0).toUpperCase()
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-xl border border-gray-100 p-6">
-        <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-gray-100 flex-shrink-0 overflow-hidden flex items-center justify-center text-xl font-semibold text-gray-500">
-            {profile.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={profile.avatarUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              initial
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
+        <div className="flex items-start gap-4">
+          <ProfileAvatar
+            name={profile.displayName || profile.username}
+            avatarUrl={profile.avatarUrl}
+            isSelf={relationship === 'self'}
+          />
+          <div className="flex-1 min-w-0 pt-1">
             {profile.displayName && (
               <p className="text-lg font-semibold text-gray-900 truncate">{profile.displayName}</p>
             )}
@@ -82,6 +80,15 @@ export default function ProfilePage() {
           <Stat label="Workouts" value={profile.postCount} />
         </div>
       </div>
+
+      {/* Owner-only profile info editing (avatar edit lives in the header). */}
+      {relationship === 'self' && (
+        <EditProfile
+          username={profile.username}
+          displayName={profile.displayName}
+          bio={profile.bio}
+        />
+      )}
 
       {/* Posts grid (friends/self) or gated message — the action lives in the header */}
       {canViewPosts ? (
@@ -115,6 +122,9 @@ function Stat({ label, value, suffix }: { label: string; value: number; suffix?:
   )
 }
 
+// Profile = discovery GRID (Instagram-style): thumbnails in rows, many posts at a
+// glance, NOT a feed. Tapping a tile opens the dedicated post viewer
+// (/u/[username]/p/[id]) where engagement + vertical browsing live.
 function PostsGrid({
   query,
   username,
@@ -126,9 +136,9 @@ function PostsGrid({
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-3 gap-1">
         {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="aspect-square bg-gray-100 rounded-lg animate-pulse" />
+          <div key={i} className="aspect-square bg-gray-100 animate-pulse" />
         ))}
       </div>
     )
@@ -144,11 +154,25 @@ function PostsGrid({
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-3 gap-1">
         {allPosts.map((post) => (
-          <Link key={post.id} href={`/p/${post.id}`} className="block aspect-square overflow-hidden rounded-lg bg-gray-50">
+          <Link
+            key={post.id}
+            href={`/u/${username}/p/${post.id}`}
+            className="group relative block aspect-square overflow-hidden bg-gray-50"
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={post.imageUrl} alt={post.caption ?? `${username}'s workout`} className="h-full w-full object-cover" />
+            <img
+              src={post.imageUrl}
+              alt={post.caption ?? `${username}'s workout`}
+              className="h-full w-full object-cover transition-opacity group-hover:opacity-90"
+            />
+            {(post.likeCount > 0 || post.commentCount > 0) && (
+              <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 bg-gradient-to-t from-black/50 to-transparent px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+                {post.likeCount > 0 && <span>♥ {post.likeCount}</span>}
+                {post.commentCount > 0 && <span>💬 {post.commentCount}</span>}
+              </div>
+            )}
           </Link>
         ))}
       </div>

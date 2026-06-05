@@ -12,6 +12,8 @@ export const signUploadSchema = z.object({
     .int('fileSize must be an integer')
     .positive('fileSize must be positive')
     .max(MAX_FILE_SIZE_BYTES, 'File too large — maximum size is 10 MB'),
+  // Which storage prefix to sign for. 'post' (default) → posts/, 'avatar' → avatars/.
+  kind: z.enum(['post', 'avatar']).default('post'),
 })
 
 export const createPostSchema = z.object({
