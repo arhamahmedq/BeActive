@@ -1,10 +1,19 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PROTECTED_PATHS = ['/feed', '/profile', '/upload', '/onboarding']
+// Authenticated-only pages — unauthenticated requests redirect to /login.
+// Keep this list in sync whenever new top-level routes are added.
+const PROTECTED_PATHS = [
+  '/feed',
+  '/upload',
+  '/onboarding',
+  '/friends',
+  '/u/',      // /u/[username] — profile pages
+  '/p/',      // /p/[postId]  — standalone post viewer
+]
 const AUTH_PATHS = ['/login', '/signup', '/verify-email']
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -57,7 +66,7 @@ export const config = {
   matcher: [
     // Exclude: static assets, images, favicon, AND all /api/* routes.
     // API routes validate sessions themselves via createClient() — running the
-    // middleware on every API call adds a redundant Supabase round-trip.
+    // proxy on every API call adds a redundant Supabase round-trip.
     '/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
