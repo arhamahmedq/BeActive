@@ -12,6 +12,8 @@ import {
 import type { ClassificationOutput, ClassificationDecision } from '../modules/ai/ai.types'
 import { onWorkoutVerified } from '../modules/streaks/streaks.service'
 import { createNotification } from '../modules/notifications/notifications.service'
+import { getAcceptedFriendIds } from '../modules/friends/friends.service'
+import { getProfile } from '../modules/users/users.service'
 
 // Confidence thresholds per AI_BOUNDARY.md
 const VERIFY_THRESHOLD = 0.70
@@ -150,6 +152,39 @@ export async function processUploadedPost(params: {
     }).catch((e: unknown) => {
       logger.error('Failed to create WORKOUT_VERIFIED notification', { postId, error: String(e) })
     })
+
+    // R7: notify each accepted friend — one profile fetch, one friend-ids fetch,
+    // then parallel per-friend creates. All outside the transaction so a notify
+    // failure never rolls back the streak credit.
+    void (async () => {
+      try {
+        const [friendIds, poster] = await Promise.all([
+          getAcceptedFriendIds(userId),
+          getProfile(userId),
+        ])
+        if (friendIds.length === 0) return
+        await Promise.all(
+          friendIds.map((friendId) =>
+            createNotification({
+              userId: friendId,
+              type: NotificationType.FRIEND_POSTED,
+              title: `@${poster.username} just posted a workout`,
+              data: { postId, posterUserId: userId },
+              // Per-friend key so retries don't duplicate per recipient.
+              idempotencyKey: `post:${postId}:FRIEND_POSTED:${friendId}`,
+            }).catch((e: unknown) => {
+              logger.error('Failed to create FRIEND_POSTED notification', {
+                friendId,
+                postId,
+                error: String(e),
+              })
+            })
+          )
+        )
+      } catch (e: unknown) {
+        logger.error('Failed R7 friend fan-out for verified workout', { postId, error: String(e) })
+      }
+    })()
 
   } else if (decision === 'AMBIGUOUS') {
     // 0.50–0.69 — stays PENDING, recorded for manual review
