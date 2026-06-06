@@ -103,6 +103,19 @@ export async function evaluateStreaks(
             },
             source: 'streak.evaluator',
           })
+          // Day-keyed so the ~4 hourly evening runs produce exactly one nudge per user per day.
+          void createNotification({
+            userId: streak.userId,
+            type: NotificationType.STREAK_AT_RISK,
+            title: 'Your streak is at risk',
+            body: streak.current > 0
+              ? `Log a workout today to keep your ${streak.current}-day streak alive.`
+              : 'Log a workout today to keep your streak alive.',
+            data: { currentStreak: streak.current },
+            idempotencyKey: `streak:${streak.userId}:STREAK_AT_RISK:${localToday}`,
+          }).catch((e: unknown) => {
+            logger.error('Failed to create STREAK_AT_RISK notification', { userId: streak.userId, error: String(e) })
+          })
           logger.info('streakEvaluator: user at risk', {
             userId: streak.userId,
             current: streak.current,
