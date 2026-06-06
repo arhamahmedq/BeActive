@@ -1,4 +1,5 @@
 {
+  "_comment": "This root vercel.json is intentionally minimal. The canonical Vercel configuration (build command, framework, crons) lives in app/web/vercel.json. Set 'Root Directory' to 'app/web' in the Vercel project dashboard.",
   "crons": [
     {
       "path": "/api/cron/streak-evaluator",

@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npx prisma generate --schema ../../prisma/schema.prisma && next build",
+  "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/cron/streak-evaluator",
+      "schedule": "0 * * * *"
+    }
+  ]
+}
