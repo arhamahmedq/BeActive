@@ -1,4 +1,4 @@
-import { StreakStatus } from '@prisma/client'
+import { StreakStatus, NotificationType } from '@prisma/client'
 import { logger } from '../core/logger/index'
 import { EventType } from '../core/events/index'
 import {
@@ -14,6 +14,7 @@ import {
   getLocalHour,
   EVENING_HOUR,
 } from '../modules/streaks/recomputeStreak'
+import { createNotification } from '../modules/notifications/notifications.service'
 
 // YYYY-MM-DD strings are parsed as UTC midnight by JS Date, so arithmetic is safe.
 function localDaysSince(laterDateStr: string, earlierDateStr: string): number {
@@ -63,6 +64,19 @@ export async function evaluateStreaks(
           lastVerifiedDate: streak.lastVerifiedDate,
         },
         source: 'streak.evaluator',
+      })
+      // Day-keyed so multiple cron runs on the same day don't duplicate.
+      void createNotification({
+        userId: streak.userId,
+        type: NotificationType.STREAK_BROKEN,
+        title: 'Streak lost',
+        body: streak.current > 0
+          ? `Your ${streak.current}-day streak is gone. Start fresh today.`
+          : 'Your streak was broken. Start fresh today.',
+        data: { finalStreak: streak.current },
+        idempotencyKey: `streak:${streak.userId}:STREAK_BROKEN:${localToday}`,
+      }).catch((e: unknown) => {
+        logger.error('Failed to create STREAK_BROKEN notification', { userId: streak.userId, error: String(e) })
       })
       logger.info('streakEvaluator: streak broken', {
         userId: streak.userId,

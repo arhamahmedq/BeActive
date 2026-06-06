@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { Prisma } from '@prisma/client'
+import { Prisma, NotificationType } from '@prisma/client'
 import {
   ConflictError,
   UnauthorizedError,
@@ -14,6 +14,7 @@ import {
   findUserById,
   persistEvent,
 } from './auth.repo'
+import { createNotification } from '../notifications/notifications.service'
 import type {
   SignupInput,
   LoginInput,
@@ -127,6 +128,17 @@ export async function createUserOnVerification(
     source: 'auth.callback',
   }).catch((err: unknown) => {
     logger.error('Failed to persist USER_SIGNED_UP event', { error: String(err) })
+  })
+
+  // R9: welcome notification — idempotent so re-clicks of the verify link don't duplicate.
+  void createNotification({
+    userId: user.id,
+    type: NotificationType.WELCOME,
+    title: 'Welcome to BeActive!',
+    body: 'Log your first workout to start your streak.',
+    idempotencyKey: `user:${user.id}:WELCOME`,
+  }).catch((err: unknown) => {
+    logger.error('Failed to create WELCOME notification', { error: String(err) })
   })
 
   logger.info('User created after email verification', { userId: user.id })

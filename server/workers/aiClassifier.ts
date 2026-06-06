@@ -1,4 +1,4 @@
-import { PostStatus } from '@prisma/client'
+import { PostStatus, NotificationType } from '@prisma/client'
 import { prisma } from '../../app/web/lib/prisma'
 import { logger } from '../core/logger/index'
 import { EventType } from '../core/events/index'
@@ -11,6 +11,7 @@ import {
 } from '../modules/ai/ai.repo'
 import type { ClassificationOutput, ClassificationDecision } from '../modules/ai/ai.types'
 import { onWorkoutVerified } from '../modules/streaks/streaks.service'
+import { createNotification } from '../modules/notifications/notifications.service'
 
 // Confidence thresholds per AI_BOUNDARY.md
 const VERIFY_THRESHOLD = 0.70
@@ -133,7 +134,22 @@ export async function processUploadedPost(params: {
         postId,
         error: String(e),
       })
+      // Transaction rolled back — do not notify.
+      return
     }
+
+    // Post-transaction self-notification (outside the tx — a duplicate is harmless,
+    // a missing streak credit is not, so the tx boundary stays narrow).
+    void createNotification({
+      userId,
+      type: NotificationType.WORKOUT_VERIFIED,
+      title: 'Workout verified',
+      body: 'Your streak has been updated.',
+      data: { postId },
+      idempotencyKey: `post:${postId}:WORKOUT_VERIFIED`,
+    }).catch((e: unknown) => {
+      logger.error('Failed to create WORKOUT_VERIFIED notification', { postId, error: String(e) })
+    })
 
   } else if (decision === 'AMBIGUOUS') {
     // 0.50–0.69 — stays PENDING, recorded for manual review
