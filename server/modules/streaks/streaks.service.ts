@@ -47,14 +47,21 @@ export async function onWorkoutVerified(
   if (!postCreatedAt) {
     throw new Error(`streaks.service: post not found for streak update (postId=${postId})`)
   }
-  if (!userTimezone) {
-    throw new Error(`streaks.service: user not found for streak update (userId=${userId})`)
-  }
   if (!streak) {
     throw new Error(`streaks.service: streak record not found (userId=${userId})`)
   }
+  // getUserTimezone returns null for two cases: user row not found, or timezone
+  // column is NULL. The streak row above exists (same userId), so the user row
+  // must exist — null here means timezone was never set (e.g. pre-onboarding
+  // test accounts). Fall back to UTC so the transaction succeeds. A UTC-bucketed
+  // completion is preferable to a rolled-back transaction that silently leaves
+  // the post PENDING and the streak uncredited.
+  const effectiveTimezone = userTimezone ?? 'UTC'
+  if (!userTimezone) {
+    logger.warn('streaks.service: user has no timezone, falling back to UTC', { userId })
+  }
 
-  const localDate = toLocalDateStr(postCreatedAt, userTimezone)
+  const localDate = toLocalDateStr(postCreatedAt, effectiveTimezone)
 
   // Monotonic gate. A verified workout may only ADVANCE the streak to a strictly
   // later local day. If localDate <= lastVerifiedDate the day is either already
@@ -73,10 +80,10 @@ export async function onWorkoutVerified(
     return
   }
 
-  await createDailyCompletion({ userId, localDate, postId, timezone: userTimezone }, db)
+  await createDailyCompletion({ userId, localDate, postId, timezone: effectiveTimezone }, db)
 
   const completions = await getCompletionsForUser(userId, db)
-  const computed = recomputeStreak(completions, userTimezone, now)
+  const computed = recomputeStreak(completions, effectiveTimezone, now)
 
   await updateStreak(
     userId,
@@ -142,6 +149,9 @@ export async function getMyStreak(userId: string, _now?: Date): Promise<StreakRe
   const localToday = toLocalDateStr(now, userTz)
   const localHour = getLocalHour(now, userTz)
   const completedToday = await hasDailyCompletion(userId, localToday)
+  // displayTier is also computed here for backward compat with tests and any
+  // server-side consumers; the client hook overrides it with a fresh computation
+  // using the returned userTimezone so the AT_RISK boundary is always current.
   const displayTier = deriveDisplayTier(streak.status, completedToday, localHour)
 
   return {
@@ -151,6 +161,7 @@ export async function getMyStreak(userId: string, _now?: Date): Promise<StreakRe
     lastVerifiedDate: streak.lastVerifiedDate,
     completedToday,
     displayTier,
+    userTimezone: userTz,
   }
 }
 

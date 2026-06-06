@@ -10,7 +10,7 @@ vi.mock('../../../server/modules/streaks/recomputeStreak', () => ({
   deriveDisplayTier: vi.fn().mockReturnValue('PENDING_TODAY'),
 }))
 vi.mock('../../../server/core/logger/index', () => ({
-  logger: { info: vi.fn(), error: vi.fn() },
+  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
 }))
 
 import { onWorkoutVerified, getMyStreak, getPublicStreak } from '../../../server/modules/streaks/streaks.service'
@@ -162,13 +162,20 @@ describe('onWorkoutVerified', () => {
     expect(repo.updateStreak).not.toHaveBeenCalled()
   })
 
-  it('throws (rolls back) when user timezone not found', async () => {
+  it('falls back to UTC when user timezone is null (does NOT throw or roll back)', async () => {
     vi.mocked(repo.getPostCreatedAt).mockResolvedValue(NOW)
-    vi.mocked(repo.getUserTimezone).mockResolvedValue(null)
-    vi.mocked(repo.getStreakByUserId).mockResolvedValue(ACTIVE_STREAK)
+    vi.mocked(repo.getUserTimezone).mockResolvedValue(null)  // timezone not set
+    vi.mocked(repo.getStreakByUserId).mockResolvedValue(INACTIVE_STREAK)
 
-    await expect(onWorkoutVerified({ postId: 'post-1', userId: 'ghost-user' }, NOW)).rejects.toThrow()
-    expect(repo.updateStreak).not.toHaveBeenCalled()
+    // Must resolve — not reject. A null timezone should fall back to UTC and
+    // complete the streak update so the post stays VERIFIED (not rolled back).
+    await expect(onWorkoutVerified({ postId: 'post-1', userId: 'user-1' }, NOW)).resolves.toBeUndefined()
+    // Streak update must have been called (using UTC as the fallback timezone)
+    expect(repo.updateStreak).toHaveBeenCalled()
+    expect(repo.createDailyCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({ timezone: 'UTC' }),
+      expect.anything()
+    )
   })
 
   it('throws (rolls back) when streak record not found', async () => {
@@ -181,7 +188,7 @@ describe('onWorkoutVerified', () => {
 })
 
 describe('getMyStreak', () => {
-  it('returns v2 shape — no deadline fields, has displayTier + completedToday', async () => {
+  it('returns v2 shape — no deadline fields, has displayTier + completedToday + userTimezone', async () => {
     vi.mocked(repo.getStreakByUserId).mockResolvedValue(ACTIVE_STREAK)
     vi.mocked(repo.hasDailyCompletion).mockResolvedValue(false)
     vi.mocked(recomputeMod.deriveDisplayTier).mockReturnValue('PENDING_TODAY')
@@ -195,6 +202,7 @@ describe('getMyStreak', () => {
       lastVerifiedDate: '2024-01-14',
       completedToday: false,
       displayTier: 'PENDING_TODAY',
+      userTimezone: 'UTC',  // repo mock returns 'UTC'
     })
     expect(result).not.toHaveProperty('nextDeadline')
     expect(result).not.toHaveProperty('atRiskAt')
@@ -244,6 +252,16 @@ describe('getMyStreak', () => {
 
     expect(result?.displayTier).toBe('INACTIVE')
     expect(result?.completedToday).toBe(false)
+  })
+
+  it('falls back to UTC timezone in response when user timezone is null', async () => {
+    vi.mocked(repo.getStreakByUserId).mockResolvedValue(ACTIVE_STREAK)
+    vi.mocked(repo.getUserTimezone).mockResolvedValue(null)
+    vi.mocked(repo.hasDailyCompletion).mockResolvedValue(false)
+
+    const result = await getMyStreak('user-1', NOW)
+
+    expect(result?.userTimezone).toBe('UTC')
   })
 
   it('returns null when streak record does not exist', async () => {

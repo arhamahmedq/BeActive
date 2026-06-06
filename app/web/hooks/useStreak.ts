@@ -9,7 +9,32 @@ export interface StreakData {
   status: 'INACTIVE' | 'ACTIVE' | 'BROKEN'
   lastVerifiedDate: string | null  // YYYY-MM-DD in user's tz
   completedToday: boolean
-  displayTier: DisplayTier
+  displayTier: DisplayTier  // always recomputed client-side at query time
+  userTimezone: string       // IANA tz returned by the server
+}
+
+// Mirrors server/modules/streaks/recomputeStreak.ts — pure, no Prisma import.
+// Kept here to avoid importing a server module into a client hook.
+function getLocalHour(now: Date, tz: string): number {
+  const raw = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    hour: 'numeric',
+    hour12: false,
+  }).format(now)
+  const h = parseInt(raw, 10)
+  return Number.isNaN(h) ? 0 : h === 24 ? 0 : h
+}
+
+function deriveDisplayTier(
+  status: StreakData['status'],
+  completedToday: boolean,
+  localHour: number,
+  eveningHour = 20,
+): DisplayTier {
+  if (status === 'INACTIVE') return 'INACTIVE'
+  if (status === 'BROKEN') return 'BROKEN'
+  if (completedToday) return 'COMPLETED_TODAY'
+  return localHour >= eveningHour ? 'AT_RISK' : 'PENDING_TODAY'
 }
 
 export function useStreak() {
@@ -19,10 +44,23 @@ export function useStreak() {
       const res = await fetch('/api/streaks/me')
       if (res.status === 404) return null
       if (!res.ok) throw new Error(`Failed to fetch streak: ${res.status}`)
-      const { streak } = (await res.json()) as { streak: StreakData }
-      return streak
+      const { streak } = (await res.json()) as {
+        streak: Omit<StreakData, 'displayTier'> & { displayTier?: DisplayTier; userTimezone?: string }
+      }
+      // Recompute displayTier client-side using the current wall-clock time and
+      // the user's actual timezone. This ensures the AT_RISK boundary (8 PM
+      // local) is reflected immediately rather than being baked into a cached
+      // server response that could be up to staleTime seconds old.
+      const tz = streak.userTimezone ?? 'UTC'
+      const localHour = getLocalHour(new Date(), tz)
+      const displayTier = deriveDisplayTier(streak.status, streak.completedToday, localHour)
+      return { ...streak, userTimezone: tz, displayTier }
     },
     staleTime: 30_000,
+    // Refetch every 60 s so the AT_RISK boundary stays accurate across a long
+    // session (worst case: display is 60 s behind the real 8 PM threshold).
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
     retry: 1,
   })
 }

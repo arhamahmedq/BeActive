@@ -18,7 +18,8 @@ export interface StreakResponse {
   status: StreakStatus
   lastVerifiedDate: string | null  // YYYY-MM-DD in user's tz
   completedToday: boolean
-  displayTier: DisplayTier
+  displayTier: DisplayTier  // server-computed; client hook recomputes from userTimezone
+  userTimezone: string      // IANA tz — lets the client derive a real-time displayTier
 }
 
 // Returned by GET /api/streaks/:userId (less data)
