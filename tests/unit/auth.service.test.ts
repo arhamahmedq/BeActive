@@ -120,7 +120,10 @@ describe('authService.signup', () => {
     expect(supabase.auth.signUp).toHaveBeenCalledWith({
       email: 'test@example.com',
       password: 'password123',
-      options: { data: { username: 'testuser' } },
+      options: {
+        data: { username: 'testuser' },
+        emailRedirectTo: 'http://localhost:3000/api/auth/callback',
+      },
     })
   })
 
@@ -363,6 +366,7 @@ describe('authService.resendVerification', () => {
     expect(supabase.auth.resend).toHaveBeenCalledWith({
       type: 'signup',
       email: 'test@example.com',
+      options: { emailRedirectTo: 'http://localhost:3000/api/auth/callback' },
     })
   })
 

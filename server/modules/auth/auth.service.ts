@@ -45,11 +45,15 @@ export async function signup(
 
   // Store username in metadata so the callback can create the Prisma record
   // after email verification. No Prisma write happens here.
+  // emailRedirectTo must be explicit — without it, Supabase uses the project's
+  // Site URL, making the callback destination environment-config-dependent.
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '')
   const { data, error } = await supabase.auth.signUp({
     email: normalizedEmail,
     password: input.password,
     options: {
       data: { username: input.username },
+      emailRedirectTo: `${appUrl}/api/auth/callback`,
     },
   })
 
@@ -133,9 +137,11 @@ export async function resendVerification(
   supabase: SupabaseClient,
   email: string
 ): Promise<void> {
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '')
   const { error } = await supabase.auth.resend({
     type: 'signup',
     email: email.toLowerCase(),
+    options: { emailRedirectTo: `${appUrl}/api/auth/callback` },
   })
   if (error) {
     // Swallow — must not reveal whether the email exists in our system
