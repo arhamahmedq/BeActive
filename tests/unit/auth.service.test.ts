@@ -60,6 +60,10 @@ function makeSupabaseMock(overrides: Record<string, unknown> = {}) {
         data: { user: { id: 'supabase-uuid-123' } },
         error: null,
       }),
+      getSession: vi.fn().mockResolvedValue({
+        data: { session: { user: { id: 'supabase-uuid-123' } } },
+        error: null,
+      }),
       resend: vi.fn().mockResolvedValue({ error: null }),
       ...overrides,
     },
@@ -525,8 +529,8 @@ describe('authService.getSession', () => {
 
   it('returns null when no active session', async () => {
     const supabase = makeSupabaseMock({
-      getUser: vi.fn().mockResolvedValue({
-        data: { user: null },
+      getSession: vi.fn().mockResolvedValue({
+        data: { session: null },
         error: { message: 'No session' },
       }),
     })

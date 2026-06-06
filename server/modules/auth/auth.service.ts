@@ -226,12 +226,11 @@ export async function logout(supabase: SupabaseClient): Promise<void> {
 }
 
 export async function getSession(supabase: SupabaseClient): Promise<AuthUser | null> {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-  if (error || !user) return null
+  // getSession() reads the JWT from the HTTP-only cookie without a network call.
+  // Same rationale as requireAuth() — see server/core/middleware/auth.ts.
+  const { data: { session }, error } = await supabase.auth.getSession()
+  if (error || !session?.user) return null
 
-  const prismaUser = await findUserById(user.id)
+  const prismaUser = await findUserById(session.user.id)
   return prismaUser
 }
