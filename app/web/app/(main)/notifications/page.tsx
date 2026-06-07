@@ -4,20 +4,20 @@ import { useNotifications, useMarkAllRead, useNotificationCount } from '@/hooks/
 import { NotificationItem } from '@/components/features/NotificationItem'
 import type { NotificationItem as NotificationItemType } from '@/shared/types/notifications'
 
-type NotifFilter = 'all' | 'follows' | 'people' | 'comments'
+type NotifFilter = 'all' | 'follows' | 'people' | 'streaks'
 type DateGroup = 'Today' | 'This week' | 'This month' | 'Older'
 
 const FILTER_LABELS: Record<NotifFilter, string> = {
   all: 'All',
   follows: 'Follows',
   people: 'People',
-  comments: 'Comments',
+  streaks: 'Streaks',
 }
 
 const FILTER_TYPES: Record<NotifFilter, string[] | null> = {
   all: null,
-  people: ['FRIEND_POSTED', 'WORKOUT_VERIFIED', 'WORKOUT_REJECTED', 'STREAK_AT_RISK', 'STREAK_BROKEN'],
-  comments: [],
+  people: ['FRIEND_POSTED', 'WORKOUT_VERIFIED', 'WORKOUT_REJECTED'],
+  streaks: ['STREAK_AT_RISK', 'STREAK_BROKEN'],
   follows: ['FRIEND_REQUEST', 'FRIEND_ACCEPTED'],
 }
 

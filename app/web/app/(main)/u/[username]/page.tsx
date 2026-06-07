@@ -189,7 +189,7 @@ function SavedGrid({ posts }: { posts: ReturnType<typeof useSavedPosts>['saved']
 function Stat({ label, value, suffix }: { label: string; value: number; suffix?: string }) {
   return (
     <div className="flex items-baseline gap-1">
-      <span className="font-semibold text-gray-900">{value}</span>
+      <span className="font-semibold text-gray-900 tabular-nums">{value}</span>
       {suffix && <span aria-hidden>{suffix}</span>}
       <span className="text-gray-400">{label}</span>
     </div>

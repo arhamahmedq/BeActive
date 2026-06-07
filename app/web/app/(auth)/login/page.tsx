@@ -29,6 +29,7 @@ function LoginForm() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -82,16 +83,30 @@ function LoginForm() {
           required
           autoComplete="email"
         />
-        <Input
-          id="password"
-          label="Password"
-          type="password"
-          placeholder="Your password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          autoComplete="current-password"
-        />
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              Password
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowPassword(v => !v)}
+              className="text-xs text-gray-400 hover:text-gray-700 transition-colors"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
+          <Input
+            id="password"
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+          />
+        </div>
         <Button type="submit" isLoading={isSubmitting} className="w-full mt-2">
           Sign in
         </Button>

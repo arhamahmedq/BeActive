@@ -142,7 +142,8 @@ export function FeedCard({ post }: FeedCardProps) {
         <img
           src={imageUrl}
           alt={caption ?? `${user.username}'s workout`}
-          className="w-full aspect-square object-cover bg-gray-100 transition-transform duration-300 group-hover:scale-[1.02]"
+          loading="lazy"
+          className="w-full aspect-[4/5] object-cover bg-gray-100 transition-transform duration-300 group-hover:scale-[1.02]"
         />
         {/* Workout type overlay badge */}
         {workout && (
