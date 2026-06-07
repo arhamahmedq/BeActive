@@ -1,55 +1,69 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useNotificationCount } from '@/hooks/useNotifications'
+import { useNotificationCount, useLatestNotification } from '@/hooks/useNotifications'
 
-function BellIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="w-5 h-5 text-brand-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-    </svg>
-  )
+const TYPE_STYLE: Record<string, { iconBg: string; iconColor: string; emoji: string }> = {
+  WELCOME:          { iconBg: 'bg-gray-100',   iconColor: 'text-gray-500',   emoji: '👋' },
+  FRIEND_REQUEST:   { iconBg: 'bg-brand-50',   iconColor: 'text-brand-600',  emoji: '👤' },
+  FRIEND_ACCEPTED:  { iconBg: 'bg-brand-50',   iconColor: 'text-brand-600',  emoji: '✓' },
+  WORKOUT_VERIFIED: { iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600',emoji: '✓' },
+  WORKOUT_REJECTED: { iconBg: 'bg-red-50',     iconColor: 'text-red-500',    emoji: '✗' },
+  FRIEND_POSTED:    { iconBg: 'bg-brand-50',   iconColor: 'text-brand-600',  emoji: '🔥' },
+  STREAK_AT_RISK:   { iconBg: 'bg-amber-50',   iconColor: 'text-amber-600',  emoji: '⚠' },
+  STREAK_BROKEN:    { iconBg: 'bg-red-50',     iconColor: 'text-red-500',    emoji: '💔' },
 }
 
 export function NotificationToast() {
   const { data: unreadCount } = useNotificationCount()
+  const { data: latest } = useLatestNotification()
   const prevCountRef = useRef<number | null>(null)
   const [visible, setVisible] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (unreadCount == null) return
-
     const prev = prevCountRef.current
     if (prev !== null && unreadCount > prev) {
       setVisible(true)
       if (timerRef.current) clearTimeout(timerRef.current)
-      timerRef.current = setTimeout(() => setVisible(false), 4000)
+      timerRef.current = setTimeout(() => setVisible(false), 5000)
     }
     prevCountRef.current = unreadCount
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
   }, [unreadCount])
 
   if (!visible) return null
 
+  const typeStyle = (latest?.type ? TYPE_STYLE[latest.type] : null) ?? { iconBg: 'bg-brand-50', iconColor: 'text-brand-600', emoji: '🔔' }
+
   return (
-    <div className="fixed top-[72px] right-4 z-50 w-72 animate-slide-in-right">
-      <div className="bg-white/98 backdrop-blur-[12px] border border-gray-200 rounded-xl px-4 py-3 shadow-[0_4px_16px_rgba(0,0,0,0.12)]">
+    <div className="fixed top-[72px] right-4 z-50 w-80 animate-slide-in-right">
+      <div
+        className="bg-white rounded-2xl px-4 py-3.5"
+        style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)', border: '1px solid #e5e7eb' }}
+      >
         <Link
           href="/notifications"
           onClick={() => setVisible(false)}
           className="flex items-center gap-3"
         >
-          <BellIcon />
+          {/* Type-specific icon circle */}
+          <span className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold ${typeStyle.iconBg} ${typeStyle.iconColor}`} aria-hidden>
+            {typeStyle.emoji}
+          </span>
+
+          {/* Real notification content */}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-900">New notification</p>
-            <p className="text-xs text-gray-500">Tap to see →</p>
+            <p className="text-sm font-semibold text-gray-900 truncate">
+              {latest?.title ?? 'New notification'}
+            </p>
+            {latest?.body && (
+              <p className="text-xs text-gray-500 truncate mt-0.5">{latest.body}</p>
+            )}
           </div>
         </Link>
+
         <button
           onClick={() => setVisible(false)}
           aria-label="Dismiss"

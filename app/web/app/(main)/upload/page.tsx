@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/Button'
 import { usePostStatus } from '@/hooks/usePostStatus'
+import { useStreak } from '@/hooks/useStreak'
 
 // ---------------------------------------------------------------------------
 // EXIF stripping via canvas — drawing to canvas discards all metadata
@@ -248,6 +249,7 @@ export default function UploadPage() {
   }, [selected])
 
   const { data: postStatus } = usePostStatus(postId, stage === 'verifying')
+  const { data: streakData } = useStreak()
 
   // Drive stage transitions from poll result.
   // This effect subscribes to an external polling system (TanStack Query) and updates
@@ -383,18 +385,32 @@ export default function UploadPage() {
   }
 
   if (stage === 'recorded') {
+    const streakCount = streakData?.current ?? null
+    const isPersonalBest = streakData
+      ? streakData.current === streakData.best && streakData.current > 1
+      : false
+
+    async function shareWorkout() {
+      const url = `${window.location.origin}/feed`
+      const text = streakCount
+        ? `Day ${streakCount} streak on BeActive 🔥 keeping the habit alive`
+        : 'Just logged my workout on BeActive 💪'
+      try {
+        if (navigator.share) {
+          await navigator.share({ text, url })
+        } else {
+          await navigator.clipboard.writeText(`${text} ${url}`)
+        }
+      } catch { /* dismissed */ }
+    }
+
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-7 max-w-sm mx-auto">
+      <div className="flex flex-col items-center justify-center min-h-[70vh] gap-8 max-w-sm mx-auto">
+        {/* Animated checkmark with green glow */}
         <div className="relative animate-pop">
-          {/* Concentric halo for a celebratory-but-calm moment */}
-          <div className="absolute inset-0 rounded-full bg-emerald-100/60 scale-150 blur-xl" />
-          <div className="relative w-24 h-24 rounded-full bg-emerald-50 ring-1 ring-emerald-200/70 flex items-center justify-center">
-            <svg
-              className="w-11 h-11 text-emerald-600"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-label="Workout verified"
-            >
+          <div className="absolute inset-0 rounded-full bg-brand-300/30 scale-[1.8] blur-2xl" />
+          <div className="relative w-28 h-28 rounded-full bg-brand-50 ring-2 ring-brand-200 flex items-center justify-center">
+            <svg className="w-14 h-14 text-brand-500" viewBox="0 0 24 24" fill="none" aria-label="Workout verified">
               <path
                 d="M5 13l4 4L19 7"
                 stroke="currentColor"
@@ -402,26 +418,53 @@ export default function UploadPage() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeDasharray="100"
-                strokeDashoffset="0"
+                strokeDashoffset="100"
                 className="animate-draw-check"
-                style={{ animationDelay: '180ms' }}
+                style={{ animationDelay: '150ms' }}
               />
             </svg>
           </div>
         </div>
-        <div className="text-center space-y-3 animate-rise" style={{ animationDelay: '120ms' }}>
-          <p className="text-2xl font-semibold tracking-tight">Workout recorded</p>
+
+        {/* Streak count — the hero number */}
+        {streakCount !== null && (
+          <div className="text-center animate-rise" style={{ animationDelay: '200ms' }}>
+            <p className="text-[64px] font-bold tabular-nums leading-none text-gray-900">{streakCount}</p>
+            <p className="text-lg font-medium text-gray-500 mt-1">day streak 🔥</p>
+            {isPersonalBest && (
+              <span className="mt-3 inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-sm font-bold px-3 py-1.5 rounded-full animate-pop" style={{ animationDelay: '400ms' }}>
+                🏆 New personal best!
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Status + workout type */}
+        <div className="text-center space-y-2 animate-rise" style={{ animationDelay: '260ms' }}>
+          <p className="text-xl font-semibold tracking-tight text-gray-900">Locked in for today.</p>
           {workoutType && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 text-sm font-medium text-gray-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
               {workoutType.charAt(0) + workoutType.slice(1).toLowerCase()}
             </span>
           )}
-          <p className="text-sm text-gray-400">Your streak&apos;s locked in for today.</p>
         </div>
-        <div className="w-full max-w-xs animate-rise" style={{ animationDelay: '220ms' }}>
-          <Button onClick={handleContinue} className="w-full">
-            Continue to feed
+
+        {/* CTAs */}
+        <div className="w-full space-y-3 animate-rise" style={{ animationDelay: '320ms' }}>
+          <button
+            onClick={shareWorkout}
+            className="w-full inline-flex items-center justify-center gap-2 bg-brand-500 text-white font-semibold rounded-full py-3 text-sm hover:bg-brand-600 active:scale-[0.98] transition-all shadow-[0_4px_16px_rgba(34,197,94,0.35)]"
+          >
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+              <polyline points="16 6 12 2 8 6" />
+              <line x1="12" y1="2" x2="12" y2="15" />
+            </svg>
+            Share this moment
+          </button>
+          <Button onClick={handleContinue} variant="secondary" className="w-full rounded-full">
+            Back to feed
           </Button>
         </div>
       </div>

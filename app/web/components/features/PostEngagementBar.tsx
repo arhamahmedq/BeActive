@@ -54,17 +54,31 @@ export function PostEngagementBar({ post }: { post: FeedPostResponse }) {
     }
   }
 
+  const [likeAnimating, setLikeAnimating] = useState(false)
+
+  function handleLike() {
+    if (!likeAnimating) {
+      setLikeAnimating(true)
+    }
+    likeToggle.mutate({ postId: post.id, liked: post.likedByMe })
+  }
+
   return (
     <div className="px-3 py-2 border-t border-white/40">
       <div className="flex items-center gap-0.5">
-        {/* Like */}
+        {/* Like — heart pops on tap via animate-heart-pulse */}
         <button
-          onClick={() => likeToggle.mutate({ postId: post.id, liked: post.likedByMe })}
+          onClick={handleLike}
           className={`${engagementBtn} ${post.likedByMe ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}
           aria-pressed={post.likedByMe}
           aria-label={post.likedByMe ? 'Unlike' : 'Like'}
         >
-          <HeartIcon filled={post.likedByMe} />
+          <span
+            className={`inline-block ${likeAnimating ? 'animate-heart-pulse' : ''}`}
+            onAnimationEnd={() => setLikeAnimating(false)}
+          >
+            <HeartIcon filled={post.likedByMe} />
+          </span>
           {post.likeCount > 0 && <span className="text-xs font-medium tabular-nums">{post.likeCount}</span>}
         </button>
 

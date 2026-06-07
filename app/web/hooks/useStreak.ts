@@ -11,6 +11,7 @@ export interface StreakData {
   completedToday: boolean
   displayTier: DisplayTier  // always recomputed client-side at query time
   userTimezone: string       // IANA tz returned by the server
+  localHour: number          // current hour in user's tz (0–23), used for AT_RISK countdown
 }
 
 // Mirrors server/modules/streaks/recomputeStreak.ts — pure, no Prisma import.
@@ -62,7 +63,7 @@ export function useStreak() {
           : 'UTC')
       const localHour = getLocalHour(new Date(), tz)
       const displayTier = deriveDisplayTier(streak.status, streak.completedToday, localHour)
-      return { ...streak, userTimezone: tz, displayTier }
+      return { ...streak, userTimezone: tz, displayTier, localHour }
     },
     staleTime: 30_000,
     // Refetch every 60 s so the AT_RISK boundary stays accurate across a long

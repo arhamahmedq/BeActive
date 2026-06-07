@@ -1,28 +1,23 @@
 import { MainNav } from '@/components/layouts/MainNav'
 import { MobileNav } from '@/components/layouts/MobileNav'
 import { DesktopSideNav } from '@/components/layouts/DesktopSideNav'
+import { DesktopRightSidebar } from '@/components/layouts/DesktopRightSidebar'
 import { NotificationToast } from '@/components/features/NotificationToast'
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-app">
       <MainNav />
-
-      {/* Side nav appears fixed on lg+; add pl-16 to leave room for collapsed rail */}
       <DesktopSideNav />
+      {/* Right sidebar: xl+ only, fixed right column (w-64) */}
+      <DesktopRightSidebar />
 
       {/*
-        Mobile: pb-24 reserves space for the bottom tab bar.
-        Desktop (lg+): pl-16 reserves space for the collapsed 64px side rail.
-        Content stays max-w-2xl centered within the remaining area.
+        Mobile/tablet (< lg):  pb-28 clears MobileNav + iPhone home bar
+        Desktop (lg–xl):       pl-20 clears left rail, pb-8
+        Wide desktop (xl+):    pl-20 + pr-72 clears both sidebars
       */}
-      {/*
-        pb-28 gives 112px bottom clearance:
-        - MobileNav height ~54px + iPhone home bar ~34px = ~88px max → 112px is safe on all devices
-        - md:pb-6 was removed — MobileNav shows up to lg breakpoint, not just mobile
-        - lg:pb-8 + lg:hidden on MobileNav = desktop has no bottom nav to clear
-      */}
-      <main className="py-6 px-4 pb-28 lg:pl-20 lg:pb-8">
+      <main className="py-6 px-4 pb-28 lg:pl-20 lg:pb-8 xl:pr-72">
         <div className="max-w-2xl mx-auto">{children}</div>
       </main>
 

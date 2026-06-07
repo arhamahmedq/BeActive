@@ -32,6 +32,20 @@ export function useNotifications() {
   })
 }
 
+// Latest single notification — used by NotificationToast to show real content.
+export function useLatestNotification() {
+  return useQuery({
+    queryKey: ['notifications', 'latest'],
+    queryFn: async () => {
+      const data = await fetchNotifications(undefined, 1)
+      return (data.notifications as Array<{ id: string; type: string; title: string; body?: string; createdAt: string; read: boolean }>)?.[0] ?? null
+    },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+  })
+}
+
 // Mark all as read — invalidates both cache entries.
 export function useMarkAllRead() {
   const qc = useQueryClient()

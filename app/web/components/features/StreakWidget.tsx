@@ -80,11 +80,24 @@ export function StreakWidget({ streak, isLoading }: StreakWidgetProps) {
   const cfg = TIER_CONFIG[tier]
   const current = streak?.current ?? 0
   const best = streak?.best ?? 0
+  const localHour = streak?.localHour ?? new Date().getHours()
+
+  // Hours remaining until midnight (rough countdown for AT_RISK urgency)
+  const hoursLeft = 24 - localHour
+  const atRiskLabel =
+    hoursLeft <= 1
+      ? 'Streak at risk — less than 1h left tonight.'
+      : `Streak at risk — ${hoursLeft}h left tonight.`
 
   const subText =
     tier === 'BROKEN'
       ? `You were on a ${best}-day streak. Start a new one today.`
-      : cfg.label
+      : tier === 'AT_RISK'
+        ? atRiskLabel
+        : cfg.label
+
+  // Personal best: current streak IS the all-time best (and not day 1)
+  const isPersonalBest = tier === 'COMPLETED_TODAY' && current === best && current > 1
 
   const showNumber = tier !== 'INACTIVE' && tier !== 'BROKEN'
 
@@ -107,6 +120,12 @@ export function StreakWidget({ streak, isLoading }: StreakWidgetProps) {
               <span className="text-sm font-medium" style={{ color: cfg.labelColor }}>
                 day streak
               </span>
+              {/* Personal best badge — gold, only when today is locked in */}
+              {isPersonalBest && (
+                <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full leading-none">
+                  🏆 Best
+                </span>
+              )}
             </div>
           ) : (
             <div className="mb-1">
