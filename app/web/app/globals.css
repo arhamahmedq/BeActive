@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @theme {
+  /* ── Brand green scale ─────────────────────────────────────────────── */
   --color-brand-50:  #f0fdf4;
   --color-brand-100: #dcfce7;
   --color-brand-200: #bbf7d0;
@@ -9,6 +10,32 @@
   --color-brand-500: #22c55e;
   --color-brand-600: #16a34a;
   --color-brand-700: #15803d;
+
+  /* ── Semantic easing curves ────────────────────────────────────────── */
+  --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quad:  cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-in-quad:   cubic-bezier(0.11, 0, 0.5, 0);
+
+  /* ── Text hierarchy aliases ────────────────────────────────────────── */
+  --color-text-strong: #111827;
+  --color-text-body:   #374151;
+  --color-text-muted:  #6b7280;
+  --color-text-subtle: #9ca3af;
+  --color-text-faint:  #d1d5db;
+
+  /* ── Streak / product state colors ────────────────────────────────── */
+  --color-state-completed-bg:     #f0fdf4;
+  --color-state-completed-border: #bbf7d0;
+  --color-state-completed-text:   #059669;
+  --color-state-at-risk-bg:       #fffbeb;
+  --color-state-at-risk-border:   #fde68a;
+  --color-state-at-risk-text:     #b45309;
+  --color-state-broken-bg:        #fef2f2;
+  --color-state-broken-border:    #fecaca;
+  --color-state-broken-text:      #b91c1c;
+  --color-state-pending-bg:       #f9fafb;
+  --color-state-pending-border:   #e5e7eb;
+  --color-state-pending-text:     #6b7280;
 }
 
 /* ── Glassmorphism surfaces ─────────────────────────────────────────── */
@@ -79,6 +106,18 @@
   to   { opacity: 1; }
 }
 
+@keyframes heart-pulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+@keyframes streak-pulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
 /* ── Animation utilities ────────────────────────────────────────────── */
 
 @utility animate-scan {
@@ -109,6 +148,14 @@
   animation: fade-in 0.2s ease both;
 }
 
+@utility animate-heart-pulse {
+  animation: heart-pulse 120ms var(--ease-out-quad) both;
+}
+
+@utility animate-streak-pulse {
+  animation: streak-pulse 300ms var(--ease-out-quad) 3s infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-scan,
   .animate-draw-check,
@@ -116,7 +163,9 @@
   .animate-breathe,
   .animate-pop,
   .animate-slide-in-right,
-  .animate-fade-in {
+  .animate-fade-in,
+  .animate-heart-pulse,
+  .animate-streak-pulse {
     animation: none;
   }
 }

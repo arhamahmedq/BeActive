@@ -15,17 +15,17 @@ function FeedSkeleton() {
   return (
     <div className="space-y-4">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="bg-white rounded-xl border border-gray-100 overflow-hidden animate-pulse">
+        <div key={i} className="glass-card rounded-2xl overflow-hidden animate-pulse">
           <div className="flex items-center gap-3 px-4 py-3">
-            <div className="h-9 w-9 rounded-full bg-gray-100" />
+            <div className="h-9 w-9 rounded-full bg-gray-200/80" />
             <div className="flex-1 space-y-1.5">
-              <div className="h-3 w-24 bg-gray-100 rounded" />
-              <div className="h-2.5 w-16 bg-gray-100 rounded" />
+              <div className="h-3 w-24 bg-gray-200/80 rounded" />
+              <div className="h-2.5 w-16 bg-gray-200/80 rounded" />
             </div>
           </div>
-          <div className="w-full aspect-square bg-gray-100" />
+          <div className="w-full aspect-square bg-gray-200/80" />
           <div className="px-4 py-3">
-            <div className="h-3 w-20 bg-gray-100 rounded" />
+            <div className="h-3 w-20 bg-gray-200/80 rounded" />
           </div>
         </div>
       ))}
@@ -34,7 +34,7 @@ function FeedSkeleton() {
 }
 
 export default function FeedPage() {
-  const { user, isLoading: authLoading, signOut } = useAuth()
+  const { user, isLoading: authLoading } = useAuth()
   const { data: streak, isLoading: streakLoading } = useStreak()
   const {
     data,
@@ -69,7 +69,7 @@ export default function FeedPage() {
     return (
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="bg-white rounded-xl border border-gray-100 p-6 animate-pulse h-40" />
+          <div key={i} className="glass-card rounded-2xl animate-pulse h-40" />
         ))}
       </div>
     )
@@ -85,7 +85,7 @@ export default function FeedPage() {
     feedContent = <FeedSkeleton />
   } else if (isError) {
     feedContent = (
-      <div className="bg-white rounded-xl border border-gray-100 p-8 text-center space-y-3">
+      <div className="glass-card rounded-2xl p-8 text-center space-y-3">
         <p className="text-sm text-gray-500">Couldn&apos;t load your feed.</p>
         <Button variant="ghost" onClick={() => refetch()}>
           Retry
@@ -95,15 +95,15 @@ export default function FeedPage() {
   } else if (allPosts.length === 0) {
     if (emptyReason === 'NO_CONNECTIONS') {
       feedContent = (
-        <div className="bg-white rounded-xl border border-gray-100 p-8 text-center space-y-3">
-          <p className="text-2xl" aria-hidden>👥</p>
-          <p className="text-sm font-medium text-gray-700">Find friends — grow your streak together</p>
-          <p className="text-xs text-gray-400">
+        <div className="glass-card rounded-2xl p-10 text-center space-y-3">
+          <p className="text-4xl mb-2" aria-hidden>👥</p>
+          <p className="text-base font-semibold text-gray-800">Find friends — grow your streak together</p>
+          <p className="text-sm text-gray-500 max-w-xs mx-auto leading-relaxed">
             Connect with people to build accountability and see their workouts here.
           </p>
           <Link
             href="/friends"
-            className="inline-flex items-center gap-1.5 bg-black text-white text-sm font-medium px-4 py-2 rounded-full hover:bg-gray-800 transition-colors mt-1"
+            className="inline-flex items-center gap-1.5 bg-black text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-gray-800 transition-colors mt-2"
           >
             Find friends →
           </Link>
@@ -111,9 +111,10 @@ export default function FeedPage() {
       )
     } else {
       feedContent = (
-        <div className="bg-white rounded-xl border border-gray-100 p-8 text-center space-y-2">
-          <p className="text-sm font-medium text-gray-700">No recent workouts yet</p>
-          <p className="text-xs text-gray-400">
+        <div className="glass-card rounded-2xl p-10 text-center space-y-2">
+          <p className="text-4xl mb-2" aria-hidden>🏋️</p>
+          <p className="text-base font-semibold text-gray-800">No recent workouts yet</p>
+          <p className="text-sm text-gray-500">
             When you or your friends post, they&apos;ll show up here.
           </p>
         </div>
@@ -130,35 +131,30 @@ export default function FeedPage() {
         <div ref={sentinelRef} />
 
         {isFetchingNextPage && (
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden animate-pulse">
+          <div className="glass-card rounded-2xl overflow-hidden animate-pulse">
             <div className="flex items-center gap-3 px-4 py-3">
-              <div className="h-9 w-9 rounded-full bg-gray-100" />
+              <div className="h-9 w-9 rounded-full bg-gray-200/80" />
               <div className="flex-1 space-y-1.5">
-                <div className="h-3 w-24 bg-gray-100 rounded" />
-                <div className="h-2.5 w-16 bg-gray-100 rounded" />
+                <div className="h-3 w-24 bg-gray-200/80 rounded" />
+                <div className="h-2.5 w-16 bg-gray-200/80 rounded" />
               </div>
             </div>
-            <div className="w-full aspect-square bg-gray-100" />
+            <div className="w-full aspect-square bg-gray-200/80" />
           </div>
         )}
 
         {!hasNextPage && (
-          <p className="text-center text-xs text-gray-300 py-4">You&apos;re all caught up</p>
+          <p className="text-center text-xs text-gray-400 py-4">You&apos;re all caught up</p>
         )}
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold">Your Feed</h1>
-          {user && <p className="text-sm text-gray-500">Hi, @{user.username}</p>}
-        </div>
-        <Button variant="ghost" onClick={signOut}>
-          Sign out
-        </Button>
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-xl font-bold tracking-tight text-gray-900">Your Feed</h1>
+        {user && <p className="text-sm text-gray-500 mt-0.5">@{user.username}</p>}
       </div>
 
       <StreakWidget streak={streak ?? null} isLoading={streakLoading} />

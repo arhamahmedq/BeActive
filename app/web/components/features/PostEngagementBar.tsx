@@ -4,6 +4,36 @@ import type { FeedPostResponse } from '@/shared/types/feed'
 import { useLikeToggle } from '@/hooks/usePostEngagement'
 import { CommentsSection } from './CommentsSection'
 
+// All engagement icons at w-5 h-5 — uniform sizing across Like, Comment, Share
+function HeartIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5 flex-shrink-0" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  )
+}
+
+function CommentIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  )
+}
+
+function ShareIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <polyline points="16 6 12 2 8 6" />
+      <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
+  )
+}
+
+// Glass hover button — the premium interaction for post actions
+const engagementBtn = 'inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg transition-all duration-150 hover:bg-white/70 hover:backdrop-blur-sm hover:shadow-sm active:scale-95'
+
 export function PostEngagementBar({ post }: { post: FeedPostResponse }) {
   const likeToggle = useLikeToggle()
   const [showComments, setShowComments] = useState(false)
@@ -20,51 +50,43 @@ export function PostEngagementBar({ post }: { post: FeedPostResponse }) {
         setTimeout(() => setCopied(false), 1500)
       }
     } catch {
-      // user dismissed the share sheet, or clipboard denied — no-op
+      // dismissed or clipboard denied — no-op
     }
   }
 
   return (
-    <div className="px-4 py-3 border-t border-white/40">
-      <div className="flex items-center gap-2">
+    <div className="px-3 py-2 border-t border-white/40">
+      <div className="flex items-center gap-0.5">
         {/* Like */}
         <button
           onClick={() => likeToggle.mutate({ postId: post.id, liked: post.likedByMe })}
-          className={`inline-flex items-center gap-1.5 p-2 -ml-2 rounded-lg transition-colors ${
-            post.likedByMe ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
-          }`}
+          className={`${engagementBtn} ${post.likedByMe ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}
           aria-pressed={post.likedByMe}
           aria-label={post.likedByMe ? 'Unlike' : 'Like'}
         >
-          <svg viewBox="0 0 24 24" className="w-6 h-6" fill={post.likedByMe ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-          {post.likeCount > 0 && <span className="text-sm font-medium">{post.likeCount}</span>}
+          <HeartIcon filled={post.likedByMe} />
+          {post.likeCount > 0 && <span className="text-xs font-medium tabular-nums">{post.likeCount}</span>}
         </button>
 
         {/* Comment */}
         <button
           onClick={() => setShowComments(v => !v)}
-          className="inline-flex items-center gap-1.5 p-2 rounded-lg text-gray-500 hover:text-gray-900 transition-colors"
+          className={`${engagementBtn} ${showComments ? 'text-gray-900 bg-white/50' : 'text-gray-500 hover:text-gray-900'}`}
           aria-expanded={showComments}
           aria-label="Comments"
         >
-          <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-          {post.commentCount > 0 && <span className="text-sm font-medium">{post.commentCount}</span>}
+          <CommentIcon />
+          {post.commentCount > 0 && <span className="text-xs font-medium tabular-nums">{post.commentCount}</span>}
         </button>
 
-        {/* Share — immediately after comment */}
+        {/* Share */}
         <button
           onClick={share}
-          className="inline-flex items-center gap-1.5 p-2 rounded-lg text-gray-500 hover:text-gray-900 transition-colors"
+          className={`${engagementBtn} text-gray-500 hover:text-gray-900`}
           aria-label="Share post"
         >
-          <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" />
-          </svg>
-          {copied && <span className="text-xs text-brand-600 font-medium">Copied!</span>}
+          <ShareIcon />
+          {copied && <span className="text-xs text-brand-600 font-medium whitespace-nowrap">Copied!</span>}
         </button>
       </div>
 

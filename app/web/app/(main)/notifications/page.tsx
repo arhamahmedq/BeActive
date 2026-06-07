@@ -92,21 +92,21 @@ export default function NotificationsPage() {
 
   return (
     <div className="glass-card rounded-2xl overflow-hidden">
-      {/* Header */}
-      <div className="px-4 pt-4 pb-2">
-        <h1 className="font-semibold text-base">Notifications</h1>
+      {/* Header — Instagram-style: bold title, clean */}
+      <div className="px-4 pt-5 pb-3">
+        <h1 className="text-xl font-bold tracking-tight text-gray-900">Notifications</h1>
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex gap-1.5 px-4 pb-3 overflow-x-auto">
+      {/* Filter tabs — pill style, no bottom border */}
+      <div className="flex gap-1.5 px-4 pb-3 overflow-x-auto scrollbar-none">
         {(Object.keys(FILTER_LABELS) as NotifFilter[]).map(f => (
           <button
             key={f}
             onClick={() => setActiveFilter(f)}
-            className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+            className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 ${
               activeFilter === f
-                ? 'bg-brand-500 text-white'
-                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                ? 'bg-gray-900 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
             {FILTER_LABELS[f]}
@@ -114,17 +114,18 @@ export default function NotificationsPage() {
         ))}
       </div>
 
-      <div className="border-t border-gray-100" />
+      {/* Hairline separator */}
+      <div className="mx-4 border-t border-gray-100" />
 
       {/* Loading skeleton */}
       {status === 'pending' && (
-        <div className="divide-y divide-gray-100">
+        <div>
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex items-start gap-3 px-4 py-3 animate-pulse">
-              <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0" />
+            <div key={i} className="flex items-center gap-3 px-4 py-3 animate-pulse">
+              <div className="w-10 h-10 rounded-full bg-gray-100 flex-shrink-0" />
               <div className="flex-1 space-y-2">
-                <div className="h-3 bg-gray-200 rounded w-3/4" />
-                <div className="h-3 bg-gray-200 rounded w-1/2" />
+                <div className="h-3 bg-gray-100 rounded-full w-3/4" />
+                <div className="h-3 bg-gray-100 rounded-full w-1/2" />
               </div>
             </div>
           ))}
@@ -133,35 +134,38 @@ export default function NotificationsPage() {
 
       {status === 'error' && (
         <p className="px-4 py-8 text-sm text-gray-500 text-center">
-          Failed to load notifications. Try refreshing.
+          Failed to load notifications.
         </p>
       )}
 
       {status === 'success' && filtered.length === 0 && (
-        <p className="px-4 py-12 text-sm text-gray-400 text-center">
-          No notifications yet.
-        </p>
+        <div className="px-4 py-12 text-center">
+          <p className="text-3xl mb-3" aria-hidden>🔔</p>
+          <p className="text-sm font-semibold text-gray-800">You&apos;re all caught up</p>
+          <p className="text-xs text-gray-400 mt-1">No notifications in this category.</p>
+        </div>
       )}
 
       {status === 'success' && filtered.length > 0 && (
         <div>
           {groups.map(({ group, items }) => (
             <div key={group}>
-              <p className="px-4 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              {/* Instagram-style bold section header */}
+              <h2 className="px-4 pt-5 pb-2 text-[15px] font-bold text-gray-900">
                 {group}
-              </p>
+              </h2>
               {items.map(n => (
                 <NotificationItem key={n.id} notification={n} />
               ))}
             </div>
           ))}
           {isFetchingNextPage && (
-            <div className="px-4 py-3 text-sm text-gray-400 text-center animate-pulse">
+            <div className="px-4 py-3 text-xs text-gray-400 text-center animate-pulse">
               Loading more…
             </div>
           )}
           {!hasNextPage && allNotifications.length > 5 && (
-            <p className="px-4 py-3 text-xs text-gray-400 text-center">
+            <p className="px-4 py-4 text-xs text-gray-400 text-center">
               You&apos;re all caught up
             </p>
           )}
