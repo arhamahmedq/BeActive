@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { StreakStatus } from '@prisma/client'
+import { StreakStatus, NotificationType } from '@prisma/client'
 
 vi.mock('../../../server/modules/streaks/streaks.repo')
 vi.mock('../../../server/modules/streaks/recomputeStreak', () => ({
@@ -11,10 +11,14 @@ vi.mock('../../../server/modules/streaks/recomputeStreak', () => ({
 vi.mock('../../../server/core/logger/index', () => ({
   logger: { info: vi.fn(), error: vi.fn() },
 }))
+vi.mock('../../../server/modules/notifications/notifications.service', () => ({
+  createNotification: vi.fn().mockResolvedValue(undefined),
+}))
 
 import { evaluateStreaks } from '../../../server/workers/streakEvaluator'
 import * as repo from '../../../server/modules/streaks/streaks.repo'
 import * as recomputeMod from '../../../server/modules/streaks/recomputeStreak'
+import * as notificationsService from '../../../server/modules/notifications/notifications.service'
 
 // Fixed clock: Jan 15 10:00 UTC — 10am, pre-evening
 const NOW = new Date('2024-01-15T10:00:00Z')
@@ -46,6 +50,7 @@ beforeEach(() => {
   vi.mocked(recomputeMod.recomputeStreak).mockReturnValue({
     currentStreak: 5, bestStreak: 5, lastVerifiedDate: '2024-01-14', status: StreakStatus.BROKEN,
   })
+  vi.mocked(notificationsService.createNotification).mockResolvedValue(undefined)
 })
 
 describe('evaluateStreaks (v2 — calendar-day)', () => {
@@ -163,6 +168,79 @@ describe('evaluateStreaks (v2 — calendar-day)', () => {
     vi.mocked(recomputeMod.recomputeStreak).mockReturnValue({
       currentStreak: 5, bestStreak: 5, lastVerifiedDate: '2024-01-13', status: StreakStatus.BROKEN,
     })
+
+    const result = await evaluateStreaks(NOW)
+
+    expect(result).toEqual({ atRisk: 0, broken: 1 })
+    expect(repo.markStreakBroken).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ===========================================================================
+// Notification wiring (Slice 7 audit — Critical Fix #3)
+// ===========================================================================
+
+describe('evaluateStreaks — notification wiring (Slice 7)', () => {
+  it('creates a day-keyed STREAK_AT_RISK notification for an at-risk user', async () => {
+    vi.mocked(repo.getActiveStreaksV2ForEvaluation).mockResolvedValue([makeStreak('2024-01-14')])
+    vi.mocked(recomputeMod.getLocalHour).mockReturnValue(21)
+    vi.mocked(repo.hasDailyCompletion).mockResolvedValue(false)
+
+    await evaluateStreaks(new Date('2024-01-15T21:00:00Z'))
+
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-2024-01-14',
+        type: NotificationType.STREAK_AT_RISK,
+        idempotencyKey: 'streak:user-2024-01-14:STREAK_AT_RISK:2024-01-15',
+      })
+    )
+  })
+
+  it('does NOT create a STREAK_AT_RISK notification when the user already completed today', async () => {
+    vi.mocked(repo.getActiveStreaksV2ForEvaluation).mockResolvedValue([makeStreak('2024-01-14')])
+    vi.mocked(recomputeMod.getLocalHour).mockReturnValue(21)
+    vi.mocked(repo.hasDailyCompletion).mockResolvedValue(true)
+
+    await evaluateStreaks(NOW)
+
+    expect(notificationsService.createNotification).not.toHaveBeenCalled()
+  })
+
+  it('creates a day-keyed STREAK_BROKEN notification when a streak breaks', async () => {
+    vi.mocked(repo.getActiveStreaksV2ForEvaluation).mockResolvedValue([makeStreak('2024-01-13')])
+    vi.mocked(recomputeMod.recomputeStreak).mockReturnValue({
+      currentStreak: 5, bestStreak: 5, lastVerifiedDate: '2024-01-13', status: StreakStatus.BROKEN,
+    })
+
+    await evaluateStreaks(NOW)
+
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-2024-01-13',
+        type: NotificationType.STREAK_BROKEN,
+        idempotencyKey: 'streak:user-2024-01-13:STREAK_BROKEN:2024-01-15',
+      })
+    )
+  })
+
+  it('does NOT notify when recompute says ACTIVE (race: user verified just in time)', async () => {
+    vi.mocked(repo.getActiveStreaksV2ForEvaluation).mockResolvedValue([makeStreak('2024-01-13')])
+    vi.mocked(recomputeMod.recomputeStreak).mockReturnValue({
+      currentStreak: 5, bestStreak: 5, lastVerifiedDate: '2024-01-15', status: StreakStatus.ACTIVE,
+    })
+
+    await evaluateStreaks(NOW)
+
+    expect(notificationsService.createNotification).not.toHaveBeenCalled()
+  })
+
+  it('a notification failure does not abort the cron evaluation (awaited+caught)', async () => {
+    vi.mocked(repo.getActiveStreaksV2ForEvaluation).mockResolvedValue([makeStreak('2024-01-13')])
+    vi.mocked(recomputeMod.recomputeStreak).mockReturnValue({
+      currentStreak: 5, bestStreak: 5, lastVerifiedDate: '2024-01-13', status: StreakStatus.BROKEN,
+    })
+    vi.mocked(notificationsService.createNotification).mockRejectedValue(new Error('notif down'))
 
     const result = await evaluateStreaks(NOW)
 

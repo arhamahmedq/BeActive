@@ -66,7 +66,9 @@ export async function evaluateStreaks(
         source: 'streak.evaluator',
       })
       // Day-keyed so multiple cron runs on the same day don't duplicate.
-      void createNotification({
+      // Awaited so the cron invocation doesn't return (and risk being torn down)
+      // before the write lands; the .catch keeps a notification failure non-fatal.
+      await createNotification({
         userId: streak.userId,
         type: NotificationType.STREAK_BROKEN,
         title: 'Streak lost',
@@ -104,7 +106,9 @@ export async function evaluateStreaks(
             source: 'streak.evaluator',
           })
           // Day-keyed so the ~4 hourly evening runs produce exactly one nudge per user per day.
-          void createNotification({
+          // Awaited so the cron invocation doesn't return before the write lands;
+          // the .catch keeps a notification failure non-fatal.
+          await createNotification({
             userId: streak.userId,
             type: NotificationType.STREAK_AT_RISK,
             title: 'Your streak is at risk',

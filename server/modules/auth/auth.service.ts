@@ -131,7 +131,10 @@ export async function createUserOnVerification(
   })
 
   // R9: welcome notification — idempotent so re-clicks of the verify link don't duplicate.
-  void createNotification({
+  // Awaited (not a detached void) so it isn't abandoned when the verification handler
+  // returns and redirects on serverless; the .catch keeps a failure non-fatal so it
+  // can never block account creation.
+  await createNotification({
     userId: user.id,
     type: NotificationType.WELCOME,
     title: 'Welcome to BeActive!',

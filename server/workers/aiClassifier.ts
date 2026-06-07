@@ -142,7 +142,11 @@ export async function processUploadedPost(params: {
 
     // Post-transaction self-notification (outside the tx — a duplicate is harmless,
     // a missing streak credit is not, so the tx boundary stays narrow).
-    void createNotification({
+    // Awaited (not a detached void) so the enclosing after() callback keeps the
+    // serverless invocation alive until the write lands — a fire-and-forget
+    // promise can be dropped when the function returns. The .catch keeps a
+    // notification failure non-fatal and prevents it from rolling anything back.
+    await createNotification({
       userId,
       type: NotificationType.WORKOUT_VERIFIED,
       title: 'Workout verified',
@@ -154,9 +158,10 @@ export async function processUploadedPost(params: {
     })
 
     // R7: notify each accepted friend — one profile fetch, one friend-ids fetch,
-    // then parallel per-friend creates. All outside the transaction so a notify
-    // failure never rolls back the streak credit.
-    void (async () => {
+    // then parallel per-friend creates. Awaited for the same reason as the self
+    // notification above: it must finish inside the after() window, not after it.
+    // Still outside the transaction so a notify failure never rolls back the streak.
+    await (async () => {
       try {
         const [friendIds, poster] = await Promise.all([
           getAcceptedFriendIds(userId),

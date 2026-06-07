@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { PostStatus, WorkoutType } from '@prisma/client'
+import { PostStatus, WorkoutType, NotificationType } from '@prisma/client'
 
 vi.mock('../../server/modules/ai/ai.service')
 vi.mock('../../server/modules/ai/ai.repo')
@@ -8,6 +8,17 @@ vi.mock('../../server/core/logger/index', () => ({
 }))
 vi.mock('../../server/modules/streaks/streaks.service', () => ({
   onWorkoutVerified: vi.fn().mockResolvedValue(undefined),
+}))
+// Slice 7 notification fan-out deps — mocked so the wiring is asserted, not
+// silently swallowed against unmocked prisma (the prior false-green).
+vi.mock('../../server/modules/notifications/notifications.service', () => ({
+  createNotification: vi.fn().mockResolvedValue(undefined),
+}))
+vi.mock('../../server/modules/friends/friends.service', () => ({
+  getAcceptedFriendIds: vi.fn().mockResolvedValue([]),
+}))
+vi.mock('../../server/modules/users/users.service', () => ({
+  getProfile: vi.fn(),
 }))
 // The VERIFIED branch now runs inside prisma.$transaction. Mock it to invoke the
 // callback with a stub tx so the wiring (markPostVerified → event → streak) is
@@ -20,6 +31,9 @@ import { processUploadedPost } from '../../server/workers/aiClassifier'
 import * as aiService from '../../server/modules/ai/ai.service'
 import * as aiRepo from '../../server/modules/ai/ai.repo'
 import * as streaksService from '../../server/modules/streaks/streaks.service'
+import * as notificationsService from '../../server/modules/notifications/notifications.service'
+import * as friendsService from '../../server/modules/friends/friends.service'
+import * as usersService from '../../server/modules/users/users.service'
 
 const VERIFIED_RESULT = {
   isWorkout: true,
@@ -52,6 +66,18 @@ const PENDING_POST = {
   userId: 'user-1',
 }
 
+const POSTER_PROFILE = {
+  id: 'user-1',
+  email: 'poster@example.com',
+  username: 'poster',
+  displayName: 'Poster',
+  avatarUrl: null,
+  bio: null,
+  timezone: 'UTC',
+  onboarded: true,
+  createdAt: new Date('2026-01-01T00:00:00Z'),
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(aiRepo.findPostForClassification).mockResolvedValue(PENDING_POST)
@@ -59,6 +85,11 @@ beforeEach(() => {
   vi.mocked(aiRepo.markPostRejected).mockResolvedValue(undefined)
   vi.mocked(aiRepo.persistClassificationEvent).mockResolvedValue(undefined)
   vi.mocked(streaksService.onWorkoutVerified).mockResolvedValue(undefined)
+  // clearAllMocks wipes call history but not implementations; set explicit
+  // defaults so every test starts from a known notification baseline.
+  vi.mocked(notificationsService.createNotification).mockResolvedValue(undefined)
+  vi.mocked(friendsService.getAcceptedFriendIds).mockResolvedValue([])
+  vi.mocked(usersService.getProfile).mockResolvedValue(POSTER_PROFILE)
 })
 
 // ---------------------------------------------------------------------------
@@ -212,5 +243,88 @@ describe('processUploadedPost', () => {
     await processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2.example.com/abc.jpg', userId: 'user-1' })
 
     expect(streaksService.onWorkoutVerified).not.toHaveBeenCalled()
+  })
+})
+
+// ===========================================================================
+// Notification wiring (Slice 7 audit — Critical Fix #3)
+// ===========================================================================
+
+function friendPostedCalls() {
+  return vi
+    .mocked(notificationsService.createNotification)
+    .mock.calls.map((c) => c[0])
+    .filter((p) => p.type === NotificationType.FRIEND_POSTED)
+}
+
+describe('processUploadedPost — notification wiring (Slice 7)', () => {
+  beforeEach(() => {
+    vi.mocked(aiService.classifyImage).mockResolvedValue(VERIFIED_RESULT)
+  })
+
+  it('creates a WORKOUT_VERIFIED self-notification keyed by postId', async () => {
+    await processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2/abc.jpg', userId: 'user-1' })
+
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        type: NotificationType.WORKOUT_VERIFIED,
+        idempotencyKey: 'post:post-1:WORKOUT_VERIFIED',
+      })
+    )
+  })
+
+  it('fans out FRIEND_POSTED to every accepted friend with per-friend idempotency keys', async () => {
+    vi.mocked(friendsService.getAcceptedFriendIds).mockResolvedValue(['friend-a', 'friend-b'])
+
+    await processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2/abc.jpg', userId: 'user-1' })
+
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'friend-a',
+        type: NotificationType.FRIEND_POSTED,
+        title: '@poster just posted a workout',
+        idempotencyKey: 'post:post-1:FRIEND_POSTED:friend-a',
+      })
+    )
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'friend-b',
+        type: NotificationType.FRIEND_POSTED,
+        idempotencyKey: 'post:post-1:FRIEND_POSTED:friend-b',
+      })
+    )
+  })
+
+  it('never sends FRIEND_POSTED to the poster themselves', async () => {
+    vi.mocked(friendsService.getAcceptedFriendIds).mockResolvedValue(['friend-a'])
+
+    await processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2/abc.jpg', userId: 'user-1' })
+
+    expect(friendPostedCalls().every((p) => p.userId !== 'user-1')).toBe(true)
+  })
+
+  it('creates no FRIEND_POSTED when the user has no accepted friends', async () => {
+    vi.mocked(friendsService.getAcceptedFriendIds).mockResolvedValue([])
+
+    await processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2/abc.jpg', userId: 'user-1' })
+
+    expect(friendPostedCalls()).toHaveLength(0)
+  })
+
+  it('does NOT notify anyone when the verification transaction rolls back', async () => {
+    vi.mocked(aiRepo.markPostVerified).mockRejectedValueOnce(new Error('tx fail'))
+
+    await processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2/abc.jpg', userId: 'user-1' })
+
+    expect(notificationsService.createNotification).not.toHaveBeenCalled()
+  })
+
+  it('a self-notification failure does not throw out of processUploadedPost (awaited+caught)', async () => {
+    vi.mocked(notificationsService.createNotification).mockRejectedValue(new Error('notif down'))
+
+    await expect(
+      processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2/abc.jpg', userId: 'user-1' })
+    ).resolves.toBeUndefined()
   })
 })

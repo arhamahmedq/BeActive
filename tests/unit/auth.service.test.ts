@@ -26,8 +26,14 @@ vi.mock('../../server/core/logger/index', () => ({
   },
 }))
 
+vi.mock('../../server/modules/notifications/notifications.service', () => ({
+  createNotification: vi.fn(),
+}))
+
+import { NotificationType } from '@prisma/client'
 import * as authRepo from '../../server/modules/auth/auth.repo'
 import * as authService from '../../server/modules/auth/auth.service'
+import * as notificationsService from '../../server/modules/notifications/notifications.service'
 import { ConflictError, UnauthorizedError, EmailNotVerifiedError } from '../../server/core/errors/AppError'
 
 // ---------------------------------------------------------------------------
@@ -247,6 +253,9 @@ describe('authService.createUserOnVerification', () => {
     vi.mocked(authRepo.findUserById).mockResolvedValue(null)
     vi.mocked(authRepo.createUserWithStreak).mockResolvedValue(mockUser)
     vi.mocked(authRepo.persistEvent).mockResolvedValue(undefined)
+    // resetAllMocks wipes the factory default, so re-arm the notification mock:
+    // the service now AWAITS createNotification(...).catch(), so it must return a promise.
+    vi.mocked(notificationsService.createNotification).mockResolvedValue(undefined)
   })
 
   it('creates Prisma user and streak on first verification', async () => {
@@ -303,6 +312,46 @@ describe('authService.createUserOnVerification', () => {
     )
 
     expect(authRepo.persistEvent).not.toHaveBeenCalled()
+  })
+
+  it('creates a WELCOME notification for the new user with a per-user idempotency key', async () => {
+    await authService.createUserOnVerification(
+      'supabase-uuid-123',
+      'test@example.com',
+      'testuser'
+    )
+
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'supabase-uuid-123',
+        type: NotificationType.WELCOME,
+        idempotencyKey: 'user:supabase-uuid-123:WELCOME',
+      })
+    )
+  })
+
+  it('does NOT create a WELCOME notification when the user already exists', async () => {
+    vi.mocked(authRepo.findUserById).mockResolvedValue(mockUser)
+
+    await authService.createUserOnVerification(
+      'supabase-uuid-123',
+      'test@example.com',
+      'testuser'
+    )
+
+    expect(notificationsService.createNotification).not.toHaveBeenCalled()
+  })
+
+  it('still returns the created user when the WELCOME notification fails (non-fatal, awaited+caught)', async () => {
+    vi.mocked(notificationsService.createNotification).mockRejectedValue(new Error('notif DB down'))
+
+    const user = await authService.createUserOnVerification(
+      'supabase-uuid-123',
+      'test@example.com',
+      'testuser'
+    )
+
+    expect(user.id).toBe('supabase-uuid-123')
   })
 
   it('still returns the created user when persistEvent fails (non-fatal)', async () => {
