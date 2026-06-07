@@ -11,7 +11,7 @@ export async function handleGetNotifications(request: NextRequest): Promise<Next
   const authResult = await requireAuth(request)
   if (authResult instanceof NextResponse) return authResult
 
-  const limited = generalRateLimit(request)
+  const limited = await generalRateLimit(request)
   if (limited) return limited
 
   const { searchParams } = new URL(request.url)
@@ -32,7 +32,7 @@ export async function handleMarkRead(request: NextRequest): Promise<NextResponse
   const authResult = await requireAuth(request)
   if (authResult instanceof NextResponse) return authResult
 
-  const limited = generalRateLimit(request)
+  const limited = await generalRateLimit(request)
   if (limited) return limited
 
   let body: unknown

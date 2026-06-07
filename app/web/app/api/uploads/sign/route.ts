@@ -10,7 +10,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
 
-  const rateLimitResponse = uploadUserRateLimit(auth.userId, 'uploads/sign')
+  const rateLimitResponse = await uploadUserRateLimit(auth.userId, 'uploads/sign')
   if (rateLimitResponse) return rateLimitResponse
 
   const bodyOrError = await validateBody(request, signUploadSchema)

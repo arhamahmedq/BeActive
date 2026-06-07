@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 import type { NotificationItem as NotificationItemType } from '@/shared/types/notifications'
 
 function formatRelativeTime(iso: string): string {
@@ -23,18 +24,48 @@ const TYPE_ICONS: Record<string, string> = {
   STREAK_BROKEN: '💔',
 }
 
+// Derive a destination URL from notification type + data payload.
+// Returns null for notifications with no meaningful destination (e.g. WELCOME).
+function getHref(notification: NotificationItemType): string | null {
+  const { type, data } = notification
+  const postId = data?.postId as string | undefined
+  const posterUserId = data?.posterUserId as string | undefined
+  const username = data?.username as string | undefined
+
+  switch (type) {
+    case 'WORKOUT_VERIFIED':
+    case 'WORKOUT_REJECTED':
+      return postId ? `/p/${postId}` : '/feed'
+    case 'FRIEND_POSTED':
+      // Link to the post if we have it, otherwise the poster's profile.
+      if (postId) return `/p/${postId}`
+      if (posterUserId) return `/feed` // no username in payload; feed shows their posts
+      return '/feed'
+    case 'FRIEND_REQUEST':
+    case 'FRIEND_ACCEPTED':
+      return username ? `/u/${username}` : '/friends'
+    case 'STREAK_AT_RISK':
+    case 'STREAK_BROKEN':
+      return '/feed'
+    case 'WELCOME':
+    default:
+      return null
+  }
+}
+
 interface Props {
   notification: NotificationItemType
 }
 
 export function NotificationItem({ notification }: Props) {
   const icon = TYPE_ICONS[notification.type] ?? '🔔'
+  const href = getHref(notification)
 
-  return (
+  const content = (
     <div
-      className={`flex items-start gap-3 px-4 py-3 border-b border-gray-100 last:border-0 ${
+      className={`flex items-start gap-3 px-4 py-3 border-b border-gray-100 last:border-0 transition-colors ${
         notification.read ? 'bg-white' : 'bg-blue-50'
-      }`}
+      } ${href ? 'hover:bg-gray-50 cursor-pointer' : ''}`}
     >
       <span className="text-xl mt-0.5 shrink-0" aria-hidden>{icon}</span>
       <div className="flex-1 min-w-0">
@@ -51,4 +82,14 @@ export function NotificationItem({ notification }: Props) {
       )}
     </div>
   )
+
+  if (href) {
+    return (
+      <Link href={href} className="block">
+        {content}
+      </Link>
+    )
+  }
+
+  return content
 }

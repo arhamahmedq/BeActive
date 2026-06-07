@@ -38,11 +38,11 @@ export async function handleSendFriendRequest(request: NextRequest): Promise<Nex
   if (auth instanceof NextResponse) return auth
 
   // Burst cap first (5/min): rejects automation that fires all 20 hourly slots in <1s.
-  const burstResponse = friendRequestBurstLimit(auth.userId, 'friends/request:burst')
+  const burstResponse = await friendRequestBurstLimit(auth.userId, 'friends/request:burst')
   if (burstResponse) return burstResponse
 
   // Hourly cap (20/hr): limits total request volume including request→cancel loops.
-  const hourlyResponse = friendRequestUserRateLimit(auth.userId, 'friends/request:hourly')
+  const hourlyResponse = await friendRequestUserRateLimit(auth.userId, 'friends/request:hourly')
   if (hourlyResponse) return hourlyResponse
 
   const bodyOrError = await validateBody(request, requestFriendSchema)
@@ -61,7 +61,7 @@ export async function handleAcceptFriendRequest(request: NextRequest): Promise<N
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
 
-  const rateLimitResponse = friendActionUserRateLimit(auth.userId, 'friends/accept')
+  const rateLimitResponse = await friendActionUserRateLimit(auth.userId, 'friends/accept')
   if (rateLimitResponse) return rateLimitResponse
 
   const bodyOrError = await validateBody(request, acceptFriendSchema)
@@ -80,7 +80,7 @@ export async function handleRemoveFriend(request: NextRequest): Promise<NextResp
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
 
-  const rateLimitResponse = friendActionUserRateLimit(auth.userId, 'friends/remove')
+  const rateLimitResponse = await friendActionUserRateLimit(auth.userId, 'friends/remove')
   if (rateLimitResponse) return rateLimitResponse
 
   const bodyOrError = await validateBody(request, removeFriendSchema)
@@ -99,7 +99,7 @@ export async function handleCancelFriendRequest(request: NextRequest): Promise<N
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
 
-  const rateLimitResponse = friendActionUserRateLimit(auth.userId, 'friends/cancel')
+  const rateLimitResponse = await friendActionUserRateLimit(auth.userId, 'friends/cancel')
   if (rateLimitResponse) return rateLimitResponse
 
   const bodyOrError = await validateBody(request, cancelFriendSchema)
@@ -118,7 +118,7 @@ export async function handleBlockUser(request: NextRequest): Promise<NextRespons
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
 
-  const rateLimitResponse = friendActionUserRateLimit(auth.userId, 'friends/block')
+  const rateLimitResponse = await friendActionUserRateLimit(auth.userId, 'friends/block')
   if (rateLimitResponse) return rateLimitResponse
 
   const bodyOrError = await validateBody(request, blockUserSchema)
@@ -137,7 +137,7 @@ export async function handleUnblockUser(request: NextRequest): Promise<NextRespo
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
 
-  const rateLimitResponse = friendActionUserRateLimit(auth.userId, 'friends/unblock')
+  const rateLimitResponse = await friendActionUserRateLimit(auth.userId, 'friends/unblock')
   if (rateLimitResponse) return rateLimitResponse
 
   const bodyOrError = await validateBody(request, unblockUserSchema)
@@ -169,7 +169,7 @@ export async function handleRejectFriendRequest(request: NextRequest): Promise<N
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
 
-  const rateLimitResponse = friendActionUserRateLimit(auth.userId, 'friends/reject')
+  const rateLimitResponse = await friendActionUserRateLimit(auth.userId, 'friends/reject')
   if (rateLimitResponse) return rateLimitResponse
 
   const bodyOrError = await validateBody(request, rejectFriendSchema)
@@ -201,7 +201,7 @@ export async function handleSearchUsers(request: NextRequest): Promise<NextRespo
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
 
-  const rateLimitResponse = userSearchRateLimit(auth.userId, 'users/search')
+  const rateLimitResponse = await userSearchRateLimit(auth.userId, 'users/search')
   if (rateLimitResponse) {
     logger.warn('Search rate limit exceeded', { endpoint: 'users/search' })
     return rateLimitResponse

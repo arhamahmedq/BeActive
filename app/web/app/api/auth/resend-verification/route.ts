@@ -11,7 +11,7 @@ const resendSchema = z.object({
 })
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const rateLimitResponse = resendRateLimit(request)
+  const rateLimitResponse = await resendRateLimit(request)
   if (rateLimitResponse) return rateLimitResponse
 
   let body: unknown

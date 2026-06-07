@@ -8,7 +8,7 @@ import { isAppError, toErrorResponse, InternalError } from '@/server/core/errors
 
 // Rate limit: 5 per minute per IP (per security.md)
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const rateLimitResponse = authRateLimit(request)
+  const rateLimitResponse = await authRateLimit(request)
   if (rateLimitResponse) return rateLimitResponse
 
   const bodyOrError = await validateBody(request, loginSchema)

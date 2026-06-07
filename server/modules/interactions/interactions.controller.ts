@@ -10,7 +10,7 @@ import { likePost, unlikePost, addComment, getComments, deleteComment } from './
 export async function handleLikePost(request: NextRequest, postId: string): Promise<NextResponse> {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
-  const limited = likeUserRateLimit(auth.userId, 'posts/like')
+  const limited = await likeUserRateLimit(auth.userId, 'posts/like')
   if (limited) return limited
 
   try {
@@ -25,7 +25,7 @@ export async function handleLikePost(request: NextRequest, postId: string): Prom
 export async function handleUnlikePost(request: NextRequest, postId: string): Promise<NextResponse> {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
-  const limited = likeUserRateLimit(auth.userId, 'posts/unlike')
+  const limited = await likeUserRateLimit(auth.userId, 'posts/unlike')
   if (limited) return limited
 
   try {
@@ -40,7 +40,7 @@ export async function handleUnlikePost(request: NextRequest, postId: string): Pr
 export async function handleCreateComment(request: NextRequest, postId: string): Promise<NextResponse> {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
-  const limited = commentUserRateLimit(auth.userId, 'posts/comment')
+  const limited = await commentUserRateLimit(auth.userId, 'posts/comment')
   if (limited) return limited
 
   const body = await validateBody(request, createCommentSchema)
@@ -63,7 +63,7 @@ export async function handleDeleteComment(
 ): Promise<NextResponse> {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
-  const limited = commentUserRateLimit(auth.userId, 'posts/comment/delete')
+  const limited = await commentUserRateLimit(auth.userId, 'posts/comment/delete')
   if (limited) return limited
 
   try {
@@ -79,7 +79,7 @@ export async function handleDeleteComment(
 export async function handleGetComments(request: NextRequest, postId: string): Promise<NextResponse> {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
-  const limited = generalRateLimit(request)
+  const limited = await generalRateLimit(request)
   if (limited) return limited
 
   const query = validateQuery(request.nextUrl.searchParams, commentsQuerySchema)

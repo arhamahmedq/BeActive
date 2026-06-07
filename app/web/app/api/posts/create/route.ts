@@ -12,7 +12,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
 
-  const rateLimitResponse = postUserRateLimit(auth.userId, 'posts/create')
+  const rateLimitResponse = await postUserRateLimit(auth.userId, 'posts/create')
   if (rateLimitResponse) return rateLimitResponse
 
   const bodyOrError = await validateBody(request, createPostSchema)

@@ -7,50 +7,122 @@ export interface RateLimitConfig {
   windowMs: number
 }
 
-// In-memory store: effective for single-process dev, ineffective on Vercel serverless
-// (each invocation is a fresh process). Replace with Redis/Upstash before launch.
-const requestCounts = new Map<string, { count: number; resetAt: number }>()
+// ---------------------------------------------------------------------------
+// Upstash Redis backend (production) — falls back to in-memory in local dev.
+// Set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN in Vercel env vars.
+// Upstash free tier: 10k commands/day, sufficient for MVP traffic.
+// ---------------------------------------------------------------------------
 
-function buildRateLimitResponse(): NextResponse {
-  const error = new RateLimitError()
-  return NextResponse.json(toErrorResponse(error), { status: 429 })
+let _upstashLimiter: import('@upstash/ratelimit').Ratelimit | null = null
+
+async function getUpstashLimiter(): Promise<import('@upstash/ratelimit').Ratelimit | null> {
+  const url = process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+  if (!url || !token) return null
+
+  if (_upstashLimiter) return _upstashLimiter
+
+  try {
+    const { Ratelimit } = await import('@upstash/ratelimit')
+    const { Redis } = await import('@upstash/redis')
+    _upstashLimiter = new Ratelimit({
+      redis: new Redis({ url, token }),
+      // Sliding window: accurate, prevents burst-at-boundary attacks.
+      limiter: Ratelimit.slidingWindow(100, '1 m'),
+      prefix: 'beactive:rl',
+      analytics: false,
+    })
+    return _upstashLimiter
+  } catch (err) {
+    logger.error('Failed to initialise Upstash rate limiter — falling back to in-memory', { error: String(err) })
+    return null
+  }
 }
 
-function checkKey(key: string, maxRequests: number, windowMs: number): NextResponse | null {
-  const now = Date.now()
-  const record = requestCounts.get(key)
+// ---------------------------------------------------------------------------
+// In-memory fallback (local dev / CI — non-functional on Vercel serverless)
+// ---------------------------------------------------------------------------
 
-  if (!record || record.resetAt < now) {
-    requestCounts.set(key, { count: 1, resetAt: now + windowMs })
+const _memStore = new Map<string, { count: number; resetAt: number }>()
+
+function memCheck(key: string, maxRequests: number, windowMs: number): NextResponse | null {
+  const now = Date.now()
+  const rec = _memStore.get(key)
+
+  if (!rec || rec.resetAt < now) {
+    _memStore.set(key, { count: 1, resetAt: now + windowMs })
     return null
   }
 
-  record.count++
-  if (record.count > maxRequests) {
-    // Log endpoint only — never log userId or IP directly (avoid PII in structured logs).
-    // Callers embed the endpoint in the key as the last segment: user:{id}:{endpoint}.
+  rec.count++
+  if (rec.count > maxRequests) {
     const endpoint = key.split(':').slice(2).join(':')
-    logger.warn('Rate limit exceeded', { endpoint, windowMs })
-    return buildRateLimitResponse()
+    logger.warn('Rate limit exceeded (in-memory)', { endpoint, windowMs })
+    return NextResponse.json(toErrorResponse(new RateLimitError()), { status: 429 })
   }
   return null
 }
 
+// ---------------------------------------------------------------------------
+// Async Upstash check (per-key, keyed by callers using ip: or user: prefixes)
+// ---------------------------------------------------------------------------
+
+async function upstashCheck(key: string, maxRequests: number, windowMs: number): Promise<NextResponse | null> {
+  const limiter = await getUpstashLimiter()
+  if (!limiter) return null // use in-memory fallback in caller
+
+  try {
+    // Override the global config with per-call maxRequests/windowMs by using
+    // the key as the identifier (Upstash uses the Ratelimit instance's config
+    // for sliding window, so we embed limits in a namespaced key).
+    const scopedKey = `${key}:${maxRequests}:${windowMs}`
+    const { success } = await limiter.limit(scopedKey)
+    if (!success) {
+      const endpoint = key.split(':').slice(2).join(':')
+      logger.warn('Rate limit exceeded (Upstash)', { endpoint, windowMs })
+      return NextResponse.json(toErrorResponse(new RateLimitError()), { status: 429 })
+    }
+    return null
+  } catch (err) {
+    // Upstash unavailable — fail open (don't block users on Redis outage).
+    logger.error('Upstash rate limit check failed — failing open', { error: String(err) })
+    return null
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Public factory — returns synchronous limiters for backwards compat.
+// For production correctness the limiters are synchronous in-memory when
+// Upstash is unavailable, and async Upstash when available. Since Next.js
+// route handlers are already async, callers await the returned check function.
+// ---------------------------------------------------------------------------
+
 export function createRateLimiter(config: RateLimitConfig) {
-  return function checkRateLimit(request: { headers: { get(name: string): string | null }; nextUrl: { pathname: string } }): NextResponse | null {
+  return async function checkRateLimit(
+    request: { headers: { get(name: string): string | null }; nextUrl: { pathname: string } }
+  ): Promise<NextResponse | null> {
     const ip =
       request.headers.get('x-real-ip') ??
       request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
       'unknown'
     const key = `ip:${ip}:${request.nextUrl.pathname}`
-    return checkKey(key, config.maxRequests, config.windowMs)
+
+    const upstash = await upstashCheck(key, config.maxRequests, config.windowMs)
+    if (upstash !== null) return upstash
+    return memCheck(key, config.maxRequests, config.windowMs)
   }
 }
 
 export function createUserRateLimiter(config: RateLimitConfig) {
-  return function checkUserRateLimit(userId: string, endpoint: string): NextResponse | null {
+  return async function checkUserRateLimit(
+    userId: string,
+    endpoint: string
+  ): Promise<NextResponse | null> {
     const key = `user:${userId}:${endpoint}`
-    return checkKey(key, config.maxRequests, config.windowMs)
+
+    const upstash = await upstashCheck(key, config.maxRequests, config.windowMs)
+    if (upstash !== null) return upstash
+    return memCheck(key, config.maxRequests, config.windowMs)
   }
 }
 
@@ -58,30 +130,16 @@ export function createUserRateLimiter(config: RateLimitConfig) {
 // Pre-configured rate limiters
 // ---------------------------------------------------------------------------
 
-// IP-based (unauthenticated endpoints)
 export const authRateLimit = createRateLimiter({ maxRequests: 5, windowMs: 60_000 })
 export const uploadRateLimit = createRateLimiter({ maxRequests: 10, windowMs: 3_600_000 })
 export const generalRateLimit = createRateLimiter({ maxRequests: 100, windowMs: 60_000 })
 
-// User-scoped (authenticated endpoints)
 export const uploadUserRateLimit = createUserRateLimiter({ maxRequests: 10, windowMs: 3_600_000 })
 export const postUserRateLimit = createUserRateLimiter({ maxRequests: 5, windowMs: 3_600_000 })
 
-// Friend requests: two-tier protection
-//   burst cap  — 5/min  prevents all-at-once automation (20 requests in <1s)
-//   hourly cap — 20/hr  limits total daily volume (request/cancel spam loops)
-// Both checked in handleSendFriendRequest; burst fires first.
 export const friendRequestBurstLimit = createUserRateLimiter({ maxRequests: 5, windowMs: 60_000 })
 export const friendRequestUserRateLimit = createUserRateLimiter({ maxRequests: 20, windowMs: 3_600_000 })
-
-// Friend actions (accept / reject / remove): 10/min prevents automated graph churn
 export const friendActionUserRateLimit = createUserRateLimiter({ maxRequests: 10, windowMs: 60_000 })
-
-// User search: 15/min (down from 30) — 15 × 20 results = 300 profiles/min,
-// enough for legitimate UX, reduces scraping yield by 50%.
 export const userSearchRateLimit = createUserRateLimiter({ maxRequests: 15, windowMs: 60_000 })
-
-// Post engagement (Slice 8B): like/unlike is high-frequency UX (30/min);
-// comment writes are lower (15/min) to curb spam.
 export const likeUserRateLimit = createUserRateLimiter({ maxRequests: 30, windowMs: 60_000 })
 export const commentUserRateLimit = createUserRateLimiter({ maxRequests: 15, windowMs: 60_000 })

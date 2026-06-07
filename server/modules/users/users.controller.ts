@@ -76,7 +76,7 @@ export async function handleGetPublicProfile(
 ): Promise<NextResponse> {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
-  const rateLimited = generalRateLimit(request)
+  const rateLimited = await generalRateLimit(request)
   if (rateLimited) return rateLimited
 
   try {
@@ -95,7 +95,7 @@ export async function handleGetUserPosts(
 ): Promise<NextResponse> {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
-  const rateLimited = generalRateLimit(request)
+  const rateLimited = await generalRateLimit(request)
   if (rateLimited) return rateLimited
 
   const parsed = validateQuery(request.nextUrl.searchParams, profilePostsQuerySchema)

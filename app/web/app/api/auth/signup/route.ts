@@ -10,7 +10,7 @@ import { isAppError, toErrorResponse, InternalError } from '@/server/core/errors
 const signupRateLimit = createRateLimiter({ maxRequests: 3, windowMs: 60_000 })
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const rateLimitResponse = signupRateLimit(request)
+  const rateLimitResponse = await signupRateLimit(request)
   if (rateLimitResponse) return rateLimitResponse
 
   const bodyOrError = await validateBody(request, signupSchema)
