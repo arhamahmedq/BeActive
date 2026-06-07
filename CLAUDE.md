@@ -1,10 +1,10 @@
 # CLAUDE.md — BeActive Project Bible
 
-> **Last updated:** 2026-06-07 — MVP readiness fixes shipped (P0–P1). One manual action required before launch: R2 CORS (see PRE-LAUNCH CHECKLIST below).
-> **⚠️ PRE-LAUNCH CHECKLIST (must complete before real users):**
-> 1. **R2 CORS** — Cloudflare dashboard → R2 → beactive-uploads → Settings → CORS Policy → add `{"AllowedOrigins":["https://beactive-eta.vercel.app","http://localhost:3000"],"AllowedMethods":["PUT","GET","HEAD"],"AllowedHeaders":["Content-Type","Content-Length","x-amz-checksum-sha256"],"MaxAgeSeconds":3600}`. Without this, all uploads fail from production.
-> 2. **Upstash Redis** — Add `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` to Vercel env vars (create free DB at console.upstash.com). Without this, rate limiting is non-functional on serverless.
-> 3. **Sentry** — Add `NEXT_PUBLIC_SENTRY_DSN` to Vercel env vars (free project at sentry.io). Without this, production errors are invisible beyond Vercel logs.
+> **Last updated:** 2026-06-07 — MVP readiness fixes shipped. All pre-launch checklist items complete. ✅ MVP READY.
+> **✅ PRE-LAUNCH CHECKLIST — ALL DONE:**
+> 1. **R2 CORS** ✅ — Configured in Cloudflare dashboard. Verified live (preflight HTTP 204).
+> 2. **Upstash Redis** ✅ — `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` set in Vercel. Rate limiting verified (429 on 6th request to /api/auth/login).
+> 3. **Sentry** ✅ — `NEXT_PUBLIC_SENTRY_DSN` set in Vercel. Enabled production-only, 10% trace sample rate.
 > **Purpose:** Master reference for Claude CLI/Code. Read this FIRST before every session.
 > **Rule:** architecture.md wins all contradictions. This file is the index; the /docs/ files are the source of truth.
 
