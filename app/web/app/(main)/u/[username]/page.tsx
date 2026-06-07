@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { ProfileRelationshipControl } from '@/components/features/ProfileRelationshipControl'
 import { ProfileAvatar } from '@/components/features/ProfileAvatar'
 import { EditProfile } from '@/components/features/EditProfile'
+import { ShareProfileButton } from '@/components/features/ShareProfileButton'
 
 export default function ProfilePage() {
   const params = useParams<{ username: string }>()
@@ -63,12 +64,15 @@ export default function ProfilePage() {
             )}
             <p className="text-sm text-gray-500 truncate">@{profile.username}</p>
           </div>
-          <ProfileRelationshipControl
-            username={username}
-            profileId={profile.id}
-            relationship={relationship!}
-            friendshipId={data.friendshipId}
-          />
+          <div className="flex items-center gap-2 shrink-0">
+            <ShareProfileButton username={username} />
+            <ProfileRelationshipControl
+              username={username}
+              profileId={profile.id}
+              relationship={relationship!}
+              friendshipId={data.friendshipId}
+            />
+          </div>
         </div>
 
         {profile.bio && <p className="text-sm text-gray-700 mt-4">{profile.bio}</p>}
