@@ -51,7 +51,15 @@ export function useStreak() {
       // the user's actual timezone. This ensures the AT_RISK boundary (8 PM
       // local) is reflected immediately rather than being baked into a cached
       // server response that could be up to staleTime seconds old.
-      const tz = streak.userTimezone ?? 'UTC'
+      // Fallback chain: server-stored tz → browser detected tz → UTC.
+      // Without the browser fallback, users without a stored timezone get UTC,
+      // causing the local 8 PM threshold to never trigger (e.g. 11 PM EST =
+      // hour 4 UTC < 20 = PENDING_TODAY forever).
+      const tz =
+        streak.userTimezone ??
+        (typeof Intl !== 'undefined'
+          ? Intl.DateTimeFormat().resolvedOptions().timeZone
+          : 'UTC')
       const localHour = getLocalHour(new Date(), tz)
       const displayTier = deriveDisplayTier(streak.status, streak.completedToday, localHour)
       return { ...streak, userTimezone: tz, displayTier }

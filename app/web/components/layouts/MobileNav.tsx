@@ -57,7 +57,7 @@ export function MobileNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 glass-nav border-t border-gray-100 flex items-center justify-around pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 px-2"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 glass-nav border-t border-gray-100 flex items-center justify-around pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 px-2"
       aria-label="Mobile navigation"
     >
       {/* Feed */}

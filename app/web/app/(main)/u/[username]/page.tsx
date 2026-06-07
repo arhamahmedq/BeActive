@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useProfile, useProfilePosts } from '@/hooks/useProfile'
@@ -8,15 +9,21 @@ import { ProfileRelationshipControl } from '@/components/features/ProfileRelatio
 import { ProfileAvatar } from '@/components/features/ProfileAvatar'
 import { EditProfile } from '@/components/features/EditProfile'
 import { ShareProfileButton } from '@/components/features/ShareProfileButton'
+import { useSavedPosts } from '@/hooks/useSavedPosts'
+
+type ProfileTab = 'posts' | 'saved'
 
 export default function ProfilePage() {
   const params = useParams<{ username: string }>()
   const username = params?.username ?? ''
+  const [activeTab, setActiveTab] = useState<ProfileTab>('posts')
 
   const { data, isLoading, isError, error } = useProfile(username)
+  const { saved } = useSavedPosts()
 
   const relationship = data?.relationship
   const canViewPosts = relationship === 'self' || relationship === 'friends'
+  const isSelf = relationship === 'self'
   const posts = useProfilePosts(username, !!data && canViewPosts)
 
   if (isLoading) {
@@ -37,7 +44,7 @@ export default function ProfilePage() {
     return (
       <div className="bg-white rounded-xl border border-gray-100 p-8 text-center space-y-2">
         <p className="text-sm font-medium text-gray-700">
-          {notFound ? 'User not found' : 'Couldn’t load this profile'}
+          {notFound ? 'User not found' : "Couldn't load this profile"}
         </p>
         <Link href="/friends" className="text-xs text-gray-400 hover:text-black">
           ← Back to friends
@@ -94,24 +101,87 @@ export default function ProfilePage() {
         />
       )}
 
-      {/* Posts grid (friends/self) or gated message — the action lives in the header */}
-      {canViewPosts ? (
-        <PostsGrid query={posts} username={profile.username} />
-      ) : (
-        <div className="bg-white rounded-xl border border-gray-100 p-8 text-center space-y-2">
-          <p className="text-2xl" aria-hidden>
-            🔒
-          </p>
-          <p className="text-sm font-medium text-gray-700">Add friend to see workouts</p>
-          <p className="text-xs text-gray-400">
-            {relationship === 'outgoing'
-              ? 'Your friend request is pending.'
-              : relationship === 'incoming'
-                ? 'They’ve requested you — accept above to connect.'
-                : 'Their workouts are visible to friends only.'}
-          </p>
+      {/* Tab selector — only show "Saved" tab on own profile */}
+      {isSelf && (
+        <div className="flex gap-1 border-b border-gray-100">
+          {(['posts', 'saved'] as ProfileTab[]).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2.5 text-sm font-medium capitalize transition-colors relative ${
+                activeTab === tab
+                  ? 'text-gray-900'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              {tab}
+              {activeTab === tab && (
+                <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-gray-900 rounded-full" />
+              )}
+            </button>
+          ))}
         </div>
       )}
+
+      {/* Posts grid (friends/self) or gated message */}
+      {activeTab === 'posts' && (
+        canViewPosts ? (
+          <PostsGrid query={posts} username={profile.username} />
+        ) : (
+          <div className="bg-white rounded-xl border border-gray-100 p-8 text-center space-y-2">
+            <p className="text-2xl" aria-hidden>🔒</p>
+            <p className="text-sm font-medium text-gray-700">Add friend to see workouts</p>
+            <p className="text-xs text-gray-400">
+              {relationship === 'outgoing'
+                ? 'Your friend request is pending.'
+                : relationship === 'incoming'
+                  ? "They've requested you — accept above to connect."
+                  : 'Their workouts are visible to friends only.'}
+            </p>
+          </div>
+        )
+      )}
+
+      {/* Saved posts grid — own profile only */}
+      {activeTab === 'saved' && isSelf && (
+        <SavedGrid posts={saved} />
+      )}
+    </div>
+  )
+}
+
+// SavedGrid reads from localStorage via useSavedPosts — no backend required.
+// Only rendered on the user's own profile (isSelf guard in parent).
+function SavedGrid({ posts }: { posts: ReturnType<typeof useSavedPosts>['saved'] }) {
+  if (posts.length === 0) {
+    return (
+      <div className="py-12 text-center space-y-2">
+        <p className="text-2xl" aria-hidden>🔖</p>
+        <p className="text-sm font-medium text-gray-700">No saved posts yet</p>
+        <p className="text-xs text-gray-400">Tap the bookmark on any post to save it here.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-3 gap-1">
+      {posts.map((post) => (
+        <Link
+          key={post.id}
+          href={`/p/${post.id}`}
+          className="group relative block aspect-square overflow-hidden bg-gray-50"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={post.imageUrl}
+            alt={post.caption ?? `${post.username}'s workout`}
+            className="h-full w-full object-cover transition-opacity group-hover:opacity-90"
+          />
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent px-2 py-1 opacity-0 transition-opacity group-hover:opacity-100">
+            <p className="text-[10px] text-white font-medium truncate">@{post.username}</p>
+          </div>
+        </Link>
+      ))}
     </div>
   )
 }
@@ -148,7 +218,7 @@ function PostsGrid({
     )
   }
   if (isError) {
-    return <p className="text-center text-sm text-gray-400 py-8">Couldn’t load posts.</p>
+    return <p className="text-center text-sm text-gray-400 py-8">Couldn&apos;t load posts.</p>
   }
 
   const allPosts = data?.pages.flatMap((p) => p.posts) ?? []

@@ -16,7 +16,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         Desktop (lg+): pl-16 reserves space for the collapsed 64px side rail.
         Content stays max-w-2xl centered within the remaining area.
       */}
-      <main className="py-6 px-4 pb-24 md:pb-6 lg:pl-20 lg:pb-8">
+      {/*
+        pb-28 gives 112px bottom clearance:
+        - MobileNav height ~54px + iPhone home bar ~34px = ~88px max → 112px is safe on all devices
+        - md:pb-6 was removed — MobileNav shows up to lg breakpoint, not just mobile
+        - lg:pb-8 + lg:hidden on MobileNav = desktop has no bottom nav to clear
+      */}
+      <main className="py-6 px-4 pb-28 lg:pl-20 lg:pb-8">
         <div className="max-w-2xl mx-auto">{children}</div>
       </main>
 
