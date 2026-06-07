@@ -7,25 +7,25 @@ interface StreakWidgetProps {
 }
 
 interface TierConfig {
-  bg: string
+  border: string
   dot: string
   label: string
   labelColor: string
-  sub: string | null   // null = dynamic (computed from best)
+  sub: string | null
   subColor: string
 }
 
 const TIER_CONFIG: Record<DisplayTier, TierConfig> = {
   COMPLETED_TODAY: {
-    bg: 'bg-green-50 border-green-100',
-    dot: 'bg-green-400',
+    border: 'border-brand-200',
+    dot: 'bg-brand-400',
     label: 'Completed',
-    labelColor: 'text-green-700',
+    labelColor: 'text-brand-700',
     sub: 'Locked in for today.',
-    subColor: 'text-green-600',
+    subColor: 'text-brand-600',
   },
   PENDING_TODAY: {
-    bg: 'bg-white border-gray-100',
+    border: 'border-white/40',
     dot: 'bg-gray-300',
     label: 'Pending',
     labelColor: 'text-gray-500',
@@ -33,23 +33,23 @@ const TIER_CONFIG: Record<DisplayTier, TierConfig> = {
     subColor: 'text-gray-400',
   },
   AT_RISK: {
-    bg: 'bg-amber-50 border-amber-100',
+    border: 'border-amber-200',
     dot: 'bg-amber-400',
     label: 'At risk',
     labelColor: 'text-amber-700',
-    sub: "Streak at risk — today's almost over.",
+    sub: 'Streak at risk — today’s almost over.',
     subColor: 'text-amber-600',
   },
   BROKEN: {
-    bg: 'bg-red-50 border-red-100',
+    border: 'border-red-200',
     dot: 'bg-red-400',
     label: 'Streak ended',
     labelColor: 'text-red-700',
-    sub: null,  // rendered as "You were on {best}. Start a new one today."
+    sub: null,
     subColor: 'text-red-500',
   },
   INACTIVE: {
-    bg: 'bg-white border-gray-100',
+    border: 'border-white/40',
     dot: 'bg-gray-200',
     label: 'No streak',
     labelColor: 'text-gray-400',
@@ -67,7 +67,7 @@ function headline(tier: DisplayTier, current: number): string {
 export function StreakWidget({ streak, isLoading }: StreakWidgetProps) {
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-100 p-4 animate-pulse h-20" />
+      <div className="glass-card rounded-xl p-4 animate-pulse h-20" />
     )
   }
 
@@ -82,7 +82,7 @@ export function StreakWidget({ streak, isLoading }: StreakWidgetProps) {
       : config.sub
 
   return (
-    <div className={`rounded-xl border p-4 ${config.bg}`}>
+    <div className={`glass-card rounded-xl p-4 border ${config.border}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {tier !== 'INACTIVE' && tier !== 'BROKEN' && (

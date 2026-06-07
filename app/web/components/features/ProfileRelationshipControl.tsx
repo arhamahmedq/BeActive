@@ -25,7 +25,7 @@ export function ProfileRelationshipControl({ username, profileId, relationship, 
 
   if (relationship === 'none') {
     return (
-      <Button onClick={() => add.mutate(profileId)} isLoading={add.isPending} className="rounded-full">
+      <Button variant="brand" onClick={() => add.mutate(profileId)} isLoading={add.isPending} className="rounded-full">
         Add friend
       </Button>
     )
@@ -49,6 +49,7 @@ export function ProfileRelationshipControl({ username, profileId, relationship, 
     return (
       <div className="flex items-center gap-2 flex-shrink-0">
         <Button
+          variant="brand"
           onClick={() => friendshipId && accept.mutate(friendshipId)}
           isLoading={accept.isPending}
           disabled={!friendshipId}

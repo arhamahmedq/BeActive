@@ -4,16 +4,7 @@ import Link from 'next/link'
 import { useComments, useAddComment, useDeleteComment } from '@/hooks/useComments'
 import { useAuth } from '@/hooks/useAuth'
 import { Avatar } from '@/components/ui/Avatar'
-
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60_000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h`
-  return `${Math.floor(hrs / 24)}d`
-}
+import { formatRelativeTime } from '@/lib/formatters'
 
 // Lightweight comments under a post card: list + composer. Only mounted when the
 // card's comment toggle is open (useComments fires on mount).
@@ -62,7 +53,7 @@ export function CommentsSection({ postId, postAuthorId }: { postId: string; post
                   </Link>{' '}
                   <span className="text-gray-700">{c.body}</span>
                 </p>
-                <p className="text-xs text-gray-400 mt-0.5">{relativeTime(c.createdAt)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{formatRelativeTime(c.createdAt)}</p>
               </div>
               {canDelete && (
                 <button

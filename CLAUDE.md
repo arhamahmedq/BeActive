@@ -746,6 +746,12 @@ The goal is for this file to grow from a project blueprint into a comprehensive 
 
 ## 18. NOTES / GOTCHAS
 
+### TODO: Streak Pet (nature theme — deferred from UI overhaul)
+- **Feature:** Visual tree/plant inside `StreakWidget` that grows with `streak.current`. Frontend-only — no backend changes.
+- **Tiers:** 0=🌱 dormant seed, 1–49=🌿 sprout, 50–99=🌲 sapling, 100–199=🌳 strong tree, 200–999=🎄 elder tree, 1000+=🌸 legendary bloom
+- **Behaviour:** Animate with `animate-pet-bounce` on `COMPLETED_TODAY` tier, `animate-breathe` on `AT_RISK`. Static otherwise.
+- **Files:** `StreakWidget.tsx` only. Map `streak.current` → tier with a pure function. No new hooks or API changes.
+
 ### Known Constraints
 - **React Strict Mode is ON by default in Next.js 16 dev.** Effect cleanups run after the initial mount (double-invoke). Never pass a component-managed `URL.createObjectURL` result into an async function that creates a `new Image()` — the URL may be revoked before the image loads. Pattern: create + revoke inside the function itself (see `getCroppedBlob`, `stripExif`).
 - Vercel serverless function timeout: 10s (free), 60s (pro) — AI classification MUST be async

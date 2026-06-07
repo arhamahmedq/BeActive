@@ -38,7 +38,7 @@ export function MainNav() {
   const notifActive = pathname === '/notifications'
 
   return (
-    <nav className="bg-white border-b border-gray-100 px-4 py-3">
+    <nav className="glass-nav sticky top-0 z-40 px-4 py-3">
       <div className="max-w-2xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-5">
           <Link href="/feed" className="font-bold text-lg hover:opacity-70 transition-opacity">
@@ -63,13 +63,18 @@ export function MainNav() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {/* Log workout — icon-only on mobile, full pill on sm+ */}
           <Link
             href="/upload"
-            className="inline-flex items-center gap-1.5 bg-black text-white text-sm font-medium px-4 py-2 rounded-full hover:bg-gray-800 transition-colors"
+            aria-label="Log workout"
+            className="inline-flex items-center justify-center gap-1.5 bg-brand-500 text-white font-medium rounded-full transition-colors hover:bg-brand-600 motion-safe:active:scale-95
+              h-9 w-9 text-xl
+              sm:h-auto sm:w-auto sm:px-4 sm:py-2 sm:text-sm"
           >
-            <span aria-hidden>+</span>
-            Log workout
+            <span aria-hidden className="sm:hidden leading-none">+</span>
+            <span className="hidden sm:inline">+ Log workout</span>
           </Link>
+
           {/* Notification bell */}
           <Link
             href="/notifications"
@@ -83,19 +88,20 @@ export function MainNav() {
             {unreadCount != null && unreadCount > 0 && (
               <span
                 aria-hidden
-                className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none"
+                className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 bg-brand-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none"
               >
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
           </Link>
+
           {user && (
             <Link
               href={`/u/${user.username}`}
               aria-label="My profile"
               aria-current={profileActive ? 'page' : undefined}
               className={`rounded-full transition-opacity hover:opacity-80 ${
-                profileActive ? 'ring-2 ring-black ring-offset-1' : ''
+                profileActive ? 'ring-2 ring-brand-500 ring-offset-1' : ''
               }`}
             >
               <Avatar src={user.avatarUrl} name={user.displayName || user.username} size="md" />

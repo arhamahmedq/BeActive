@@ -77,7 +77,7 @@ export function FriendRequests({
               actions={
                 <>
                   <Button
-                    variant="primary"
+                    variant="brand"
                     onClick={() => onAccept(entry.friendshipId)}
                     isLoading={acceptingId === entry.friendshipId}
                     className="text-xs py-1.5 px-3"
