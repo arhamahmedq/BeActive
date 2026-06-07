@@ -15,9 +15,11 @@ import { createNotification } from '../modules/notifications/notifications.servi
 import { getAcceptedFriendIds } from '../modules/friends/friends.service'
 import { getProfile } from '../modules/users/users.service'
 
-// Confidence thresholds per AI_BOUNDARY.md
+// Confidence thresholds per AI_BOUNDARY.md.
+// AMBIGUOUS (0.50–0.69) is intentionally collapsed into REJECTED — there is no
+// manual review pipeline, so leaving posts PENDING forever is a worse UX than
+// a clear rejection that lets the user re-upload.
 const VERIFY_THRESHOLD = 0.70
-const AMBIGUOUS_THRESHOLD = 0.50
 
 // 3 attempts: backoff 1s → 4s → 16s
 const MAX_ATTEMPTS = 3
@@ -28,9 +30,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 function getDecision(confidence: number): ClassificationDecision {
-  if (confidence >= VERIFY_THRESHOLD) return 'VERIFIED'
-  if (confidence >= AMBIGUOUS_THRESHOLD) return 'AMBIGUOUS'
-  return 'REJECTED'
+  return confidence >= VERIFY_THRESHOLD ? 'VERIFIED' : 'REJECTED'
 }
 
 async function classifyWithRetry(imageUrl: string): Promise<ClassificationOutput | null> {
@@ -191,22 +191,9 @@ export async function processUploadedPost(params: {
       }
     })()
 
-  } else if (decision === 'AMBIGUOUS') {
-    // 0.50–0.69 — stays PENDING, recorded for manual review
-    void persistClassificationEvent({
-      type: 'AI_CLASSIFICATION_AMBIGUOUS',
-      userId,
-      payload: { postId, confidence: result.confidence, modelVersion: result.modelVersion },
-      source: 'ai.worker',
-      correlationId,
-    }).catch((e: unknown) =>
-      logger.error('Failed to persist AI_CLASSIFICATION_AMBIGUOUS', { error: String(e) })
-    )
-
   } else {
-    // Rule R2 — confidence < 0.50 → REJECTED
+    // Rule R2 — confidence < 0.70 → REJECTED (AMBIGUOUS collapsed into REJECTED)
     await markPostRejected(postId)
-    // Awaited so the rejection event is reliably recorded alongside the state change.
     try {
       await persistClassificationEvent({
         type: EventType.WORKOUT_REJECTED,

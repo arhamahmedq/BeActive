@@ -33,8 +33,15 @@ export function useAuth() {
           return
         }
         const data = (await res.json()) as { user: AuthUser }
-        if (!cancelled && data?.user) setUser(data.user)
-        else if (!cancelled) clearUser()
+        if (!cancelled && data?.user) {
+          setUser(data.user)
+          // Redirect un-onboarded users before they can access main app pages.
+          if (!data.user.onboarded && !window.location.pathname.startsWith('/onboarding')) {
+            router.push('/onboarding')
+          }
+        } else if (!cancelled) {
+          clearUser()
+        }
       })
       .catch(() => {
         if (!cancelled) clearUser()

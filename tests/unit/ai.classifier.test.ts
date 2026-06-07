@@ -119,15 +119,15 @@ describe('processUploadedPost', () => {
     expect(aiRepo.markPostVerified).not.toHaveBeenCalled()
   })
 
-  it('leaves post as PENDING on ambiguous confidence (0.50–0.69)', async () => {
+  it('rejects post on ambiguous confidence (0.50–0.69) — AMBIGUOUS collapsed into REJECTED', async () => {
     vi.mocked(aiService.classifyImage).mockResolvedValue(AMBIGUOUS_RESULT)
 
     await processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2.example.com/abc.jpg', userId: 'user-1' })
 
     expect(aiRepo.markPostVerified).not.toHaveBeenCalled()
-    expect(aiRepo.markPostRejected).not.toHaveBeenCalled()
+    expect(aiRepo.markPostRejected).toHaveBeenCalledWith('post-1')
     expect(aiRepo.persistClassificationEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'AI_CLASSIFICATION_AMBIGUOUS' })
+      expect.objectContaining({ type: 'WORKOUT_REJECTED' })
     )
   })
 
@@ -214,12 +214,10 @@ describe('processUploadedPost', () => {
     expect(aiRepo.markPostVerified).toHaveBeenCalled()
   })
 
-  it('threshold boundary: exactly 0.50 → AMBIGUOUS (not REJECTED)', async () => {
-    vi.mocked(aiService.classifyImage).mockResolvedValue({ ...AMBIGUOUS_RESULT, confidence: 0.50 })
-
+  it('threshold boundary: exactly 0.69 → REJECTED, exactly 0.70 → VERIFIED', async () => {
+    vi.mocked(aiService.classifyImage).mockResolvedValue({ ...AMBIGUOUS_RESULT, confidence: 0.69 })
     await processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2.example.com/abc.jpg', userId: 'user-1' })
-
-    expect(aiRepo.markPostRejected).not.toHaveBeenCalled()
+    expect(aiRepo.markPostRejected).toHaveBeenCalledWith('post-1')
     expect(aiRepo.markPostVerified).not.toHaveBeenCalled()
   })
 

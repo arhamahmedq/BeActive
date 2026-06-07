@@ -24,4 +24,4 @@ export interface WorkoutLabel {
   type: WorkoutType | null
 }
 
-export type ClassificationDecision = 'VERIFIED' | 'AMBIGUOUS' | 'REJECTED'
+export type ClassificationDecision = 'VERIFIED' | 'REJECTED'
