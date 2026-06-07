@@ -10,6 +10,7 @@ import {
   handleUnlikePost,
   handleCreateComment,
   handleGetComments,
+  handleDeleteComment,
 } from '../../server/modules/interactions/interactions.controller'
 import * as authMiddleware from '../../server/core/middleware/auth'
 import * as validateMiddleware from '../../server/core/middleware/validate'
@@ -17,7 +18,7 @@ import * as rateLimitMiddleware from '../../server/core/middleware/rateLimit'
 import * as service from '../../server/modules/interactions/interactions.service'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { NotFoundError } from '../../server/core/errors/AppError'
+import { NotFoundError, ForbiddenError } from '../../server/core/errors/AppError'
 
 const mockRequest = { nextUrl: { searchParams: new URLSearchParams() } } as unknown as NextRequest
 const AUTH_SUCCESS = { userId: 'user-1' }
@@ -113,5 +114,36 @@ describe('handleGetComments', () => {
     const res = await handleGetComments(mockRequest, 'post-1')
     expect(res.status).toBe(200)
     expect(service.getComments).toHaveBeenCalledWith('user-1', 'post-1', undefined, 20)
+  })
+})
+
+describe('handleDeleteComment', () => {
+  it('204 on success', async () => {
+    vi.mocked(authMiddleware.requireAuth).mockResolvedValue(AUTH_SUCCESS)
+    vi.mocked(service.deleteComment).mockResolvedValue(undefined)
+    const res = await handleDeleteComment(mockRequest, 'post-1', 'c1')
+    expect(res.status).toBe(204)
+    expect(service.deleteComment).toHaveBeenCalledWith('user-1', 'post-1', 'c1')
+  })
+
+  it('401 when unauthenticated', async () => {
+    vi.mocked(authMiddleware.requireAuth).mockResolvedValue(AUTH_FAIL)
+    const res = await handleDeleteComment(mockRequest, 'post-1', 'c1')
+    expect(res.status).toBe(401)
+    expect(service.deleteComment).not.toHaveBeenCalled()
+  })
+
+  it('404 when comment not found', async () => {
+    vi.mocked(authMiddleware.requireAuth).mockResolvedValue(AUTH_SUCCESS)
+    vi.mocked(service.deleteComment).mockRejectedValue(new NotFoundError('Comment'))
+    const res = await handleDeleteComment(mockRequest, 'post-1', 'missing')
+    expect(res.status).toBe(404)
+  })
+
+  it('403 when caller is not commenter or post author', async () => {
+    vi.mocked(authMiddleware.requireAuth).mockResolvedValue(AUTH_SUCCESS)
+    vi.mocked(service.deleteComment).mockRejectedValue(new ForbiddenError())
+    const res = await handleDeleteComment(mockRequest, 'post-1', 'c1')
+    expect(res.status).toBe(403)
   })
 })

@@ -61,7 +61,7 @@ export function PostEngagementBar({ post }: { post: FeedPostResponse }) {
         </button>
       </div>
 
-      {showComments && <CommentsSection postId={post.id} />}
+      {showComments && <CommentsSection postId={post.id} postAuthorId={post.user.id} />}
     </div>
   )
 }

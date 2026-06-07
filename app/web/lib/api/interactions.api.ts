@@ -30,6 +30,12 @@ export function fetchComments(postId: string, cursor?: string): Promise<Comments
   return send(`/api/posts/${encodeURIComponent(postId)}/comments${qs}`)
 }
 
+export function deleteComment(postId: string, commentId: string): Promise<void> {
+  return send(`/api/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}`, {
+    method: 'DELETE',
+  })
+}
+
 export async function addComment(postId: string, body: string): Promise<PostCommentDTO> {
   const data = await send<{ comment: PostCommentDTO }>(
     `/api/posts/${encodeURIComponent(postId)}/comments`,

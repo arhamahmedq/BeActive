@@ -5,7 +5,7 @@ import { likeUserRateLimit, commentUserRateLimit, generalRateLimit } from '../..
 import { isAppError, toErrorResponse, InternalError } from '../../core/errors/AppError'
 import { logger } from '../../core/logger/index'
 import { createCommentSchema, commentsQuerySchema } from './interactions.schema'
-import { likePost, unlikePost, addComment, getComments } from './interactions.service'
+import { likePost, unlikePost, addComment, getComments, deleteComment } from './interactions.service'
 
 export async function handleLikePost(request: NextRequest, postId: string): Promise<NextResponse> {
   const auth = await requireAuth(request)
@@ -52,6 +52,26 @@ export async function handleCreateComment(request: NextRequest, postId: string):
   } catch (err) {
     if (isAppError(err)) return NextResponse.json(toErrorResponse(err), { status: err.statusCode })
     logger.error('POST /api/posts/[id]/comments failed', { error: String(err) })
+    return NextResponse.json(toErrorResponse(new InternalError()), { status: 500 })
+  }
+}
+
+export async function handleDeleteComment(
+  request: NextRequest,
+  postId: string,
+  commentId: string,
+): Promise<NextResponse> {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+  const limited = commentUserRateLimit(auth.userId, 'posts/comment/delete')
+  if (limited) return limited
+
+  try {
+    await deleteComment(auth.userId, postId, commentId)
+    return new NextResponse(null, { status: 204 })
+  } catch (err) {
+    if (isAppError(err)) return NextResponse.json(toErrorResponse(err), { status: err.statusCode })
+    logger.error('DELETE /api/posts/[id]/comments/[commentId] failed', { error: String(err) })
     return NextResponse.json(toErrorResponse(new InternalError()), { status: 500 })
   }
 }

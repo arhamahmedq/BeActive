@@ -9,10 +9,11 @@ import {
   addComment,
   getComments,
   getEngagementSummaries,
+  deleteComment,
 } from '../../server/modules/interactions/interactions.service'
 import * as repo from '../../server/modules/interactions/interactions.repo'
 import * as postsService from '../../server/modules/posts/posts.service'
-import { NotFoundError } from '../../server/core/errors/AppError'
+import { NotFoundError, ForbiddenError } from '../../server/core/errors/AppError'
 
 const VISIBLE_POST = {
   id: 'post-1',
@@ -128,6 +129,48 @@ describe('interactions.service.getComments', () => {
   it('requires visibility', async () => {
     vi.mocked(postsService.getPost).mockRejectedValue(new NotFoundError('Post'))
     await expect(getComments('viewer', 'hidden', undefined, 20)).rejects.toThrow(NotFoundError)
+  })
+})
+
+describe('interactions.service.deleteComment', () => {
+  const COMMENT = { id: 'c1', postId: 'post-1', userId: 'commenter-1' }
+
+  beforeEach(() => {
+    vi.mocked(repo.findCommentById).mockResolvedValue(COMMENT)
+    vi.mocked(repo.deleteCommentById).mockResolvedValue(undefined)
+  })
+
+  it('commenter can delete their own comment', async () => {
+    await deleteComment('commenter-1', 'post-1', 'c1')
+    expect(repo.deleteCommentById).toHaveBeenCalledWith('c1')
+  })
+
+  it('post author can delete any comment (moderation)', async () => {
+    await deleteComment('author-1', 'post-1', 'c1') // VISIBLE_POST.user.id = 'author-1'
+    expect(repo.deleteCommentById).toHaveBeenCalledWith('c1')
+  })
+
+  it('throws ForbiddenError for a third party', async () => {
+    await expect(deleteComment('stranger', 'post-1', 'c1')).rejects.toThrow(ForbiddenError)
+    expect(repo.deleteCommentById).not.toHaveBeenCalled()
+  })
+
+  it('throws NotFoundError when comment does not exist', async () => {
+    vi.mocked(repo.findCommentById).mockResolvedValue(null)
+    await expect(deleteComment('commenter-1', 'post-1', 'missing')).rejects.toThrow(NotFoundError)
+    expect(repo.deleteCommentById).not.toHaveBeenCalled()
+  })
+
+  it('throws NotFoundError when comment belongs to a different post', async () => {
+    vi.mocked(repo.findCommentById).mockResolvedValue({ ...COMMENT, postId: 'other-post' })
+    await expect(deleteComment('commenter-1', 'post-1', 'c1')).rejects.toThrow(NotFoundError)
+    expect(repo.deleteCommentById).not.toHaveBeenCalled()
+  })
+
+  it('requires post visibility (getPost 404 propagates)', async () => {
+    vi.mocked(postsService.getPost).mockRejectedValue(new NotFoundError('Post'))
+    await expect(deleteComment('commenter-1', 'hidden', 'c1')).rejects.toThrow(NotFoundError)
+    expect(repo.deleteCommentById).not.toHaveBeenCalled()
   })
 })
 

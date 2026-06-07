@@ -5,6 +5,7 @@
 import * as repo from './interactions.repo'
 import { getPost } from '../posts/posts.service'
 import { isUniqueConstraintError } from '../../core/errors/prismaErrors'
+import { NotFoundError, ForbiddenError } from '../../core/errors/AppError'
 import type {
   LikeMutationResponse,
   CommentsResponse,
@@ -77,6 +78,21 @@ export async function getComments(
     })),
     nextCursor,
   }
+}
+
+export async function deleteComment(
+  viewerId: string,
+  postId: string,
+  commentId: string,
+): Promise<void> {
+  const post = await getPost(viewerId, postId) // visibility guard (throws if not viewable)
+  const comment = await repo.findCommentById(commentId)
+  if (!comment || comment.postId !== postId) throw new NotFoundError('Comment')
+  // getPost already validates post.user exists (throws NotFoundError otherwise).
+  const postAuthorId = post.user!.id
+  // Commenter can delete their own; post author can delete any (moderation).
+  if (comment.userId !== viewerId && postAuthorId !== viewerId) throw new ForbiddenError()
+  await repo.deleteCommentById(commentId)
 }
 
 // Feed enrichment — batch, viewer-scoped. NO per-post visibility check: the feed

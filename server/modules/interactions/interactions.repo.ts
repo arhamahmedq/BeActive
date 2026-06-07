@@ -59,6 +59,20 @@ export async function listComments(
   })
 }
 
+export async function findCommentById(
+  commentId: string,
+): Promise<{ id: string; postId: string; userId: string } | null> {
+  return prisma.postComment.findUnique({
+    where: { id: commentId },
+    select: { id: true, postId: true, userId: true },
+  })
+}
+
+// deleteMany → idempotent: 0 rows when already gone, no P2025.
+export async function deleteCommentById(commentId: string): Promise<void> {
+  await prisma.postComment.deleteMany({ where: { id: commentId } })
+}
+
 // Batch engagement summary for a bounded set of post IDs (the feed PAGE, ≤ limit).
 // Three indexed queries — never a per-post N+1, never over the candidate set.
 export async function getEngagementSummaries(
