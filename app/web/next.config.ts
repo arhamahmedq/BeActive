@@ -56,10 +56,8 @@ const nextConfig: NextConfig = {
 }
 
 export default withSentryConfig(nextConfig, {
-  // Suppress Sentry CLI output during builds — set SENTRY_AUTH_TOKEN in Vercel
-  // env vars to enable source map uploads (improves stack trace readability).
   silent: true,
-  // Disable automatic instrumentation of server components — we instrument
-  // manually via sentry.server.config.ts to keep bundle size minimal.
-  autoInstrumentServerFunctions: false,
+  webpack: {
+    autoInstrumentServerFunctions: false,
+  },
 })

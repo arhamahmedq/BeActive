@@ -7,6 +7,7 @@ const PROTECTED_PATHS = [
   '/feed',
   '/upload',
   '/onboarding',
+  '/notifications',
   '/friends',
   '/u/',      // /u/[username] — profile pages
   '/p/',      // /p/[postId]  — standalone post viewer
