@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
 @theme {
+  /* ── Typography — Plus Jakarta Sans loaded via next/font (--font-sans CSS var)
+     Fallback stack ensures any platform gap still looks intentional, not broken.
+     --font-family-sans is the Tailwind v4 token that powers the `font-sans` class. ── */
+  --font-family-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+
   /* ── Brand green scale ─────────────────────────────────────────────── */
   --color-brand-50:  #f0fdf4;
   --color-brand-100: #dcfce7;
@@ -39,6 +44,26 @@
   --color-state-pending-bg:       #f9fafb;
   --color-state-pending-border:   #e5e7eb;
   --color-state-pending-text:     #6b7280;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   TYPOGRAPHY — Cross-platform rendering baseline
+   Ensures Plus Jakarta Sans renders consistently on macOS / iOS / Android /
+   Windows. Without these, each platform applies its own hinting and
+   subpixel strategy, which changes perceived weight and sharpness.
+   ══════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  html {
+    /* kern: proper letter-pair spacing; liga: common ligatures (fi, fl);
+       calt: contextual alternates (font-specific refinements) */
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+    /* Improve legibility at all sizes */
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Tailwind's `antialiased` class sets -webkit-font-smoothing + -moz-osx-font-smoothing.
+     We apply it on <body> via layout.tsx. No need to duplicate here. */
 }
 
 /* ══════════════════════════════════════════════════════════════════════
