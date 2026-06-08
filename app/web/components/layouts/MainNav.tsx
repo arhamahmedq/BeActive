@@ -38,12 +38,22 @@ export function MainNav() {
   const profileActive = user ? pathname === `/u/${user.username}` : false
 
   return (
-    <nav className="glass-nav sticky top-0 z-40 px-4 py-3">
+    <nav className="glass-nav sticky top-0 z-40 px-4 py-2.5">
       <div className="max-w-2xl mx-auto flex items-center justify-between lg:max-w-none lg:px-4">
         {/* Left: wordmark + nav links */}
         <div className="flex items-center gap-5">
-          <Link href="/feed" className="font-bold text-[17px] tracking-tight hover:opacity-75 transition-opacity text-gray-900">
-            BeActive
+          <Link href="/feed" className="flex items-center gap-2 hover:opacity-85 transition-opacity">
+            {/* Brand icon square */}
+            <span
+              className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-brand-500 text-white flex-shrink-0"
+              style={{ boxShadow: '0 2px 8px rgba(34,197,94,0.45), inset 0 1px 0 rgba(255,255,255,0.3)' }}
+              aria-hidden
+            >
+              <svg viewBox="0 0 16 16" className="w-4 h-4" fill="currentColor" aria-hidden>
+                <polygon points="6,2 6,7 2,7 10,14 10,9 14,9" />
+              </svg>
+            </span>
+            <span className="font-bold text-[16px] tracking-tight text-gray-900">BeActive</span>
           </Link>
 
           {/* Nav links — hidden on mobile (MobileNav handles it) and lg+ (DesktopSideNav handles it) */}
@@ -129,8 +139,7 @@ export function MainNav() {
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} aria-hidden />
                   <div
-                    className="absolute right-0 top-11 z-20 w-52 bg-white rounded-xl py-1.5 animate-pop"
-                    style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)', border: '1px solid #e5e7eb' }}
+                    className="absolute right-0 top-11 z-20 w-52 glass-overlay rounded-2xl py-1.5 animate-spring-in overflow-hidden"
                   >
                     <p className="px-4 py-2 text-xs font-medium text-gray-400 truncate">@{user.username}</p>
                     <div className="border-t border-gray-100 my-1" />

@@ -55,19 +55,30 @@ function Tab({ href, label, active, children, badge }: TabProps) {
     <Link
       href={href}
       aria-current={active ? 'page' : undefined}
-      className={`flex flex-col items-center gap-0.5 min-w-[48px] px-3 py-1.5 rounded-2xl transition-all duration-150 relative ${
-        active
-          ? 'text-brand-600 bg-brand-500/10'
-          : 'text-gray-400 hover:text-gray-700'
+      className={`relative flex flex-col items-center gap-[3px] min-w-[52px] px-2.5 py-2 rounded-2xl transition-all duration-150 active:scale-90 ${
+        active ? 'text-brand-600' : 'text-gray-400 hover:text-gray-600'
       }`}
+      style={{ WebkitTapHighlightColor: 'transparent' }}
     >
+      {/* Active indicator — small dot below icon */}
+      {active && (
+        <span
+          className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-500 animate-spring-in"
+          aria-hidden
+        />
+      )}
       <span className="relative">
         {children}
         {badge && (
-          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" aria-hidden />
+          <span
+            className="absolute -top-0.5 -right-1 w-[7px] h-[7px] bg-red-500 rounded-full border border-white animate-badge-bounce"
+            aria-hidden
+          />
         )}
       </span>
-      <span className="text-[10px] font-medium leading-none">{label}</span>
+      <span className={`text-[10px] font-semibold leading-none tracking-tight ${active ? 'text-brand-600' : 'text-gray-400'}`}>
+        {label}
+      </span>
     </Link>
   )
 }
@@ -83,51 +94,82 @@ export function MobileNav() {
   const profileActive = user ? pathname === `/u/${user.username}` : false
 
   return (
-    <nav
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 glass-nav border-t border-gray-100/60 flex items-center justify-around pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 px-2"
+    /* Outer wrapper — provides the bottom clearance zone */
+    <div
+      className="lg:hidden fixed left-0 right-0 z-40 flex justify-center animate-slide-up-dock"
+      style={{ bottom: `calc(16px + env(safe-area-inset-bottom))` }}
       aria-label="Mobile navigation"
     >
-      <Tab href="/feed" label="Feed" active={feedActive}>
-        <HomeIcon filled={feedActive} />
-      </Tab>
-
-      <Tab href="/friends" label="Friends" active={friendsActive}>
-        <UsersIcon filled={friendsActive} />
-      </Tab>
-
-      {/* Log workout FAB */}
-      <Link
-        href="/upload"
-        aria-label="Log workout"
-        className="flex items-center justify-center w-12 h-12 rounded-full bg-brand-500 text-white hover:bg-brand-600 active:scale-95 transition-all -mt-2"
-        style={{ boxShadow: '0 4px 14px rgba(34,197,94,0.45)' }}
+      {/* Floating glass pill dock — iOS 26 pattern */}
+      <nav
+        className="glass-dock rounded-[36px] flex items-center px-2 py-1"
+        role="navigation"
+        aria-label="Primary navigation"
       >
-        <PlusIcon />
-      </Link>
-
-      <Tab href="/notifications" label="Activity" active={notifActive} badge={unreadCount != null && unreadCount > 0}>
-        <BellIcon filled={notifActive} />
-      </Tab>
-
-      {/* Profile */}
-      {user ? (
-        <Link
-          href={`/u/${user.username}`}
-          aria-current={profileActive ? 'page' : undefined}
-          className={`flex flex-col items-center gap-0.5 min-w-[48px] px-3 py-1.5 rounded-2xl transition-all duration-150 ${
-            profileActive ? 'text-brand-600 bg-brand-500/10' : 'text-gray-400 hover:text-gray-700'
-          }`}
-        >
-          <span className={`inline-flex items-center justify-center w-[22px] h-[22px] rounded-full overflow-hidden ${profileActive ? 'ring-2 ring-brand-500 ring-offset-1' : ''}`}>
-            <Avatar src={user.avatarUrl} name={user.displayName || user.username} size="xs" />
-          </span>
-          <span className="text-[10px] font-medium leading-none">You</span>
-        </Link>
-      ) : (
-        <Tab href="/login" label="You" active={false}>
-          <span className="w-[22px] h-[22px] rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-medium text-gray-500">?</span>
+        <Tab href="/feed" label="Feed" active={feedActive}>
+          <HomeIcon filled={feedActive} />
         </Tab>
-      )}
-    </nav>
+
+        <Tab href="/friends" label="Friends" active={friendsActive}>
+          <UsersIcon filled={friendsActive} />
+        </Tab>
+
+        {/* Upload FAB — elevated center action */}
+        <Link
+          href="/upload"
+          aria-label="Log workout"
+          className="flex items-center justify-center mx-1.5 w-[50px] h-[50px] rounded-full bg-brand-500 text-white
+                     active:scale-90 transition-all duration-150 -mt-1"
+          style={{
+            boxShadow: '0 6px 20px rgba(34,197,94,0.5), 0 2px 8px rgba(34,197,94,0.3), inset 0 1px 0 rgba(255,255,255,0.25)',
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          <PlusIcon />
+        </Link>
+
+        <Tab
+          href="/notifications"
+          label="Activity"
+          active={notifActive}
+          badge={unreadCount != null && unreadCount > 0}
+        >
+          <BellIcon filled={notifActive} />
+        </Tab>
+
+        {/* Profile tab */}
+        {user ? (
+          <Link
+            href={`/u/${user.username}`}
+            aria-current={profileActive ? 'page' : undefined}
+            className={`relative flex flex-col items-center gap-[3px] min-w-[52px] px-2.5 py-2 rounded-2xl transition-all duration-150 active:scale-90 ${
+              profileActive ? 'text-brand-600' : 'text-gray-400 hover:text-gray-600'
+            }`}
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            {profileActive && (
+              <span
+                className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-500 animate-spring-in"
+                aria-hidden
+              />
+            )}
+            <span
+              className={`inline-flex items-center justify-center w-[23px] h-[23px] rounded-full overflow-hidden transition-all duration-150 ${
+                profileActive ? 'ring-[1.5px] ring-brand-500 ring-offset-[1.5px]' : ''
+              }`}
+            >
+              <Avatar src={user.avatarUrl} name={user.displayName || user.username} size="xs" />
+            </span>
+            <span className={`text-[10px] font-semibold leading-none tracking-tight ${profileActive ? 'text-brand-600' : 'text-gray-400'}`}>
+              You
+            </span>
+          </Link>
+        ) : (
+          <Tab href="/login" label="You" active={false}>
+            <span className="w-[22px] h-[22px] rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-semibold text-gray-500">?</span>
+          </Tab>
+        )}
+      </nav>
+    </div>
   )
 }

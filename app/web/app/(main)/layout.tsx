@@ -17,7 +17,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         Desktop (lg–xl):       pl-20 clears left rail, pb-8
         Wide desktop (xl+):    pl-20 + pr-72 clears both sidebars
       */}
-      <main className="py-6 px-4 pb-28 lg:pl-20 lg:pb-8 xl:pr-72">
+      <main className="py-6 px-4 pb-32 lg:pl-20 lg:pb-8 xl:pr-72">
         <div className="max-w-[500px] mx-auto">{children}</div>
       </main>
 

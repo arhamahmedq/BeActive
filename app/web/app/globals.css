@@ -12,9 +12,12 @@
   --color-brand-700: #15803d;
 
   /* ── Semantic easing curves ────────────────────────────────────────── */
-  --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-out-quad:  cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  --ease-in-quad:   cubic-bezier(0.11, 0, 0.5, 0);
+  --ease-out-expo:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quad:    cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-in-quad:     cubic-bezier(0.11, 0, 0.5, 0);
+  /* Spring physics — use for scale/position interactions */
+  --ease-spring:      cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-back:    cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* ── Text hierarchy aliases ────────────────────────────────────────── */
   --color-text-strong: #111827;
@@ -38,40 +41,103 @@
   --color-state-pending-text:     #6b7280;
 }
 
-/* ── Glassmorphism surfaces ─────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════
+   LIQUID GLASS DESIGN SYSTEM — Web adaptation of iOS 26 / visionOS
+   Architecture: 3 glass levels + 1 dock variant
+   Rules:
+     Level 1 (glass-card)  — content cards, feed items, list rows
+     Level 2 (glass-panel) — sidebars, panels, overlays
+     Level 3 (glass-nav)   — top navigation bar, sticky headers
+     Dock   (glass-dock)   — floating pill nav, sheets, modals
+   ══════════════════════════════════════════════════════════════════════ */
 
+/* Level 1 — Feed cards, post cards, stat cards */
 @utility glass-card {
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.07),
+    0 1px 4px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
+/* Level 1 hover — floating lift when user hovers a glass card */
+@utility glass-card-hover {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: saturate(200%) blur(16px);
+  -webkit-backdrop-filter: saturate(200%) blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.10),
+    0 2px 8px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  transform: translateY(-2px);
+}
+
+/* Level 2 — Sidebars, drawers, floating panels */
+@utility glass-panel {
+  background: rgba(255, 255, 255, 0.76);
+  backdrop-filter: saturate(200%) blur(20px);
+  -webkit-backdrop-filter: saturate(200%) blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.60);
+  box-shadow:
+    0 4px 32px rgba(0, 0, 0, 0.09),
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+/* Level 3 — Top navigation bar */
 @utility glass-nav {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: saturate(200%) blur(24px);
+  -webkit-backdrop-filter: saturate(200%) blur(24px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.05),
+    0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
+/* Dock — floating pill navigation (iOS 26 tab bar pattern) */
+@utility glass-dock {
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: saturate(180%) blur(28px);
+  -webkit-backdrop-filter: saturate(180%) blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.70);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.14),
+    0 4px 12px rgba(0, 0, 0, 0.07),
+    0 0 0 0.5px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+/* Overlay glass — glass for menus, popups, tooltips */
 @utility glass-overlay {
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: saturate(200%) blur(20px);
+  -webkit-backdrop-filter: saturate(200%) blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.60);
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.14),
+    0 2px 10px rgba(0, 0, 0, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
 }
 
-/* App background — soft off-white with a barely-there green warmth */
+/* ── App background — rich ambient gradient with brand warmth ────────── */
 @utility bg-app {
-  background: linear-gradient(150deg, #fafcfa 0%, #f4f7f4 50%, #f0fdf4 100%);
+  background:
+    radial-gradient(ellipse 90% 50% at 15% -5%,  rgba(34, 197, 94, 0.07) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 85% 110%, rgba(59, 130, 246, 0.04) 0%, transparent 50%),
+    linear-gradient(160deg, #f8fdf9 0%, #f2f7f3 45%, #edf6f0 100%);
 }
 
-/* ── Keyframes ──────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════
+   KEYFRAMES
+   ══════════════════════════════════════════════════════════════════════ */
 
 @keyframes scan {
-  0% { transform: translateX(-100%); }
+  0%   { transform: translateX(-100%); }
   100% { transform: translateX(200%); }
 }
 
@@ -85,6 +151,11 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes float-up {
+  from { opacity: 0; transform: translateY(20px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 @keyframes breathe {
   0%, 100% { opacity: 0.4; }
   50%       { opacity: 1; }
@@ -96,9 +167,21 @@
   100% { transform: scale(1); opacity: 1; }
 }
 
+@keyframes spring-in {
+  0%   { transform: scale(0.85); opacity: 0; }
+  60%  { transform: scale(1.06); opacity: 1; }
+  80%  { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+
 @keyframes slide-in-right {
   from { transform: translateX(100%); opacity: 0; }
   to   { transform: translateX(0);    opacity: 1; }
+}
+
+@keyframes slide-up-dock {
+  from { transform: translateX(-50%) translateY(80px); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
 }
 
 @keyframes fade-in {
@@ -108,7 +191,9 @@
 
 @keyframes heart-pulse {
   0%   { transform: scale(1); }
-  50%  { transform: scale(1.3); }
+  30%  { transform: scale(0.85); }
+  60%  { transform: scale(1.35); }
+  80%  { transform: scale(0.95); }
   100% { transform: scale(1); }
 }
 
@@ -124,80 +209,114 @@
 }
 
 @keyframes streak-pulse {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%       { opacity: 0.7; transform: scale(1.04); }
+}
+
+@keyframes glass-glow-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+  50%       { box-shadow: 0 0 20px 6px rgba(34, 197, 94, 0.22); }
+}
+
+@keyframes glass-glow-amber {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+  50%       { box-shadow: 0 0 20px 6px rgba(245, 158, 11, 0.22); }
+}
+
+@keyframes number-pop {
   0%   { transform: scale(1); }
-  50%  { transform: scale(1.05); }
+  40%  { transform: scale(1.25); }
+  70%  { transform: scale(0.92); }
   100% { transform: scale(1); }
 }
 
-/* ── Animation utilities ────────────────────────────────────────────── */
-
-@utility animate-scan {
-  animation: scan 1.5s ease-in-out infinite;
+@keyframes badge-bounce {
+  0%   { transform: scale(0); }
+  50%  { transform: scale(1.3); }
+  75%  { transform: scale(0.88); }
+  100% { transform: scale(1); }
 }
 
-@utility animate-draw-check {
-  animation: draw-check 0.45s ease-out forwards;
+@keyframes confetti-fall {
+  0%   { transform: translateY(0) rotate(0deg);   opacity: 1; }
+  100% { transform: translateY(60px) rotate(360deg); opacity: 0; }
 }
 
-@utility animate-rise {
-  animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
+/* ══════════════════════════════════════════════════════════════════════
+   ANIMATION UTILITIES
+   ══════════════════════════════════════════════════════════════════════ */
 
-@utility animate-breathe {
-  animation: breathe 1.6s ease-in-out infinite;
-}
+@utility animate-scan          { animation: scan 1.5s ease-in-out infinite; }
+@utility animate-draw-check    { animation: draw-check 0.45s ease-out forwards; }
+@utility animate-rise          { animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@utility animate-float-up      { animation: float-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@utility animate-breathe       { animation: breathe 1.6s ease-in-out infinite; }
+@utility animate-pop           { animation: pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@utility animate-spring-in     { animation: spring-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@utility animate-slide-in-right { animation: slide-in-right 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@utility animate-slide-up-dock { animation: slide-up-dock 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@utility animate-fade-in       { animation: fade-in 0.2s ease both; }
+@utility animate-heart-pulse   { animation: heart-pulse 280ms var(--ease-spring) both; }
+@utility animate-streak-pulse  { animation: streak-pulse 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+@utility animate-pet-bounce    { animation: pet-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@utility animate-plant-sway    { animation: plant-sway 4s ease-in-out infinite; transform-origin: bottom center; }
+@utility animate-glass-glow    { animation: glass-glow-green 2.5s ease-in-out infinite; }
+@utility animate-glass-glow-amber { animation: glass-glow-amber 2s ease-in-out infinite; }
+@utility animate-number-pop    { animation: number-pop 0.35s var(--ease-spring) both; }
+@utility animate-badge-bounce  { animation: badge-bounce 0.4s var(--ease-spring) both; }
 
-@utility animate-pop {
-  animation: pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
+/* ══════════════════════════════════════════════════════════════════════
+   DESIGN-SYSTEM UTILITIES
+   ══════════════════════════════════════════════════════════════════════ */
 
-@utility animate-slide-in-right {
-  animation: slide-in-right 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@utility animate-fade-in {
-  animation: fade-in 0.2s ease both;
-}
-
-@utility animate-heart-pulse {
-  animation: heart-pulse 120ms var(--ease-out-quad) both;
-}
-
-@utility animate-streak-pulse {
-  animation: streak-pulse 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-}
-
-@utility animate-pet-bounce {
-  animation: pet-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-@utility animate-plant-sway {
-  animation: plant-sway 4s ease-in-out infinite;
-  transform-origin: bottom center;
-}
-
-/* ── Design-system utilities ────────────────────────────────────────── */
-
-/* Eyebrow labels — uppercase, tracked, muted (section headers above lists) */
+/* Eyebrow labels — uppercase, tracked, muted */
 @utility text-eyebrow {
   font-size: 0.6875rem;
-  font-weight: 500;
-  letter-spacing: 0.07em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #9ca3af;
 }
 
+/* Glass button base — used for nav items, action buttons */
+@utility glass-btn {
+  background: rgba(255, 255, 255, 0.60);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transition: all 120ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@utility glass-btn-hover {
+  background: rgba(255, 255, 255, 0.80);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 1);
+  transform: scale(1.03);
+}
+
+/* ── Reduced-motion overrides ────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .animate-scan,
   .animate-draw-check,
   .animate-rise,
+  .animate-float-up,
   .animate-breathe,
   .animate-pop,
+  .animate-spring-in,
   .animate-slide-in-right,
+  .animate-slide-up-dock,
   .animate-fade-in,
   .animate-heart-pulse,
   .animate-streak-pulse,
-  .animate-pet-bounce {
+  .animate-pet-bounce,
+  .animate-plant-sway,
+  .animate-glass-glow,
+  .animate-glass-glow-amber,
+  .animate-number-pop,
+  .animate-badge-bounce {
     animation: none;
+    transform: none;
   }
 }
