@@ -62,7 +62,7 @@ export function FeedCard({ post }: FeedCardProps) {
   return (
     <div className="glass-card rounded-2xl overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-3">
+      <div className="flex items-center gap-2 px-3 py-2">
         {/* User identity — ring on hover clearly signals clickability over glass bg */}
         <Link
           href={`/u/${user.username}`}
@@ -182,7 +182,7 @@ export function FeedCard({ post }: FeedCardProps) {
           src={imageUrl}
           alt={caption ?? `${user.username}'s workout`}
           loading="lazy"
-          className="w-full aspect-[4/5] object-cover bg-gray-100"
+          className="w-full aspect-[4/5] max-h-[420px] object-cover bg-gray-100"
         />
         {/* Bottom gradient for caption legibility */}
         {caption && (

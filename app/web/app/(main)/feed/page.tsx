@@ -168,7 +168,7 @@ export default function FeedPage() {
     }
   } else {
     feedContent = (
-      <div className="space-y-4">
+      <div className="space-y-3">
         {allPosts.map((post) => (
           <FeedCard key={post.id} post={post} />
         ))}
@@ -199,7 +199,7 @@ export default function FeedPage() {
   return (
     <div
       ref={scrollRef}
-      className="space-y-5"
+      className="space-y-4"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
