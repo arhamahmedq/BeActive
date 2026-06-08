@@ -51,27 +51,25 @@ const WORKOUT_ICONS: Record<string, string> = {
 }
 
 // ---------------------------------------------------------------------------
-// Font loading — Plus Jakarta Sans Bold + ExtraBold from Google Fonts
-// Cached at module level so it only fetches once per cold start
+// Font loading — Plus Jakarta Sans from Google Fonts (v12 woff2, latin subset)
+// The v12 file is a variable font covering weights 100–900 — one binary serves
+// all weights. Cached at module level (one fetch per cold start).
+// IMPORTANT: always check r.ok before calling r.arrayBuffer() — a 404 returns
+// HTML content without throwing, which Satori cannot parse as a font binary.
 // ---------------------------------------------------------------------------
-let _fontBold: ArrayBuffer | null = null
-let _fontExtraBold: ArrayBuffer | null = null
+const FONT_URL =
+  'https://fonts.gstatic.com/s/plusjakartasans/v12/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yygg_vb.woff2'
+
+let _fontData: ArrayBuffer | null = null
 
 async function loadFonts() {
-  if (_fontBold && _fontExtraBold) return { bold: _fontBold, extraBold: _fontExtraBold }
+  if (_fontData) return _fontData
 
-  const [bold, extraBold] = await Promise.all([
-    fetch(
-      'https://fonts.gstatic.com/s/plusjakartasans/v8/LDIbaomQNQcsA88c7O9yZ4KMCoOg4IA6-91aHEjcWuA_qU79TR.woff'
-    ).then((r) => r.arrayBuffer()),
-    fetch(
-      'https://fonts.gstatic.com/s/plusjakartasans/v8/LDIbaomQNQcsA88c7O9yZ4KMCoOg4IA6-91aHEjcWuA_ku7BTR.woff'
-    ).then((r) => r.arrayBuffer()),
-  ])
-
-  _fontBold = bold
-  _fontExtraBold = extraBold
-  return { bold, extraBold }
+  const res = await fetch(FONT_URL)
+  if (!res.ok) throw new Error(`Font fetch failed: HTTP ${res.status}`)
+  const data = await res.arrayBuffer()
+  _fontData = data
+  return data
 }
 
 // ---------------------------------------------------------------------------
@@ -610,10 +608,10 @@ export async function GET(request: NextRequest): Promise<ImageResponse | NextRes
   }
 
   let cardData: StoryCardData
-  let fonts: { bold: ArrayBuffer; extraBold: ArrayBuffer } | null = null
+  let fontData: ArrayBuffer | null = null
 
   try {
-    const [post, streak, profile, loadedFonts] = await Promise.all([
+    const [post, streak, profile, loadedFont] = await Promise.all([
       findPostById(postId),
       getMyStreak(auth.userId),
       getProfile(auth.userId),
@@ -626,7 +624,7 @@ export async function GET(request: NextRequest): Promise<ImageResponse | NextRes
     if (!ownerId || ownerId !== auth.userId) throw new ForbiddenError()
     if (post.status !== 'VERIFIED') throw new NotFoundError('Post')
 
-    fonts = loadedFonts
+    fontData = loadedFont
 
     const streakCount = streak?.current ?? 0
     const bestStreak = streak?.best ?? 0
@@ -656,14 +654,18 @@ export async function GET(request: NextRequest): Promise<ImageResponse | NextRes
     return NextResponse.json(toErrorResponse(internalErr), { status: 500 })
   }
 
-  return new ImageResponse(<StoryCard {...cardData} />, {
-    width: 1080,
-    height: 1920,
-    fonts: fonts
-      ? [
-          { name: 'Plus Jakarta Sans', data: fonts.bold, weight: 700, style: 'normal' },
-          { name: 'Plus Jakarta Sans', data: fonts.extraBold, weight: 900, style: 'normal' },
-        ]
-      : [],
-  })
+  const cardElement = <StoryCard {...cardData} />
+  const fontConfig = fontData
+    ? [
+        { name: 'Plus Jakarta Sans', data: fontData, weight: 700 as const, style: 'normal' as const },
+        { name: 'Plus Jakarta Sans', data: fontData, weight: 900 as const, style: 'normal' as const },
+      ]
+    : []
+
+  try {
+    return new ImageResponse(cardElement, { width: 1080, height: 1920, fonts: fontConfig })
+  } catch {
+    const internalErr = new InternalError()
+    return NextResponse.json(toErrorResponse(internalErr), { status: 500 })
+  }
 }

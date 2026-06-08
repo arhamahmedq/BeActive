@@ -10,6 +10,18 @@ interface StoryShareButtonProps {
 
 type ShareState = 'idle' | 'generating' | 'error'
 
+const ERROR_MESSAGES: Record<number, string> = {
+  401: 'Sign in to share',
+  403: 'This post isn\'t yours to share',
+  404: 'Post not ready — wait for verification',
+  429: 'Too many attempts — try in a minute',
+  500: 'Card generation failed — tap to retry',
+}
+
+function getErrorMessage(status: number): string {
+  return ERROR_MESSAGES[status] ?? `Generation failed (${status}) — tap to retry`
+}
+
 function canShareFiles(): boolean {
   if (typeof navigator === 'undefined' || !('share' in navigator)) return false
   try {
@@ -28,13 +40,17 @@ export function StoryShareButton({
   isPersonalBest,
 }: StoryShareButtonProps) {
   const [shareState, setShareState] = useState<ShareState>('idle')
+  const [errorMsg, setErrorMsg] = useState<string>('Card generation failed — tap to retry')
 
   const handleShare = useCallback(async () => {
     setShareState('generating')
     try {
       const res = await fetch(`/api/stories/generate?postId=${encodeURIComponent(postId)}`)
       if (!res.ok) {
-        throw new Error(`Failed to generate story card (${res.status})`)
+        setErrorMsg(getErrorMessage(res.status))
+        setShareState('error')
+        setTimeout(() => setShareState('idle'), 4000)
+        return
       }
       const blob = await res.blob()
 
@@ -44,7 +60,6 @@ export function StoryShareButton({
       if (canShareFiles()) {
         await navigator.share({ files: [file] })
       } else {
-        // Fallback: download the image
         const url = URL.createObjectURL(blob)
         const anchor = document.createElement('a')
         anchor.href = url
@@ -55,13 +70,14 @@ export function StoryShareButton({
 
       setShareState('idle')
     } catch (err) {
-      // navigator.share throws AbortError when user dismisses — not an error
+      // AbortError = user dismissed the share sheet — not a real error
       if (err instanceof Error && err.name === 'AbortError') {
         setShareState('idle')
         return
       }
+      setErrorMsg('Sharing unavailable — card downloaded instead')
       setShareState('error')
-      setTimeout(() => setShareState('idle'), 3000)
+      setTimeout(() => setShareState('idle'), 4000)
     }
   }, [postId, streakCount, workoutType])
 
@@ -92,7 +108,7 @@ export function StoryShareButton({
       ) : isError ? (
         <>
           <ErrorIcon />
-          <span>Couldn&apos;t generate — try again</span>
+          <span>{errorMsg}</span>
         </>
       ) : (
         <>
