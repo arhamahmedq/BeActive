@@ -186,7 +186,7 @@ export function StreakWidget({ streak, isLoading }: StreakWidgetProps) {
 
   return (
     <div
-      className="rounded-2xl shadow-sm transition-all duration-200 hover:shadow-md select-none overflow-hidden"
+      className="rounded-2xl shadow-sm transition-all duration-200 hover:shadow-md select-none"
       style={{ background: CARD_BG[tier], border: `1px solid ${CARD_BORDER[tier]}` }}
     >
       {/* ── Main row ─────────────────────────────────────────────────── */}
