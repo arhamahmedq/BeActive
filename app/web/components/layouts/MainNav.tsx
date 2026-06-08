@@ -11,6 +11,17 @@ const NAV_LINKS = [
   { href: '/friends', label: 'Friends' },
 ] as const
 
+function NavPlusIcon() {
+  // SVG path: vertical line M12 5v14 centered at x=12, y=12
+  //           horizontal line M5 12h14 centered at x=12, y=12
+  // Both strokes exactly at (12,12) in a 24×24 viewBox — zero font-metric drift.
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  )
+}
+
 function BellIcon() {
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -90,10 +101,13 @@ export function MainNav() {
             className="inline-flex items-center justify-center gap-1.5 bg-brand-500 text-white font-semibold rounded-full transition-all duration-150
               hover:bg-brand-600 hover:shadow-[0_4px_16px_rgba(34,197,94,0.45)] active:scale-95
               shadow-[0_2px_8px_rgba(34,197,94,0.3)]
-              h-9 w-9 text-xl sm:h-auto sm:w-auto sm:px-4 sm:py-2 sm:text-sm"
+              h-9 w-9 sm:h-auto sm:w-auto sm:px-4 sm:py-2 sm:text-sm"
           >
-            <span aria-hidden className="sm:hidden leading-none text-lg">+</span>
-            <span className="hidden sm:inline">+ Log workout</span>
+            {/* SVG replaces the text '+' character — text glyphs sit on the baseline
+                and appear visually high inside the button due to font ascent metrics.
+                This SVG path is geometrically centered at (12,12) in a 24×24 viewBox. */}
+            <NavPlusIcon />
+            <span className="hidden sm:inline">Log workout</span>
           </Link>
 
           {/* Notification bell */}
