@@ -1,7 +1,9 @@
 'use client'
 import Link from 'next/link'
 import { useFriends } from '@/hooks/useFriends'
+import { useStreak } from '@/hooks/useStreak'
 import { Avatar } from '@/components/ui/Avatar'
+import { EvolutionGuide } from '@/components/features/EvolutionGuide'
 
 function getPlantEmoji(days: number): string {
   if (days <= 0) return ''
@@ -23,6 +25,7 @@ function FlameIcon() {
 
 export function DesktopRightSidebar() {
   const { friends, isFriendsLoading } = useFriends()
+  const { data: streak } = useStreak()
 
   const topFriends = [...friends]
     .sort((a, b) => b.streak.current - a.streak.current)
@@ -121,6 +124,16 @@ export function DesktopRightSidebar() {
           </ol>
         )}
       </section>
+
+      {/* ── Evolution Guide ──────────────────────────────────────── */}
+      {streak !== null && streak !== undefined && (
+        <section>
+          <h2 className="text-eyebrow mb-3 px-1">Plant Evolution</h2>
+          <div className="glass-card rounded-2xl px-3 py-3">
+            <EvolutionGuide currentDays={streak?.current ?? 0} variant="compact" />
+          </div>
+        </section>
+      )}
 
       {/* Grow network CTA */}
       {friends.length < 3 && !isFriendsLoading && (
