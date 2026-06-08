@@ -2,11 +2,10 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import type { StreakData, DisplayTier } from '@/hooks/useStreak'
-import { getPlantLevel, getPlantLevelProgress, PLANT_LEVELS } from '@/lib/streak-levels'
+import { getPlantLevel, PLANT_LEVELS } from '@/lib/streak-levels'
 import { EvolutionGuide } from './EvolutionGuide'
 
-// ── Milestone ring progress (separate from plant evolution ladder) ────────────
-// Ring fills from the last milestone toward the next (7→30→100→365→...)
+// ── Milestone ring progress ──────────────────────────────────────────────────
 function getNextMilestone(n: number): number {
   if (n < 7)   return 7
   if (n < 30)  return 30
@@ -30,7 +29,7 @@ function getRingProgress(current: number, tier: DisplayTier): number {
   return (current - prev) / (next - prev)
 }
 
-// ── Design tokens per tier ──────────────────────────────────────────────────
+// ── Design tokens ────────────────────────────────────────────────────────────
 const RING_COLORS: Record<DisplayTier, string> = {
   COMPLETED_TODAY: '#22c55e',
   PENDING_TODAY:   '#d1d5db',
@@ -40,7 +39,7 @@ const RING_COLORS: Record<DisplayTier, string> = {
 }
 
 const RING_TRACK: Record<DisplayTier, string> = {
-  COMPLETED_TODAY: 'rgba(34,197,94,0.12)',
+  COMPLETED_TODAY: 'rgba(34,197,94,0.10)',
   PENDING_TODAY:   'rgba(0,0,0,0.05)',
   AT_RISK:         'rgba(245,158,11,0.12)',
   BROKEN:          'rgba(239,68,68,0.08)',
@@ -55,41 +54,84 @@ const TEXT_COLORS: Record<DisplayTier, string> = {
   INACTIVE:        '#6b7280',
 }
 
-const CARD_BG: Record<DisplayTier, string> = {
-  COMPLETED_TODAY: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-  PENDING_TODAY:   'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)',
-  AT_RISK:         'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
-  BROKEN:          'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
-  INACTIVE:        'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)',
+// Card backgrounds — premium glass-adjacent finish
+const CARD_STYLE: Record<DisplayTier, React.CSSProperties> = {
+  COMPLETED_TODAY: {
+    background: 'linear-gradient(160deg, #f0fdf4 0%, #dcfce7 100%)',
+    border: '1px solid #bbf7d0',
+    boxShadow: '0 4px 24px rgba(34,197,94,0.12), 0 1px 4px rgba(34,197,94,0.06), inset 0 1px 0 rgba(255,255,255,0.9)',
+  },
+  PENDING_TODAY: {
+    background: 'linear-gradient(160deg, #ffffff 0%, #f9fafb 100%)',
+    border: '1px solid #e5e7eb',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,1)',
+  },
+  AT_RISK: {
+    background: 'linear-gradient(160deg, #fffbeb 0%, #fef3c7 100%)',
+    border: '1px solid #fde68a',
+    boxShadow: '0 4px 20px rgba(245,158,11,0.12), 0 1px 4px rgba(245,158,11,0.06), inset 0 1px 0 rgba(255,255,255,0.95)',
+  },
+  BROKEN: {
+    background: 'linear-gradient(160deg, #fef2f2 0%, #fee2e2 100%)',
+    border: '1px solid #fecaca',
+    boxShadow: '0 2px 12px rgba(239,68,68,0.08), inset 0 1px 0 rgba(255,255,255,0.9)',
+  },
+  INACTIVE: {
+    background: 'linear-gradient(160deg, #ffffff 0%, #f9fafb 100%)',
+    border: '1px solid #e5e7eb',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,1)',
+  },
 }
 
-const CARD_BORDER: Record<DisplayTier, string> = {
-  COMPLETED_TODAY: '#bbf7d0',
-  PENDING_TODAY:   '#e5e7eb',
-  AT_RISK:         '#fde68a',
-  BROKEN:          '#fecaca',
-  INACTIVE:        '#e5e7eb',
-}
+// ── Ring geometry ─────────────────────────────────────────────────────────────
+// Old: 88px / R=32 / stroke=5.5 → inner clear diameter = 58.5px (content overflowed by ~4px)
+// New: 116px / R=44 / stroke=8  → inner clear diameter = 80px (content fits with 10px breathing room)
+const RING_SIZE = 116
+const CX = 58; const CY = 58; const R = 44; const STROKE = 8
+const CIRC = 2 * Math.PI * R // ≈ 276.5
 
-// ── Circular ring ────────────────────────────────────────────────────────────
-const RING_SIZE = 88
-const CX = 44; const CY = 44; const R = 32; const STROKE = 5.5
-const CIRC = 2 * Math.PI * R
-
+// ── Ring component ────────────────────────────────────────────────────────────
+// Only emoji + number inside the ring. "days" label lives BELOW the ring.
+// This is the key proportion change: 2 elements in the ring instead of 3.
 function StreakRing({ current, tier }: { current: number; tier: DisplayTier }) {
-  const progress = getRingProgress(current, tier)
-  const offset   = CIRC * (1 - Math.max(0, Math.min(1, progress)))
-  const showNumber = tier !== 'INACTIVE' && tier !== 'BROKEN'
-  const plantLvl = getPlantLevel(current)
+  const progress  = getRingProgress(current, tier)
+  const offset    = CIRC * (1 - Math.max(0, Math.min(1, progress)))
+  const plantLvl  = getPlantLevel(current)
+  const showCount = tier !== 'INACTIVE' && tier !== 'BROKEN'
 
   return (
-    <div className="relative flex-shrink-0" style={{ width: RING_SIZE, height: RING_SIZE }}>
+    <div className="relative" style={{ width: RING_SIZE, height: RING_SIZE }}>
+      {/* Ambient glow — state-aware, sits behind the ring */}
+      {tier === 'COMPLETED_TODAY' && (
+        <div
+          className="absolute inset-0 rounded-full pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, rgba(34,197,94,0.14) 40%, transparent 72%)',
+            transform: 'scale(1.1)',
+          }}
+          aria-hidden
+        />
+      )}
+      {tier === 'AT_RISK' && (
+        <div
+          className="absolute inset-0 rounded-full pointer-events-none motion-safe:animate-streak-pulse"
+          style={{
+            background: 'radial-gradient(circle, rgba(245,158,11,0.12) 40%, transparent 72%)',
+            transform: 'scale(1.1)',
+          }}
+          aria-hidden
+        />
+      )}
+
+      {/* Progress arc */}
       <svg
         width={RING_SIZE} height={RING_SIZE}
-        className={`-rotate-90 ${tier === 'AT_RISK' ? 'motion-safe:animate-streak-pulse' : ''}`}
+        className="-rotate-90"
         aria-hidden
       >
+        {/* Track */}
         <circle cx={CX} cy={CY} r={R} fill="none" stroke={RING_TRACK[tier]} strokeWidth={STROKE} />
+        {/* Progress fill */}
         {progress > 0 && (
           <circle
             cx={CX} cy={CY} r={R}
@@ -102,26 +144,30 @@ function StreakRing({ current, tier }: { current: number; tier: DisplayTier }) {
           />
         )}
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-        <span
-          className={`text-lg leading-none select-none ${
-            tier === 'COMPLETED_TODAY' ? 'motion-safe:animate-pet-bounce' :
-            tier === 'AT_RISK'         ? 'motion-safe:animate-breathe'    : ''
-          }`}
-          aria-hidden
-        >
-          {plantLvl.emoji}
-        </span>
-        {showNumber ? (
+
+      {/* Center — emoji + number ONLY. 2 elements, room to breathe. */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-1">
+        {showCount ? (
           <>
-            <span className="text-2xl font-bold tabular-nums leading-none mt-0.5" style={{ color: TEXT_COLORS[tier] }}>
+            <span
+              className={`text-[28px] leading-none select-none ${
+                tier === 'COMPLETED_TODAY' ? 'motion-safe:animate-pet-bounce' :
+                tier === 'AT_RISK'         ? 'motion-safe:animate-breathe'    : ''
+              }`}
+              aria-hidden
+            >
+              {plantLvl.emoji}
+            </span>
+            <span
+              className="text-[34px] font-bold tabular-nums leading-none"
+              style={{ color: TEXT_COLORS[tier] }}
+            >
               {current}
             </span>
-            <span className="text-[9px] leading-none mt-0.5 text-gray-400">days</span>
           </>
         ) : (
-          <span className="text-[9px] leading-none mt-1 text-gray-400">
-            {tier === 'BROKEN' ? 'ended' : 'start!'}
+          <span className="text-[30px] leading-none select-none motion-safe:animate-breathe" aria-hidden>
+            {plantLvl.emoji}
           </span>
         )}
       </div>
@@ -129,7 +175,7 @@ function StreakRing({ current, tier }: { current: number; tier: DisplayTier }) {
   )
 }
 
-// ── Widget ───────────────────────────────────────────────────────────────────
+// ── Widget ────────────────────────────────────────────────────────────────────
 interface StreakWidgetProps {
   streak: StreakData | null
   isLoading: boolean
@@ -152,15 +198,26 @@ export function StreakWidget({ streak, isLoading }: StreakWidgetProps) {
   const [guideOpen, setGuideOpen] = useState(false)
 
   if (isLoading) {
-    return <div className="rounded-2xl p-5 animate-pulse h-24 bg-gray-100" />
+    return (
+      <div
+        className="rounded-3xl p-5 animate-pulse"
+        style={{ background: 'linear-gradient(160deg, #ffffff 0%, #f9fafb 100%)', border: '1px solid #e5e7eb', height: 148 }}
+      />
+    )
   }
 
   const tier: DisplayTier = streak?.displayTier ?? 'INACTIVE'
-  const current = streak?.current ?? 0
-  const best    = streak?.best ?? 0
+  const current   = streak?.current ?? 0
+  const best      = streak?.best ?? 0
   const localHour = streak?.localHour ?? new Date().getHours()
   const hoursLeft = 24 - localHour
 
+  // Ring label below the ring
+  const ringLabel =
+    tier === 'INACTIVE' ? 'start!' :
+    tier === 'BROKEN'   ? 'ended'  : 'days'
+
+  // Right-side text
   const headline =
     tier === 'INACTIVE' ? 'Start your streak' :
     tier === 'BROKEN'   ? 'Streak ended' :
@@ -175,29 +232,43 @@ export function StreakWidget({ streak, isLoading }: StreakWidgetProps) {
 
   const isPersonalBest = tier === 'COMPLETED_TODAY' && current === best && current > 1
   const nextMilestone  = current > 0 ? getNextMilestone(current) : null
-  const showCTA = tier !== 'COMPLETED_TODAY' && tier !== 'INACTIVE'
-  const showStartCTA = tier === 'INACTIVE'
-  const ctaLabel = tier === 'AT_RISK' ? '⚡ Post now' : '+ Log workout'
+  const showCTA        = tier !== 'COMPLETED_TODAY' && tier !== 'INACTIVE'
+  const showStartCTA   = tier === 'INACTIVE'
+  const ctaLabel       = tier === 'AT_RISK' ? '⚡ Post now' : '+ Log workout'
 
-  // Plant level info for the teaser line
-  const plantLvl = getPlantLevel(current)
-  const nextPlantLvl = current > 0 ? PLANT_LEVELS[plantLvl.level + 1] ?? null : PLANT_LEVELS[1] ?? null
-  const daysToNextPlant = nextPlantLvl && plantLvl.nextAt !== Infinity ? plantLvl.nextAt - current : null
+  const plantLvl      = getPlantLevel(current)
+  const nextPlantLvl  = current > 0 ? PLANT_LEVELS[plantLvl.level + 1] ?? null : PLANT_LEVELS[1] ?? null
+  const daysToNext    = nextPlantLvl && plantLvl.nextAt !== Infinity ? plantLvl.nextAt - current : null
+
+  const borderColor = (CARD_STYLE[tier].border as string).replace('1px solid ', '')
 
   return (
     <div
-      className="rounded-2xl shadow-sm transition-all duration-200 hover:shadow-md select-none"
-      style={{ background: CARD_BG[tier], border: `1px solid ${CARD_BORDER[tier]}` }}
+      className="rounded-3xl transition-all duration-200 hover:scale-[1.005] select-none"
+      style={CARD_STYLE[tier]}
     >
-      {/* ── Main row ─────────────────────────────────────────────────── */}
-      <div className="px-4 py-4">
-        <div className="flex items-center gap-4">
-          <StreakRing current={current} tier={tier} />
+      {/* ── Main content ─────────────────────────────────────────────── */}
+      <div className="px-5 py-5">
+        <div className="flex items-center gap-5">
 
-          <div className="flex-1 min-w-0">
-            {/* Headline + personal best */}
+          {/* Left column: ring + "days" label below */}
+          <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+            <StreakRing current={current} tier={tier} />
+            <span
+              className="text-[11px] font-semibold leading-none"
+              style={{ color: TEXT_COLORS[tier] }}
+            >
+              {ringLabel}
+            </span>
+          </div>
+
+          {/* Right column: text info */}
+          <div className="flex-1 min-w-0 space-y-1">
+            {/* Headline + personal best badge */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-gray-900 text-base leading-tight">{headline}</span>
+              <span className="text-[17px] font-bold text-gray-900 leading-tight">
+                {headline}
+              </span>
               {isPersonalBest && (
                 <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full">
                   🏆 Best ever
@@ -205,45 +276,44 @@ export function StreakWidget({ streak, isLoading }: StreakWidgetProps) {
               )}
             </div>
 
-            {/* Status line */}
-            <p className="text-xs mt-0.5 leading-snug" style={{ color: TEXT_COLORS[tier] }}>
+            {/* Status — primary motivational line */}
+            <p className="text-sm leading-snug" style={{ color: TEXT_COLORS[tier] }}>
               {statusText}
             </p>
 
-            {/* Best + next streak milestone */}
+            {/* Best streak + upcoming milestone */}
             {best > 0 && tier !== 'BROKEN' && tier !== 'INACTIVE' && (
-              <p className="text-xs mt-0.5 text-gray-400">
-                Best: <span className="font-medium text-gray-600">{best}</span>
+              <p className="text-xs text-gray-400">
+                Best: <span className="font-semibold text-gray-600">{best}</span>
                 {nextMilestone && tier === 'COMPLETED_TODAY' && (
-                  <> · Milestone: <span className="font-medium text-gray-600">{nextMilestone} days</span></>
+                  <> · Next milestone: <span className="font-semibold text-gray-700">{nextMilestone}d</span></>
                 )}
               </p>
             )}
 
-            {/* Plant level teaser — "3 days to next evolution 🌲" */}
-            {current > 0 && daysToNextPlant !== null && tier !== 'BROKEN' && (
-              <p className="text-[11px] mt-0.5 text-gray-500">
+            {/* Plant evolution teaser */}
+            {current > 0 && daysToNext !== null && tier !== 'BROKEN' && (
+              <p className="text-xs text-gray-500">
                 <span className="motion-safe:animate-plant-sway inline-block" aria-hidden>{plantLvl.emoji}</span>
-                {' '}{(plantLvl as { name: string }).name}
-                <span className="text-gray-400"> · {daysToNextPlant}d to {nextPlantLvl?.emoji}</span>
+                {' '}<span className="font-medium text-gray-700">{plantLvl.name}</span>
+                <span className="text-gray-400"> · {daysToNext}d to {nextPlantLvl?.emoji}</span>
               </p>
             )}
 
-            {/* CTAs */}
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
+            {/* Action row */}
+            <div className="flex items-center gap-2 pt-0.5 flex-wrap">
               {(showCTA || showStartCTA) && (
                 <Link
                   href="/upload"
-                  className="inline-flex items-center gap-1 bg-brand-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full hover:bg-brand-600 active:scale-95 transition-all shadow-[0_2px_8px_rgba(34,197,94,0.3)]"
+                  className="inline-flex items-center gap-1 bg-brand-500 text-white text-xs font-semibold px-3.5 py-1.5 rounded-full hover:bg-brand-600 active:scale-95 transition-all shadow-[0_2px_10px_rgba(34,197,94,0.35)]"
                 >
                   {showStartCTA ? '+ Start streak' : ctaLabel}
                 </Link>
               )}
 
-              {/* Evolution guide toggle — the key new element */}
               <button
                 onClick={() => setGuideOpen(v => !v)}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-500 hover:text-gray-800 transition-colors py-1 px-1.5 rounded-lg hover:bg-black/[0.04] active:scale-95"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-800 transition-colors py-1 px-2 rounded-lg hover:bg-black/[0.04] active:scale-95"
                 aria-expanded={guideOpen}
                 aria-label={guideOpen ? 'Close evolution guide' : 'See evolution guide'}
               >
@@ -255,14 +325,13 @@ export function StreakWidget({ streak, isLoading }: StreakWidgetProps) {
         </div>
       </div>
 
-      {/* ── Evolution guide panel — expands inline ──────────────────── */}
+      {/* ── Evolution guide ───────────────────────────────────────────── */}
       {guideOpen && (
         <div
-          className="px-4 pb-4 border-t animate-float-up"
-          style={{ borderColor: CARD_BORDER[tier] }}
+          className="px-5 pb-5 border-t animate-float-up"
+          style={{ borderColor }}
         >
-          <div className="pt-3">
-            {/* Section header */}
+          <div className="pt-4">
             <div className="flex items-center justify-between mb-3">
               <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
                 Plant Evolution
@@ -271,7 +340,6 @@ export function StreakWidget({ streak, isLoading }: StreakWidgetProps) {
                 {current} day{current !== 1 ? 's' : ''} · Lv.{plantLvl.level}
               </p>
             </div>
-
             <EvolutionGuide currentDays={current} variant="full" />
           </div>
         </div>
