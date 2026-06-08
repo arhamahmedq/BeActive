@@ -89,6 +89,7 @@ function getHref(notification: NotificationItemType): string | null {
     case 'FRIEND_ACCEPTED':
       return username ? `/u/${username}` : '/friends'
     case 'STREAK_AT_RISK':
+      return '/upload'
     case 'STREAK_BROKEN':
       return '/feed'
     default:

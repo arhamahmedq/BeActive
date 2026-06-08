@@ -6,6 +6,8 @@ import {
   rejectFriendRequest,
   cancelFriendRequest,
   removeFriend,
+  blockUser,
+  unblockUser,
 } from '@/lib/api/friends.api'
 import type { PublicProfileResponse } from '@/shared/types/profile'
 
@@ -77,5 +79,15 @@ export function useProfileRelationship(username: string) {
     ...lifecycle((prev) => ({ ...prev, relationship: 'none', friendshipId: null })),
   })
 
-  return { add, accept, decline, cancel, remove }
+  const block = useMutation({
+    mutationFn: (targetUserId: string) => blockUser(targetUserId),
+    ...lifecycle((prev) => ({ ...prev, relationship: 'blocked_by_viewer', friendshipId: null })),
+  })
+
+  const unblock = useMutation({
+    mutationFn: (targetUserId: string) => unblockUser(targetUserId),
+    ...lifecycle((prev) => ({ ...prev, relationship: 'none', friendshipId: null })),
+  })
+
+  return { add, accept, decline, cancel, remove, block, unblock }
 }

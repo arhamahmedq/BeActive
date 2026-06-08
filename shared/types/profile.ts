@@ -2,9 +2,10 @@
 // Imported by the profile page/hooks (frontend) and the users controller (backend).
 import type { FeedPostResponse } from './feed'
 
-// Relationship of the VIEWER to the profile owner. 'blocked' is never exposed —
-// a blocked profile is hidden (404) — so the public union excludes it.
-export type RelationshipState = 'self' | 'friends' | 'incoming' | 'outgoing' | 'none'
+// Relationship of the VIEWER to the profile owner.
+// 'blocked'           — viewer was blocked by the owner → 404, never reaches frontend.
+// 'blocked_by_viewer' — viewer blocked the owner → minimal profile + unblock button shown.
+export type RelationshipState = 'self' | 'friends' | 'incoming' | 'outgoing' | 'none' | 'blocked_by_viewer'
 
 export interface PublicProfile {
   id: string

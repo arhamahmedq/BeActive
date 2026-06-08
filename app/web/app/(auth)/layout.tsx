@@ -1,37 +1,45 @@
-function LogoMark() {
+function LogoIcon() {
   return (
-    <svg
-      viewBox="0 0 48 48"
-      className="w-14 h-14 mx-auto"
-      aria-hidden
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+    <div
+      className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-500 mx-auto"
+      style={{ boxShadow: '0 0 32px rgba(34,197,94,0.45), 0 4px 12px rgba(34,197,94,0.2)' }}
     >
-      {/* Outer circle */}
-      <circle cx="24" cy="24" r="23" fill="white" stroke="#e5e7eb" strokeWidth="1" />
-      {/* Play-flag shape — two triangles forming the BeActive mark */}
-      {/* Green shadow offset shape */}
-      <polygon points="14,32 14,17 30,24" fill="#22c55e" opacity="0.25" transform="translate(2,2)" />
-      {/* Dark main shape */}
-      <polygon points="14,32 14,17 30,24" fill="#111827" />
-      {/* Second shape (right flag) */}
-      <polygon points="20,32 20,17 36,24" fill="#111827" opacity="0.7" />
-    </svg>
+      <svg viewBox="0 0 24 24" className="w-8 h-8 text-white" fill="currentColor" aria-hidden>
+        <path d="M5 3l14 9-14 9V3z" />
+      </svg>
+    </div>
   )
 }
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen relative overflow-hidden bg-[#060d06] flex items-center justify-center px-4 py-12">
+      {/* Ambient orbs */}
+      <div
+        className="absolute -top-48 -left-48 w-[600px] h-[600px] rounded-full blur-3xl pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(34,197,94,0.08), transparent 70%)' }}
+        aria-hidden
+      />
+      <div
+        className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full blur-3xl pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(74,222,128,0.05), transparent 70%)' }}
+        aria-hidden
+      />
+
+      <div className="w-full max-w-md relative z-10">
+        {/* Brand header */}
         <div className="text-center mb-8">
-          <LogoMark />
-          <h1 className="mt-4 text-[28px] font-bold tracking-tight text-gray-900">BeActive</h1>
-          <p className="mt-1.5 text-sm text-gray-500">
+          <LogoIcon />
+          <h1 className="mt-4 text-2xl font-bold text-white">BeActive</h1>
+          <p className="mt-1.5 text-sm text-white/40">
             Daily workout proof. Social accountability.
           </p>
         </div>
-        {children}
+
+        {/* Form card — white floating on dark */}
+        <div className="bg-white rounded-2xl overflow-hidden" style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3)' }}>
+          {children}
+        </div>
       </div>
     </div>
   )

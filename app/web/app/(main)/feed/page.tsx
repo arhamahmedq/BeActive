@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useEffect, type ReactNode } from 'react'
+import { useRef, useEffect, useState, useCallback, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
 import { useStreak } from '@/hooks/useStreak'
@@ -47,6 +47,36 @@ export default function FeedPage() {
   } = useFeed()
 
   const sentinelRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Pull-to-refresh: track touch start position, trigger refetch when pulled > 80px
+  const [pullY, setPullY] = useState(0)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const touchStartY = useRef(0)
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (window.scrollY === 0) {
+      touchStartY.current = e.touches[0]?.clientY ?? 0
+    }
+  }, [])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (touchStartY.current === 0) return
+    const delta = (e.touches[0]?.clientY ?? 0) - touchStartY.current
+    if (delta > 0 && window.scrollY === 0) {
+      setPullY(Math.min(delta * 0.5, 64))
+    }
+  }, [])
+
+  const handleTouchEnd = useCallback(async () => {
+    if (pullY >= 48 && !isRefreshing) {
+      setIsRefreshing(true)
+      await refetch()
+      setIsRefreshing(false)
+    }
+    setPullY(0)
+    touchStartY.current = 0
+  }, [pullY, isRefreshing, refetch])
 
   useEffect(() => {
     const sentinel = sentinelRef.current
@@ -64,6 +94,22 @@ export default function FeedPage() {
     observer.observe(sentinel)
     return () => observer.disconnect()
   }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  function getGreeting(): string {
+    const h = new Date().getHours()
+    if (h < 5)  return 'Still up?'
+    if (h < 12) return 'Good morning'
+    if (h < 17) return 'Good afternoon'
+    return 'Good evening'
+  }
+
+  function getMotivation(): string {
+    const h = new Date().getHours()
+    if (h < 9)  return 'Start the day right.'
+    if (h < 14) return 'Keep the chain alive.'
+    if (h < 19) return "Don't end the day without it."
+    return 'One post before midnight.'
+  }
 
   if (authLoading) {
     return (
@@ -151,10 +197,29 @@ export default function FeedPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div
+      ref={scrollRef}
+      className="space-y-5"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Pull-to-refresh indicator */}
+      {(pullY > 0 || isRefreshing) && (
+        <div
+          className="flex items-center justify-center transition-all duration-150 overflow-hidden"
+          style={{ height: isRefreshing ? 40 : pullY }}
+        >
+          <div className={`w-6 h-6 rounded-full border-2 border-brand-500 border-t-transparent ${isRefreshing ? 'animate-spin' : ''}`} />
+        </div>
+      )}
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-gray-900">Your Feed</h1>
-        {user && <p className="text-sm text-gray-500 mt-0.5">@{user.username}</p>}
+        <h1 className="text-xl font-bold tracking-tight text-gray-900">
+          {user
+            ? `${getGreeting()}, ${(user.displayName?.split(' ')[0]) || user.username}`
+            : 'Your Feed'}
+        </h1>
+        <p className="text-sm text-gray-500 mt-0.5">{getMotivation()}</p>
       </div>
 
       <StreakWidget streak={streak ?? null} isLoading={streakLoading} />

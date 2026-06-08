@@ -4,11 +4,12 @@
 // friends, search, comments). Falls back to the name's initial when there's no
 // picture. Pass onClick to make it an activatable button (e.g. open the viewer).
 const SIZES = {
-  xs: 'h-6 w-6 text-[10px]',
-  sm: 'h-8 w-8 text-xs',
-  md: 'h-9 w-9 text-sm',
-  lg: 'h-10 w-10 text-xs',
-  xl: 'h-16 w-16 text-xl',
+  xs:  'h-6 w-6 text-[10px]',
+  sm:  'h-8 w-8 text-xs',
+  md:  'h-9 w-9 text-sm',
+  lg:  'h-10 w-10 text-xs',
+  xl:  'h-16 w-16 text-xl',
+  '2xl': 'h-[82px] w-[82px] text-3xl',
 } as const
 
 interface AvatarProps {

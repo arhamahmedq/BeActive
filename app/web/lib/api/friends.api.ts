@@ -114,3 +114,19 @@ export async function cancelFriendRequest(friendshipId: string): Promise<void> {
     body: JSON.stringify({ friendshipId }),
   })
 }
+
+export async function blockUser(targetUserId: string): Promise<void> {
+  await apiFetch('/api/friends/block', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targetUserId }),
+  })
+}
+
+export async function unblockUser(targetUserId: string): Promise<void> {
+  await apiFetch('/api/friends/unblock', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targetUserId }),
+  })
+}

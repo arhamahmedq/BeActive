@@ -63,9 +63,9 @@
   border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
-/* Subtle gradient background — near-invisible green warmth */
+/* App background — soft off-white with a barely-there green warmth */
 @utility bg-app {
-  background: linear-gradient(160deg, #f8fafc 0%, #f1f5f9 40%, #f0fdf4 100%);
+  background: linear-gradient(150deg, #fafcfa 0%, #f4f7f4 50%, #f0fdf4 100%);
 }
 
 /* ── Keyframes ──────────────────────────────────────────────────────── */
@@ -112,6 +112,17 @@
   100% { transform: scale(1); }
 }
 
+@keyframes pet-bounce {
+  0%, 100% { transform: translateY(0); }
+  40%       { transform: translateY(-6px) scale(1.08); }
+  60%       { transform: translateY(-3px) scale(1.04); }
+}
+
+@keyframes plant-sway {
+  0%, 100% { transform: rotate(-1.5deg) translateX(-1px); }
+  50%       { transform: rotate(1.5deg)  translateX(1px); }
+}
+
 @keyframes streak-pulse {
   0%   { transform: scale(1); }
   50%  { transform: scale(1.05); }
@@ -156,6 +167,15 @@
   animation: streak-pulse 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 
+@utility animate-pet-bounce {
+  animation: pet-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@utility animate-plant-sway {
+  animation: plant-sway 4s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
 /* ── Design-system utilities ────────────────────────────────────────── */
 
 /* Eyebrow labels — uppercase, tracked, muted (section headers above lists) */
@@ -176,7 +196,8 @@
   .animate-slide-in-right,
   .animate-fade-in,
   .animate-heart-pulse,
-  .animate-streak-pulse {
+  .animate-streak-pulse,
+  .animate-pet-bounce {
     animation: none;
   }
 }

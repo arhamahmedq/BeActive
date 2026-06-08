@@ -98,7 +98,7 @@ export default function OnboardingPage() {
   // ── Step 1: Name ──────────────────────────────────────────────────────────
   if (step === 0) {
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+      <div className="p-8">
         <ProgressDots step={0} total={3} />
 
         <div className="text-center mb-7">
@@ -138,7 +138,7 @@ export default function OnboardingPage() {
   // ── Step 2: Goal selection ────────────────────────────────────────────────
   if (step === 1) {
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+      <div className="p-8">
         <ProgressDots step={1} total={3} />
 
         <div className="text-center mb-6">

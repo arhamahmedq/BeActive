@@ -1,11 +1,13 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
+import { useQueryClient } from '@tanstack/react-query'
 import type { FeedPostResponse } from '@/shared/types/feed'
 import { Avatar } from '@/components/ui/Avatar'
 import { PostEngagementBar } from './PostEngagementBar'
 import { formatRelativeTime } from '@/lib/formatters'
 import { useSavedPosts } from '@/hooks/useSavedPosts'
+import { blockUser } from '@/lib/api/friends.api'
 
 // Shared glass hover for icon buttons in the card header
 const cardIconBtn = 'p-2 rounded-lg transition-all duration-150 hover:bg-white/70 hover:backdrop-blur-sm hover:shadow-sm active:scale-95 flex-shrink-0'
@@ -17,7 +19,24 @@ interface FeedCardProps {
 export function FeedCard({ post }: FeedCardProps) {
   const { user, workout, caption, imageUrl, createdAt } = post
   const [menuOpen, setMenuOpen] = useState(false)
+  const [confirmBlock, setConfirmBlock] = useState(false)
+  const [isBlocking, setIsBlocking] = useState(false)
   const { isSaved, savePost, unsavePost } = useSavedPosts()
+  const qc = useQueryClient()
+
+  async function handleBlock() {
+    setIsBlocking(true)
+    try {
+      await blockUser(user.id)
+      setMenuOpen(false)
+      setConfirmBlock(false)
+      // Remove blocked user's posts from all cached pages
+      void qc.invalidateQueries({ queryKey: ['feed'] })
+      void qc.invalidateQueries({ queryKey: ['friends'] })
+    } finally {
+      setIsBlocking(false)
+    }
+  }
   const saved = isSaved(post.id)
 
   function toggleSave() {
@@ -123,13 +142,33 @@ export function FeedCard({ post }: FeedCardProps) {
                   View profile
                 </Link>
                 <div className="my-1 border-t border-gray-100" />
-                <button
-                  role="menuitem"
-                  onClick={() => setMenuOpen(false)}
-                  className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 active:bg-red-100 transition-colors focus:outline-none focus:bg-red-50"
-                >
-                  Report
-                </button>
+                {confirmBlock ? (
+                  <>
+                    <button
+                      role="menuitem"
+                      onClick={handleBlock}
+                      disabled={isBlocking}
+                      className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors focus:outline-none disabled:opacity-50"
+                    >
+                      {isBlocking ? 'Blocking…' : `Block @${user.username}?`}
+                    </button>
+                    <button
+                      role="menuitem"
+                      onClick={() => setConfirmBlock(false)}
+                      className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-400 hover:bg-gray-50 transition-colors focus:outline-none"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    role="menuitem"
+                    onClick={() => setConfirmBlock(true)}
+                    className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 active:bg-red-100 transition-colors focus:outline-none focus:bg-red-50"
+                  >
+                    Block
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -143,11 +182,16 @@ export function FeedCard({ post }: FeedCardProps) {
           src={imageUrl}
           alt={caption ?? `${user.username}'s workout`}
           loading="lazy"
-          className="w-full aspect-[4/5] object-cover bg-gray-100 transition-transform duration-300 group-hover:scale-[1.02]"
+          className="w-full aspect-[4/5] object-cover bg-gray-100"
         />
+        {/* Bottom gradient for caption legibility */}
+        {caption && (
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" aria-hidden />
+        )}
         {/* Workout type overlay badge */}
         {workout && (
-          <span className="absolute top-2.5 left-2.5 bg-black/65 text-white text-[11px] font-semibold px-2.5 py-1 rounded-md backdrop-blur-sm">
+          <span className="absolute top-2.5 left-2.5 flex items-center gap-1 bg-black/55 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full backdrop-blur-md border border-white/10">
+            <span aria-hidden>💪</span>
             {workout.type.charAt(0) + workout.type.slice(1).toLowerCase()}
           </span>
         )}

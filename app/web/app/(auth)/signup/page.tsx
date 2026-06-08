@@ -84,8 +84,8 @@ function SignupForm() {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
-      <h2 className="text-xl font-semibold mb-6">Create your account</h2>
+    <div className="p-8">
+      <h2 className="text-xl font-semibold mb-6 text-gray-900">Create your account</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormError message={formError} />
         <Input
@@ -135,13 +135,13 @@ function SignupForm() {
             autoComplete="new-password"
           />
         </div>
-        <Button type="submit" isLoading={isSubmitting} className="w-full mt-2">
+        <Button type="submit" variant="brand" isLoading={isSubmitting} className="w-full mt-2 rounded-full">
           Create account
         </Button>
       </form>
       <p className="mt-6 text-center text-sm text-gray-500">
         Already have an account?{' '}
-        <Link href="/login" className="font-medium text-black hover:underline">
+        <Link href="/login" className="font-medium text-brand-600 hover:underline">
           Sign in
         </Link>
       </p>
@@ -153,7 +153,7 @@ export default function SignupPage() {
   return (
     <Suspense
       fallback={
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 animate-pulse h-64" />
+        <div className="p-8 animate-pulse h-64" />
       }
     >
       <SignupForm />

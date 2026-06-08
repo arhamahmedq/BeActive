@@ -55,7 +55,11 @@ export async function getRelationship(
     case FriendshipStatus.ACCEPTED:
       return { state: 'friends', friendshipId: f.id }
     case FriendshipStatus.BLOCKED:
-      return { state: 'blocked', friendshipId: f.id }
+      // Block rows are directional: userAId = blocker, userBId = blocked.
+      // Distinguish so callers can show an "Unblock" UI vs a hard 404.
+      return f.userAId === viewerId
+        ? { state: 'blocked_by_viewer', friendshipId: f.id }
+        : { state: 'blocked',           friendshipId: f.id }
     case FriendshipStatus.PENDING:
       // userAId is always the requester (Slice 6 convention).
       return { state: f.userAId === viewerId ? 'outgoing' : 'incoming', friendshipId: f.id }

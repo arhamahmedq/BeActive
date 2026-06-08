@@ -105,7 +105,8 @@ export async function getPublicProfile(
   if (!user) throw new NotFoundError('User')
 
   const { state: relationship, friendshipId } = await getRelationship(viewerId, user.id)
-  // A blocked pair is fully hidden — same response as a non-existent user.
+  // Viewer was blocked by the profile owner → full 404 (existence not leaked).
+  // 'blocked_by_viewer' falls through: return minimal profile so viewer can unblock.
   if (relationship === 'blocked') throw new NotFoundError('User')
 
   const [friendCount, postCount] = await Promise.all([

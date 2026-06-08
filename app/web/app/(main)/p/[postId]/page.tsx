@@ -58,7 +58,7 @@ export default function PostDetailPage() {
       <img
         src={post.imageUrl}
         alt={post.caption ?? 'workout'}
-        className="w-full aspect-square object-cover bg-gray-50"
+        className="w-full aspect-[4/5] object-cover bg-gray-50"
       />
 
       {(post.workout || post.caption) && (

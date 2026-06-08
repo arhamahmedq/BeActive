@@ -18,10 +18,12 @@ export function EditProfile({
   username,
   displayName,
   bio,
+  triggerClass = '',
 }: {
   username: string
   displayName: string | null
   bio: string | null
+  triggerClass?: string
 }) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState(displayName ?? '')
@@ -40,7 +42,7 @@ export function EditProfile({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center text-sm font-medium px-4 py-2 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+        className={`inline-flex items-center justify-center text-sm font-semibold h-9 px-4 rounded-xl bg-gray-100 text-gray-800 hover:bg-gray-200 active:scale-[0.97] transition-all ${triggerClass}`}
       >
         Edit profile
       </button>
@@ -79,7 +81,7 @@ export function EditProfile({
       </div>
       {save.isError && <p className="text-xs text-red-500">Couldn’t save. Please try again.</p>}
       <div className="flex items-center gap-2">
-        <Button type="submit" isLoading={save.isPending}>
+        <Button type="submit" variant="brand" isLoading={save.isPending} className="rounded-full">
           Save
         </Button>
         <button

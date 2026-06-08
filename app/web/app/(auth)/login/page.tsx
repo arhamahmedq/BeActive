@@ -69,8 +69,8 @@ function LoginForm() {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
-      <h2 className="text-xl font-semibold mb-6">Sign in</h2>
+    <div className="p-8">
+      <h2 className="text-xl font-semibold mb-6 text-gray-900">Sign in</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <FormError message={formError} />
         <Input
@@ -107,13 +107,13 @@ function LoginForm() {
             autoComplete="current-password"
           />
         </div>
-        <Button type="submit" isLoading={isSubmitting} className="w-full mt-2">
+        <Button type="submit" variant="brand" isLoading={isSubmitting} className="w-full mt-2 rounded-full">
           Sign in
         </Button>
       </form>
       <p className="mt-6 text-center text-sm text-gray-500">
         Don&apos;t have an account?{' '}
-        <Link href="/signup" className="font-medium text-black hover:underline">
+        <Link href="/signup" className="font-medium text-brand-600 hover:underline">
           Create one
         </Link>
       </p>
@@ -125,7 +125,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 animate-pulse h-64" />
+        <div className="p-8 animate-pulse h-64" />
       }
     >
       <LoginForm />
