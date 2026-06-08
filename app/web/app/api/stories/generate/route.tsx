@@ -73,6 +73,21 @@ async function loadFonts() {
 }
 
 // ---------------------------------------------------------------------------
+// Image pre-fetching — convert a remote URL to a base64 data URI so Satori
+// never makes an outgoing HTTP request during render. Satori's internal image
+// fetcher can time out or fail on slow CDN responses; pre-fetching here keeps
+// it inside the controlled try/catch with a clear error message.
+// ---------------------------------------------------------------------------
+async function toDataUri(url: string): Promise<string> {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Image fetch failed: HTTP ${res.status} (${url})`)
+  const buf = await res.arrayBuffer()
+  const ct = res.headers.get('content-type') ?? 'image/jpeg'
+  const b64 = Buffer.from(buf).toString('base64')
+  return `data:${ct};base64,${b64}`
+}
+
+// ---------------------------------------------------------------------------
 // Card data shape — resolved before JSX render
 // ---------------------------------------------------------------------------
 interface StoryCardData {
@@ -632,9 +647,16 @@ export async function GET(request: NextRequest): Promise<ImageResponse | NextRes
     const workoutType = (post as { workout?: { type?: string } | null }).workout?.type ?? 'OTHER'
     const filled = Math.min(streakCount, 7)
 
+    // Pre-fetch images as data URIs so Satori renders inline — no outgoing
+    // HTTP during render, which avoids CDN timeouts crashing ImageResponse.
+    const [workoutDataUri, avatarDataUri] = await Promise.all([
+      toDataUri(post.imageUrl),
+      profile.avatarUrl ? toDataUri(profile.avatarUrl).catch(() => null) : Promise.resolve(null),
+    ])
+
     cardData = {
-      imageUrl: post.imageUrl,
-      avatarUrl: profile.avatarUrl,
+      imageUrl: workoutDataUri,
+      avatarUrl: avatarDataUri,
       username: profile.username,
       workoutLabel: WORKOUT_LABELS[workoutType] ?? 'WORKOUT',
       workoutIcon: WORKOUT_ICONS[workoutType] ?? '💪',
@@ -650,6 +672,7 @@ export async function GET(request: NextRequest): Promise<ImageResponse | NextRes
     if (isAppError(err)) {
       return NextResponse.json(toErrorResponse(err), { status: err.statusCode })
     }
+    console.error('[stories/generate] Unhandled error:', err)
     const internalErr = new InternalError()
     return NextResponse.json(toErrorResponse(internalErr), { status: 500 })
   }
@@ -664,7 +687,8 @@ export async function GET(request: NextRequest): Promise<ImageResponse | NextRes
 
   try {
     return new ImageResponse(cardElement, { width: 1080, height: 1920, fonts: fontConfig })
-  } catch {
+  } catch (renderErr) {
+    console.error('[stories/generate] Satori render error:', renderErr)
     const internalErr = new InternalError()
     return NextResponse.json(toErrorResponse(internalErr), { status: 500 })
   }
