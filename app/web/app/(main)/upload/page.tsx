@@ -3,6 +3,7 @@ import { useRef, useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/Button'
+import { StoryShareButton } from '@/components/features/StoryShareButton'
 import { usePostStatus } from '@/hooks/usePostStatus'
 import { useStreak } from '@/hooks/useStreak'
 
@@ -390,20 +391,6 @@ export default function UploadPage() {
       ? streakData.current === streakData.best && streakData.current > 1
       : false
 
-    async function shareWorkout() {
-      const url = `${window.location.origin}/feed`
-      const text = streakCount
-        ? `Day ${streakCount} streak on BeActive 🔥 keeping the habit alive`
-        : 'Just logged my workout on BeActive 💪'
-      try {
-        if (navigator.share) {
-          await navigator.share({ text, url })
-        } else {
-          await navigator.clipboard.writeText(`${text} ${url}`)
-        }
-      } catch { /* dismissed */ }
-    }
-
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] gap-8 max-w-sm mx-auto">
         {/* Animated checkmark with green glow */}
@@ -452,17 +439,14 @@ export default function UploadPage() {
 
         {/* CTAs */}
         <div className="w-full space-y-3 animate-rise" style={{ animationDelay: '320ms' }}>
-          <button
-            onClick={shareWorkout}
-            className="w-full inline-flex items-center justify-center gap-2 bg-brand-500 text-white font-semibold rounded-full py-3 text-sm hover:bg-brand-600 active:scale-[0.98] transition-all shadow-[0_4px_16px_rgba(34,197,94,0.35)]"
-          >
-            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-              <polyline points="16 6 12 2 8 6" />
-              <line x1="12" y1="2" x2="12" y2="15" />
-            </svg>
-            Share this moment
-          </button>
+          {postId && (
+            <StoryShareButton
+              postId={postId}
+              streakCount={streakCount}
+              workoutType={workoutType}
+              isPersonalBest={isPersonalBest}
+            />
+          )}
           <Button onClick={handleContinue} variant="secondary" className="w-full rounded-full">
             Back to feed
           </Button>
