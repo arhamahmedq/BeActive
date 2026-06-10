@@ -118,14 +118,18 @@ export function MobileNav() {
         <Link
           href="/upload"
           aria-label="Log workout"
-          className="flex items-center justify-center mx-1.5 w-[50px] h-[50px] rounded-full bg-brand-500 text-white
+          className="relative overflow-hidden flex items-center justify-center mx-1.5 w-[50px] h-[50px] rounded-full glass-fab text-brand-700
                      active:scale-90 transition-all duration-150 -mt-1"
           style={{
-            boxShadow: '0 6px 20px rgba(34,197,94,0.5), 0 2px 8px rgba(34,197,94,0.3), inset 0 1px 0 rgba(255,255,255,0.25)',
+            boxShadow: '0 6px 20px rgba(34,197,94,0.35), 0 2px 8px rgba(34,197,94,0.2)',
             WebkitTapHighlightColor: 'transparent',
           }}
         >
-          <PlusIcon />
+          {/* Ambient sheen — slow diagonal shimmer drifting across the glass */}
+          <span className="absolute inset-0 glass-fab-sheen motion-safe:animate-glass-sheen-drift" aria-hidden />
+          <span className="relative z-10">
+            <PlusIcon />
+          </span>
         </Link>
 
         <Tab

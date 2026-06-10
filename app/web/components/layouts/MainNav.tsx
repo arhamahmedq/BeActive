@@ -98,16 +98,21 @@ export function MainNav() {
           <Link
             href="/upload"
             aria-label="Log workout"
-            className="inline-flex items-center justify-center gap-1.5 bg-brand-500 text-white font-semibold rounded-full transition-all duration-150
-              hover:bg-brand-600 hover:shadow-[0_4px_16px_rgba(34,197,94,0.45)] active:scale-95
-              shadow-[0_2px_8px_rgba(34,197,94,0.3)]
+            className="relative overflow-hidden inline-flex items-center justify-center gap-1.5 glass-fab font-semibold rounded-full transition-all duration-150
+              hover:glass-fab-hover hover:shadow-[0_4px_16px_rgba(34,197,94,0.25)] active:scale-95
+              shadow-[0_2px_8px_rgba(34,197,94,0.15)]
               h-9 w-9 sm:h-auto sm:w-auto sm:px-4 sm:py-2 sm:text-sm"
           >
+            {/* Ambient sheen — slow diagonal shimmer drifting across the glass */}
+            <span className="absolute inset-0 glass-fab-sheen motion-safe:animate-glass-sheen-drift" aria-hidden />
+
             {/* SVG replaces the text '+' character — text glyphs sit on the baseline
                 and appear visually high inside the button due to font ascent metrics.
                 This SVG path is geometrically centered at (12,12) in a 24×24 viewBox. */}
-            <NavPlusIcon />
-            <span className="hidden sm:inline">Log workout</span>
+            <span className="relative z-10 inline-flex items-center gap-1.5 text-brand-700">
+              <NavPlusIcon />
+              <span className="hidden sm:inline">Log workout</span>
+            </span>
           </Link>
 
           {/* Notification bell */}
