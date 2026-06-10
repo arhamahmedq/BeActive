@@ -39,6 +39,10 @@ interface StoryFrameProps {
   brandMark?: boolean
   /** Overlay the unsafe zones + safe band outline for verification. */
   debug?: boolean
+  /** Overlay a mock Instagram Story UI chrome (progress bar, header, reply bar) for visualization. */
+  igChrome?: boolean
+  /** Username shown in the mock IG header when igChrome is enabled. */
+  igUsername?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -115,8 +119,18 @@ function GlassAtmosphere() {
 // ---------------------------------------------------------------------------
 function BrandMark() {
   return (
-    <div style={{ position: 'absolute', top: 92, left: 0, right: 0, display: 'flex', justifyContent: 'center' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', opacity: 0.76 }}>
+    <div style={{ position: 'absolute', top: 80, left: 0, right: 0, display: 'flex', justifyContent: 'center' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          opacity: 0.88,
+          background: 'rgba(255,255,255,0.35)',
+          border: '1px solid rgba(255,255,255,0.5)',
+          borderRadius: 999,
+          padding: '12px 28px',
+        }}
+      >
         <span style={{ fontSize: 46, fontWeight: 700, color: '#0B0F0C', letterSpacing: '-0.01em' }}>Be</span>
         <span style={{ fontSize: 46, fontWeight: 800, color: '#16A34A', letterSpacing: '-0.01em' }}>Active</span>
       </div>
@@ -130,6 +144,8 @@ export function StoryFrame({
   align = 'center',
   brandMark = true,
   debug = false,
+  igChrome = false,
+  igUsername = 'yourfriend',
 }: StoryFrameProps) {
   return (
     <div
@@ -167,6 +183,94 @@ export function StoryFrame({
       </div>
 
       {debug ? <SafeAreaDebugOverlay /> : null}
+      {igChrome ? <IGChromeOverlay username={igUsername} /> : null}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// IG chrome overlay — visualization-only mock of Instagram's native Story UI
+// (progress bar, author header, reply bar) so the card can be reviewed in its
+// real-world context. Never shown in production output.
+// ---------------------------------------------------------------------------
+function IGChromeOverlay({ username }: { username: string }) {
+  return (
+    <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
+      {/* IG adds these scrims behind its own UI so it stays legible over any
+          background — included here so the mock is visible/realistic on
+          BeActive's light card. */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 220,
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.35), transparent)',
+          display: 'flex',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 260,
+          background: 'linear-gradient(to top, rgba(0,0,0,0.35), transparent)',
+          display: 'flex',
+        }}
+      />
+
+      {/* progress bar segments */}
+      <div style={{ position: 'absolute', top: 24, left: 24, right: 24, display: 'flex', gap: 8 }}>
+        <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.95)', display: 'flex' }} />
+        <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.35)', display: 'flex' }} />
+        <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.35)', display: 'flex' }} />
+      </div>
+
+      {/* author header: avatar + username + timestamp ... more / close */}
+      <div style={{ position: 'absolute', top: 48, left: 24, right: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #4ADE80, #16A34A)',
+              border: '2px solid rgba(255,255,255,0.9)',
+              display: 'flex',
+            }}
+          />
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <span style={{ color: '#fff', fontSize: 30, fontWeight: 800 }}>{username}</span>
+            <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 26, fontWeight: 600 }}>2h</span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+          <span style={{ color: '#fff', fontSize: 36, fontWeight: 800 }}>...</span>
+          <span style={{ color: '#fff', fontSize: 36, fontWeight: 800 }}>X</span>
+        </div>
+      </div>
+
+      {/* bottom reply bar */}
+      <div style={{ position: 'absolute', bottom: 56, left: 24, right: 24, display: 'flex', alignItems: 'center', gap: 20 }}>
+        <div
+          style={{
+            flex: 1,
+            height: 84,
+            borderRadius: 999,
+            border: '2px solid rgba(255,255,255,0.55)',
+            display: 'flex',
+            alignItems: 'center',
+            paddingLeft: 32,
+          }}
+        >
+          <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 28, fontWeight: 600 }}>Send message</span>
+        </div>
+        <span style={{ fontSize: 56, lineHeight: 1, display: 'flex' }}>❤️</span>
+        <span style={{ fontSize: 56, lineHeight: 1, display: 'flex' }}>✈️</span>
+      </div>
     </div>
   )
 }

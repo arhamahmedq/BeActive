@@ -96,10 +96,26 @@ export function StoryCardLive(data: StoryCardLiveData) {
       >
         <CardLive {...data} />
 
-        {/* Brand signature */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: cw(9), marginTop: ch(30) }}>
-          <span style={{ color: '#22C55E', fontSize: cw(30), fontWeight: 800 }}>›</span>
-          <span style={{ color: '#4B5563', fontSize: cw(30), fontWeight: 700, letterSpacing: '0.01em' }}>BeActive</span>
+        {/* Brand signature — glass CTA bar */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: ch(4),
+            marginTop: ch(40),
+            padding: `${ch(14)} ${cw(32)}`,
+            borderRadius: 999,
+            background: 'rgba(255,255,255,0.55)',
+            border: '1px solid rgba(255,255,255,0.7)',
+            boxShadow: '0 8px 24px rgba(20,83,45,0.10), inset 0 1px 0 rgba(255,255,255,0.8)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'baseline' }}>
+            <span style={{ color: '#0B0F0C', fontSize: cw(40), fontWeight: 800, letterSpacing: '-0.01em' }}>Be</span>
+            <span style={{ color: '#16A34A', fontSize: cw(40), fontWeight: 800, letterSpacing: '-0.01em' }}>Active</span>
+          </div>
+          <span style={{ color: '#6B7280', fontSize: cw(20), fontWeight: 700, letterSpacing: '0.08em' }}>BUILD YOUR STREAK</span>
         </div>
       </div>
     </div>
@@ -206,8 +222,18 @@ function GlassAtmosphereLive({ reduced }: { reduced: boolean }) {
 // ---------------------------------------------------------------------------
 function BrandMarkLive() {
   return (
-    <div style={{ position: 'absolute', top: ch(92), left: 0, right: 0, display: 'flex', justifyContent: 'center' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', opacity: 0.76 }}>
+    <div style={{ position: 'absolute', top: ch(80), left: 0, right: 0, display: 'flex', justifyContent: 'center' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          opacity: 0.88,
+          background: 'rgba(255,255,255,0.35)',
+          border: '1px solid rgba(255,255,255,0.5)',
+          borderRadius: 999,
+          padding: `${ch(12)} ${cw(28)}`,
+        }}
+      >
         <span style={{ fontSize: cw(46), fontWeight: 700, color: '#0B0F0C', letterSpacing: '-0.01em' }}>Be</span>
         <span style={{ fontSize: cw(46), fontWeight: 800, color: '#16A34A', letterSpacing: '-0.01em' }}>Active</span>
       </div>
@@ -259,7 +285,7 @@ function CardLive({
       }}
     >
       {/* --- PHOTO --- */}
-      <div style={{ position: 'relative', width: '100%', height: ch(660), overflow: 'hidden' }}>
+      <div style={{ position: 'relative', width: '100%', height: ch(620), overflow: 'hidden' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imageUrl}
@@ -354,11 +380,11 @@ function CardLive({
             background: 'rgba(34,197,94,0.07)',
             border: '1.5px solid rgba(34,197,94,0.16)',
             borderRadius: cw(34),
-            padding: `${ch(32)} ${cw(16)}`,
+            padding: `${ch(36)} ${cw(16)}`,
           }}
         >
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: ch(6) }}>
-            <span style={{ color: '#16A34A', fontSize: cw(80), fontWeight: 800, lineHeight: 1, letterSpacing: '-0.03em' }}>{streakCount}</span>
+            <span style={{ color: '#16A34A', fontSize: cw(84), fontWeight: 800, lineHeight: 1, letterSpacing: '-0.03em' }}>{streakCount}</span>
             <span style={{ color: '#6B7280', fontSize: cw(19), fontWeight: 700, letterSpacing: '0.1em' }}>DAY STREAK</span>
           </div>
 
@@ -385,7 +411,7 @@ function CardLive({
             <span
               style={{
                 color: isPersonalBest ? '#16A34A' : '#0B0F0C',
-                fontSize: isPersonalBest ? cw(52) : cw(80),
+                fontSize: isPersonalBest ? cw(52) : cw(84),
                 fontWeight: 800,
                 lineHeight: 1,
                 letterSpacing: '-0.02em',

@@ -32,6 +32,8 @@ export interface StoryCardData {
   plantName: string
   /** Overlay the IG safe zones for verification (via ?debug=safe). */
   debug?: boolean
+  /** Overlay a mock Instagram Story UI chrome for visualization (via ?debug=ig). */
+  igChrome?: boolean
 }
 
 // Vertical divider used inside the metric band.
@@ -60,12 +62,13 @@ export function StoryCard({
   plantEmoji,
   plantName,
   debug = false,
+  igChrome = false,
 }: StoryCardData) {
   const CARD_W = STORY_SAFE_BAND.width // fills the safe band width (936px)
-  const PHOTO_H = 660
+  const PHOTO_H = 620
 
   return (
-    <StoryFrame debug={debug}>
+    <StoryFrame debug={debug} igChrome={igChrome} igUsername={username}>
       {/* ===== THE CARD ===== */}
       <div
         style={{
@@ -192,12 +195,12 @@ export function StoryCard({
               background: 'rgba(34,197,94,0.07)',
               border: '1.5px solid rgba(34,197,94,0.16)',
               borderRadius: 34,
-              padding: '32px 16px',
+              padding: '36px 16px',
             }}
           >
             {/* STREAK */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <span style={{ color: '#16A34A', fontSize: 80, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.03em' }}>{streakCount}</span>
+              <span style={{ color: '#16A34A', fontSize: 84, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.03em' }}>{streakCount}</span>
               <span style={{ color: '#6B7280', fontSize: 19, fontWeight: 700, letterSpacing: '0.1em' }}>DAY STREAK</span>
             </div>
 
@@ -226,7 +229,7 @@ export function StoryCard({
               <span
                 style={{
                   color: isPersonalBest ? '#16A34A' : '#0B0F0C',
-                  fontSize: isPersonalBest ? 52 : 80,
+                  fontSize: isPersonalBest ? 52 : 84,
                   fontWeight: 800,
                   lineHeight: 1,
                   letterSpacing: '-0.02em',
@@ -240,10 +243,26 @@ export function StoryCard({
         </div>
       </div>
 
-      {/* ===== Section 3: BRAND (minimal, above the unsafe zone) ===== */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, marginTop: 30 }}>
-        <span style={{ color: '#22C55E', fontSize: 30, fontWeight: 800 }}>›</span>
-        <span style={{ color: '#4B5563', fontSize: 30, fontWeight: 700, letterSpacing: '0.01em' }}>BeActive</span>
+      {/* ===== Section 3: BRAND (glass CTA bar, above the unsafe zone) ===== */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 4,
+          marginTop: 40,
+          padding: '14px 32px',
+          borderRadius: 999,
+          background: 'rgba(255,255,255,0.55)',
+          border: '1px solid rgba(255,255,255,0.7)',
+          boxShadow: '0 8px 24px rgba(20,83,45,0.10), inset 0 1px 0 rgba(255,255,255,0.8)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'baseline' }}>
+          <span style={{ color: '#0B0F0C', fontSize: 40, fontWeight: 800, letterSpacing: '-0.01em' }}>Be</span>
+          <span style={{ color: '#16A34A', fontSize: 40, fontWeight: 800, letterSpacing: '-0.01em' }}>Active</span>
+        </div>
+        <span style={{ color: '#6B7280', fontSize: 20, fontWeight: 700, letterSpacing: '0.08em' }}>BUILD YOUR STREAK</span>
       </div>
     </StoryFrame>
   )

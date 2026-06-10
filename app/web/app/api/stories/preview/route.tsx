@@ -56,6 +56,7 @@ export async function GET(request: NextRequest): Promise<ImageResponse | NextRes
   const username = searchParams.get('username') ?? 'arhamfit'
   const noAvatar = searchParams.get('noavatar') === '1'
   const debug = searchParams.get('debug') === 'safe'
+  const igChrome = searchParams.get('debug') === 'ig'
   const plantDays = Number(searchParams.get('plantdays') ?? String(streakCount))
   const sampleImage = searchParams.get('img') ?? 'sample-workout.jpg'
 
@@ -77,6 +78,7 @@ export async function GET(request: NextRequest): Promise<ImageResponse | NextRes
       plantEmoji: plant.emoji,
       plantName: plant.name,
       debug,
+      igChrome,
     }
   } catch (err) {
     console.error('[stories/preview] error:', err)
