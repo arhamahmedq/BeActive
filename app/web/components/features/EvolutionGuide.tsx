@@ -10,7 +10,7 @@ interface EvolutionGuideProps {
 }
 
 // ── Progress bar with animated fill ─────────────────────────────────────────
-function ProgressBar({ progress, color }: { progress: number; color: string }) {
+function ProgressBar({ progress, color, size = 'sm' }: { progress: number; color: string; size?: 'sm' | 'md' }) {
   const barRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const bar = barRef.current
@@ -24,125 +24,112 @@ function ProgressBar({ progress, color }: { progress: number; color: string }) {
   }, [progress])
 
   return (
-    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.06)' }}>
+    <div className={`${size === 'md' ? 'h-2' : 'h-1.5'} rounded-full overflow-hidden`} style={{ background: 'rgba(0,0,0,0.06)' }}>
       <div ref={barRef} className="h-full rounded-full" style={{ background: color, width: '0%' }} />
     </div>
   )
 }
 
-// ── Collectible card — illustration + boarding-pass stat/label ──────────────
+// ── Tile — illustration + uppercase label + past checkmark ──────────────────
 type CardState = 'past' | 'current' | 'future'
 
 function EvolutionCard({
   lvl,
-  nextLvl,
   state,
-  currentDays,
   compact = false,
 }: {
   lvl: PlantLevel
-  nextLvl?: PlantLevel
   state: CardState
-  currentDays: number
   compact?: boolean
 }) {
   const isCurrent = state === 'current'
   const isFuture = state === 'future'
-  const progress = isCurrent ? getPlantLevelProgress(currentDays, lvl) : 0
-  const daysToThis = isFuture ? lvl.from - currentDays : 0
-  const remaining = lvl.nextAt - currentDays
+  const isPast = state === 'past'
 
-  const statColor = isCurrent ? lvl.color : isFuture ? '#d1d5db' : '#374151'
-  const labelColor = isCurrent ? lvl.color : isFuture ? '#d1d5db' : '#9ca3af'
+  const labelColor = isCurrent ? lvl.color : isFuture ? '#9ca3af' : '#374151'
 
   const containerStyle = isCurrent
-    ? { background: lvl.bgColor, border: `1.5px solid ${lvl.borderColor}` }
+    ? {
+        background: lvl.bgColor,
+        border: `2px solid ${lvl.color}`,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.8)',
+      }
     : isFuture
-      ? { background: 'rgba(0,0,0,0.02)', border: '1px solid rgba(0,0,0,0.06)' }
+      ? { background: '#f9fafb', border: '1px solid #e5e7eb' }
       : { background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.12)' }
 
   return (
     <div
-      className={`relative flex flex-col items-center gap-1.5 rounded-2xl px-3 py-3 text-center transition-all duration-200 ${
-        compact ? 'w-16 flex-shrink-0' : ''
-      } ${isCurrent ? 'shadow-[0_2px_12px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.8)]' : ''} ${
-        compact && isCurrent ? 'ring-2 ring-brand-500 scale-105' : ''
-      }`}
+      className={`flex flex-col items-center justify-center gap-2 rounded-2xl text-center transition-all duration-200 ${
+        compact ? 'w-16 flex-shrink-0 px-2 py-3 gap-1.5' : 'px-2 py-4'
+      } ${compact && isCurrent ? 'ring-2 ring-brand-500 scale-105' : ''}`}
       style={containerStyle}
     >
-      <PlantIllustration level={lvl} locked={isFuture} size={compact ? 40 : 56} />
-
-      {compact ? (
-        <span className="text-eyebrow !text-[9px]" style={{ color: labelColor }}>
-          {lvl.shortName}
-        </span>
-      ) : (
-        <>
-          <div>
-            <p className="text-xl font-extrabold leading-none tabular-nums" style={{ color: statColor }}>
-              {isCurrent
-                ? lvl.nextAt === Infinity ? currentDays : `${currentDays}/${lvl.nextAt}`
-                : lvl.from === 0 ? 'START' : lvl.from}
-            </p>
-            <p className="text-eyebrow mt-0.5" style={{ color: labelColor }}>
-              {lvl.shortName}
-            </p>
-          </div>
-
-          {isCurrent && (
-            lvl.nextAt !== Infinity ? (
-              <div className="w-full space-y-1">
-                <ProgressBar progress={progress} color={lvl.color} />
-                {nextLvl && (
-                  <p className="text-[10px] leading-none" style={{ color: lvl.color }}>
-                    {remaining} day{remaining !== 1 ? 's' : ''} to {nextLvl.shortName}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="text-[10px] font-bold" style={{ color: lvl.color }}>Max level</p>
-            )
-          )}
-
-          {state === 'past' && (
-            <svg className="w-4 h-4 text-brand-500" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <polyline points="2 8 6 12 14 4" />
-            </svg>
-          )}
-
-          {isFuture && (
-            <p className="text-[10px] text-gray-300 leading-none">
-              {daysToThis} day{daysToThis !== 1 ? 's' : ''} away
-            </p>
-          )}
-        </>
+      <PlantIllustration level={lvl} locked={isFuture} size={compact ? 40 : 64} />
+      <span
+        className={`text-eyebrow leading-tight ${compact ? '!text-[9px]' : ''}`}
+        style={{ color: labelColor }}
+      >
+        {lvl.shortName}
+      </span>
+      {isPast && (
+        <svg className="w-4 h-4 text-brand-500" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <polyline points="2 8 6 12 14 4" />
+        </svg>
       )}
     </div>
   )
 }
 
-// ── Full variant — collectible card grid for all 7 stages ──────────────────
+// ── Full variant — 3-tile evolution window + journey/tier progress ──────────
 function FullGuide({ currentDays }: { currentDays: number }) {
   const activeLvl = getPlantLevel(currentDays)
+  const maxLevel = PLANT_LEVELS.length - 1
+
+  // 3-tile window centered on the active tier, clamped to stay in bounds
+  const windowStart = Math.max(0, Math.min(activeLvl.level - 1, maxLevel - 2))
+  const windowLevels = PLANT_LEVELS.slice(windowStart, windowStart + 3)
+
+  const levelProgress = getPlantLevelProgress(currentDays, activeLvl)
+  const overallProgress = (activeLvl.level + levelProgress) / maxLevel
+  const nextLvl = PLANT_LEVELS[activeLvl.level + 1]
+  const remaining = activeLvl.nextAt - currentDays
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-        {PLANT_LEVELS.map((lvl, i) => {
-          const isPast = currentDays > lvl.from && lvl.level < activeLvl.level
-          const isCurrent = lvl.level === activeLvl.level
-          const state: CardState = isCurrent ? 'current' : isPast ? 'past' : 'future'
-
-          return (
-            <EvolutionCard
-              key={lvl.level}
-              lvl={lvl}
-              nextLvl={PLANT_LEVELS[i + 1]}
-              state={state}
-              currentDays={currentDays}
-            />
-          )
+      <div className="grid grid-cols-3 gap-3">
+        {windowLevels.map((lvl) => {
+          const state: CardState =
+            lvl.level === activeLvl.level ? 'current' : lvl.level < activeLvl.level ? 'past' : 'future'
+          return <EvolutionCard key={lvl.level} lvl={lvl} state={state} />
         })}
+      </div>
+
+      {/* Overall journey progress */}
+      <ProgressBar progress={overallProgress} color="#9ca3af" size="md" />
+
+      {/* Current tier progress */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-[13px] font-bold text-gray-900">
+            <span aria-hidden>{activeLvl.emoji}</span> {activeLvl.shortName}
+          </span>
+          {activeLvl.nextAt !== Infinity && (
+            <span className="text-[12px] text-gray-400 tabular-nums">
+              {currentDays}/{activeLvl.nextAt}d
+            </span>
+          )}
+        </div>
+        <ProgressBar progress={levelProgress} color={activeLvl.color} />
+        {nextLvl ? (
+          <p className="text-[11px] text-gray-400">
+            {remaining} day{remaining !== 1 ? 's' : ''} to {nextLvl.emoji} {nextLvl.shortName}
+          </p>
+        ) : (
+          <p className="text-[11px] font-bold" style={{ color: activeLvl.color }}>
+            🌸 Maximum level reached!
+          </p>
+        )}
       </div>
 
       {/* Rules section */}
@@ -186,7 +173,7 @@ function CompactGuide({ currentDays }: { currentDays: number }) {
 
           return (
             <div key={lvl.level} className="snap-start">
-              <EvolutionCard lvl={lvl} state={state} currentDays={currentDays} compact />
+              <EvolutionCard lvl={lvl} state={state} compact />
             </div>
           )
         })}
