@@ -33,6 +33,7 @@ model User {
   postLikes        PostLike[]
   postComments     PostComment[]
   streak           Streak?
+  stories          Story[]
 }
 
 model Post {
@@ -49,6 +50,7 @@ model Post {
   workout         Workout?
   likes           PostLike[]
   comments        PostComment[]
+  story           Story?
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])
@@ -185,6 +187,30 @@ model Message {
   @@index([receiverId, read, createdAt(sort: Desc)])
 }
 
+// Story Sharing V3 — immutable payload snapshot + cached rendered asset.
+// One row per Post (1:1). payload is frozen at WORKOUT_VERIFIED time so a
+// re-render always reproduces the same card, regardless of later changes to
+// the user's profile/streak.
+model Story {
+  id           String      @id @default(cuid())
+  postId       String      @unique
+  userId       String
+  payload      Json
+  shareVersion Int         @default(1)
+  status       StoryStatus @default(PENDING_RENDER)
+  assetKey     String?
+  assetUrl     String?
+  renderMs     Int?
+  renderError  String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post         Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status])
+}
+
 enum UserRole {
   USER
   ADMIN
@@ -227,4 +253,10 @@ enum NotificationType {
   FRIEND_POSTED
   STREAK_AT_RISK
   STREAK_BROKEN
+}
+
+enum StoryStatus {
+  PENDING_RENDER
+  READY
+  FAILED
 }

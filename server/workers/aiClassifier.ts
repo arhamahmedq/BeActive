@@ -14,6 +14,7 @@ import { onWorkoutVerified } from '../modules/streaks/streaks.service'
 import { createNotification } from '../modules/notifications/notifications.service'
 import { getAcceptedFriendIds } from '../modules/friends/friends.service'
 import { getProfile } from '../modules/users/users.service'
+import { generateAndPersistStory } from '../modules/stories/stories.service'
 
 // Confidence thresholds per AI_BOUNDARY.md.
 // AMBIGUOUS (0.50–0.69) is intentionally collapsed into REJECTED — there is no
@@ -190,6 +191,13 @@ export async function processUploadedPost(params: {
         logger.error('Failed R7 friend fan-out for verified workout', { postId, error: String(e) })
       }
     })()
+
+    // Story Sharing V3 — pre-render and persist the share card so the share
+    // button's read path is a fast cache-aside hit. Best-effort: a render
+    // failure here must never affect the verified post or streak.
+    await generateAndPersistStory(postId, userId).catch((e: unknown) => {
+      logger.error('Story generation failed', { postId, error: String(e) })
+    })
 
   } else {
     // Rule R2 — confidence < 0.70 → REJECTED (AMBIGUOUS collapsed into REJECTED)
