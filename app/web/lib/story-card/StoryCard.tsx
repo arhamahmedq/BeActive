@@ -246,26 +246,30 @@ export function StoryCard({
         </div>
       </div>
 
-      {/* ===== Section 3: BRAND (glass CTA bar, above the unsafe zone) ===== */}
+      {/* ===== Section 3: BRAND — the Instagram→app growth hook. Bigger
+           wordmark, wider bar, and a one-line "what it is" + CTA so a cold IG
+           viewer instantly understands BeActive and wants in. ===== */}
       <div
         style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: 4,
-          marginTop: 40,
-          padding: '14px 32px',
-          borderRadius: 999,
-          background: 'rgba(255,255,255,0.55)',
-          border: '1px solid rgba(255,255,255,0.7)',
-          boxShadow: '0 8px 24px rgba(20,83,45,0.10), inset 0 1px 0 rgba(255,255,255,0.8)',
+          gap: 6,
+          marginTop: 24,
+          padding: '22px 76px',
+          borderRadius: 44,
+          background: 'rgba(255,255,255,0.68)',
+          border: '1px solid rgba(255,255,255,0.9)',
+          boxShadow:
+            '0 18px 48px rgba(20,83,45,0.20), 0 4px 14px rgba(15,42,24,0.08), inset 0 1px 0 rgba(255,255,255,0.95)',
         }}
       >
+        <span style={{ color: '#16A34A', fontSize: 21, fontWeight: 800, letterSpacing: '0.26em' }}>DAILY WORKOUT PROOF</span>
         <div style={{ display: 'flex', alignItems: 'baseline' }}>
-          <span style={{ color: '#0B0F0C', fontSize: 40, fontWeight: 800, letterSpacing: '-0.01em' }}>Be</span>
-          <span style={{ color: '#16A34A', fontSize: 40, fontWeight: 800, letterSpacing: '-0.01em' }}>Active</span>
+          <span style={{ color: '#0B0F0C', fontSize: 64, fontWeight: 800, letterSpacing: '-0.02em' }}>Be</span>
+          <span style={{ color: '#16A34A', fontSize: 64, fontWeight: 800, letterSpacing: '-0.02em' }}>Active</span>
         </div>
-        <span style={{ color: '#6B7280', fontSize: 20, fontWeight: 700, letterSpacing: '0.08em' }}>BUILD YOUR STREAK</span>
+        <span style={{ color: '#4B5563', fontSize: 23, fontWeight: 700, letterSpacing: '0.06em' }}>Start your streak free</span>
       </div>
     </StoryFrame>
   )
