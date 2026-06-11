@@ -28,3 +28,13 @@ test-results/
 
 # Superpowers tool (ephemeral brainstorm/server files)
 .superpowers/
+
+# Vercel CLI project link
+.vercel/
+
+# Test coverage output
+/coverage
+
+# Claude Code local settings/state (may contain approved command patterns with secrets)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

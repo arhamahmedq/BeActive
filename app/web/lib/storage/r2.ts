@@ -1,5 +1,12 @@
 import { randomUUID } from 'crypto'
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand,
+  GetObjectCommand,
+  NotFound,
+} from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 export interface SignedUploadResult {
@@ -67,4 +74,58 @@ export async function deleteObject(key: string): Promise<void> {
       Key: key,
     })
   )
+}
+
+// ---------------------------------------------------------------------------
+// Story Sharing V3 — server-side write/read of generated assets.
+// ---------------------------------------------------------------------------
+
+export async function putObject(
+  key: string,
+  body: Buffer,
+  contentType: string,
+  cacheControl: string
+): Promise<void> {
+  const client = getR2Client()
+  await client.send(
+    new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME!,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+      CacheControl: cacheControl,
+    })
+  )
+}
+
+export async function objectExists(key: string): Promise<boolean> {
+  const client = getR2Client()
+  try {
+    await client.send(
+      new HeadObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME!,
+        Key: key,
+      })
+    )
+    return true
+  } catch (err) {
+    if (err instanceof NotFound) return false
+    // R2 sometimes returns a generic 404 that doesn't deserialize as NotFound.
+    if ((err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404) {
+      return false
+    }
+    throw err
+  }
+}
+
+export async function getObject(key: string): Promise<{ buffer: Buffer; contentType: string }> {
+  const client = getR2Client()
+  const res = await client.send(
+    new GetObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME!,
+      Key: key,
+    })
+  )
+  const buffer = Buffer.from(await res.Body!.transformToByteArray())
+  return { buffer, contentType: res.ContentType ?? 'application/octet-stream' }
 }

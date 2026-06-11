@@ -52,7 +52,7 @@ export function StoryShareButton({
   const handleShare = useCallback(async () => {
     setShareState('generating')
     try {
-      const res = await fetch(`/api/stories/generate?postId=${encodeURIComponent(postId)}`)
+      const res = await fetch(`/api/stories/${encodeURIComponent(postId)}`)
       if (!res.ok) {
         setErrorMsg(getErrorMessage(res.status))
         setShareState('error')

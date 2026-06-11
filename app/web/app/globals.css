@@ -149,6 +149,25 @@
     inset 0 1px 0 rgba(255, 255, 255, 1);
 }
 
+/* FAB glass — green-tinted refractive material for primary upload CTAs */
+@utility glass-fab {
+  background: rgba(34, 197, 94, 0.16);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+@utility glass-fab-hover {
+  background: rgba(34, 197, 94, 0.24);
+}
+
+/* Ambient diagonal sheen overlay — sits inside a glass-fab, drifts slowly */
+@utility glass-fab-sheen {
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.35) 50%, transparent 65%);
+  background-size: 200% 200%;
+}
+
 /* ── App background — rich ambient gradient with brand warmth ────────── */
 @utility bg-app {
   background:
@@ -267,6 +286,11 @@
   100% { transform: translateY(60px) rotate(360deg); opacity: 0; }
 }
 
+@keyframes glass-sheen-drift {
+  0%   { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+
 /* ══════════════════════════════════════════════════════════════════════
    ANIMATION UTILITIES
    ══════════════════════════════════════════════════════════════════════ */
@@ -289,6 +313,7 @@
 @utility animate-glass-glow-amber { animation: glass-glow-amber 2s ease-in-out infinite; }
 @utility animate-number-pop    { animation: number-pop 0.35s var(--ease-spring) both; }
 @utility animate-badge-bounce  { animation: badge-bounce 0.4s var(--ease-spring) both; }
+@utility animate-glass-sheen-drift { animation: glass-sheen-drift 7s ease-in-out infinite alternate; }
 
 /* ══════════════════════════════════════════════════════════════════════
    DESIGN-SYSTEM UTILITIES
@@ -340,7 +365,8 @@
   .animate-glass-glow,
   .animate-glass-glow-amber,
   .animate-number-pop,
-  .animate-badge-bounce {
+  .animate-badge-bounce,
+  .animate-glass-sheen-drift {
     animation: none;
     transform: none;
   }

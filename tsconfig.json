@@ -11,6 +11,7 @@
     "noPropertyAccessFromIndexSignature": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "jsx": "react-jsx",
     "outDir": "./.build",
     "rootDir": ".",
     "baseUrl": ".",
