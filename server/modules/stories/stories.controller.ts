@@ -21,15 +21,14 @@ export async function handleGetStory(request: NextRequest, postIdParam: string):
   }
 
   try {
-    const result = await getOrRenderStory(parsed.data.postId, authResult.userId)
-    if (result.kind === 'redirect') {
-      return NextResponse.redirect(result.url, 302)
-    }
-    return new NextResponse(new Uint8Array(result.buffer), {
+    const { buffer, contentType } = await getOrRenderStory(parsed.data.postId, authResult.userId)
+    return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {
-        'content-type': result.contentType,
-        'cache-control': 'private, no-store, max-age=0',
+        'content-type': contentType,
+        // Card is immutable per shareVersion but auth-gated, so private. Lets a
+        // repeat tap reuse the browser cache instead of re-hitting the function.
+        'cache-control': 'private, max-age=3600',
       },
     })
   } catch (err) {

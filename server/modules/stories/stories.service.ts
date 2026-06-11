@@ -11,7 +11,7 @@ import { getPost } from '../posts/posts.service'
 import { getMyStreak } from '../streaks/streaks.service'
 import { getPlant, WORKOUT_LABELS } from '@/lib/story-card/constants'
 import { renderStoryPng } from '@/lib/story-card/renderStoryPng'
-import { putObject, objectExists, buildPublicUrl } from '@/lib/storage/r2'
+import { putObject, getObject, objectExists, buildPublicUrl } from '@/lib/storage/r2'
 import { getStoryByPostId, upsertPendingStory, markStoryReady, markStoryFailed } from './stories.repo'
 import { NotFoundError } from '../../core/errors/AppError'
 import type { StoryPayload } from './stories.types'
@@ -96,14 +96,20 @@ export async function generateAndPersistStory(postId: string, userId: string): P
 export async function getOrRenderStory(
   postId: string,
   userId: string
-): Promise<{ kind: 'redirect'; url: string } | { kind: 'buffer'; buffer: Buffer; contentType: string }> {
+): Promise<{ buffer: Buffer; contentType: string }> {
   await assertOwnedVerifiedPost(postId, userId)
 
+  // Warm path: serve the cached PNG by reading it back from R2 and returning
+  // the bytes SAME-ORIGIN. We deliberately do NOT 302-redirect to the public
+  // r2.dev URL — the share button reads the response via fetch().blob(), and a
+  // cross-origin redirect to r2.dev (which sends no Access-Control-Allow-Origin
+  // and 403s preflight) is blocked by the browser's CORS check. Proxying the
+  // bytes keeps the response same-origin; R2->Vercel egress is free.
   const story = await getStoryByPostId(postId)
-  if (story?.status === 'READY' && story.assetKey && story.assetUrl && (await objectExists(story.assetKey))) {
-    return { kind: 'redirect', url: story.assetUrl }
+  if (story?.status === 'READY' && story.assetKey && (await objectExists(story.assetKey))) {
+    return getObject(story.assetKey)
   }
 
   const buffer = await generateAndPersistStory(postId, userId)
-  return { kind: 'buffer', buffer, contentType: 'image/png' }
+  return { buffer, contentType: 'image/png' }
 }

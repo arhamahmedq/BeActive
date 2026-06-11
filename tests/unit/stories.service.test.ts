@@ -103,7 +103,7 @@ describe('buildStoryPayload', () => {
 })
 
 describe('getOrRenderStory', () => {
-  it('redirects to the cached asset when the story is READY and the object exists', async () => {
+  it('serves cached bytes same-origin (no redirect) when READY and the object exists', async () => {
     vi.mocked(storiesRepo.getStoryByPostId).mockResolvedValue({
       id: 'story-1',
       postId: 'post-1',
@@ -115,10 +115,14 @@ describe('getOrRenderStory', () => {
       assetUrl: 'https://cdn.example.com/stories/post-1/1.png',
     })
     vi.mocked(r2.objectExists).mockResolvedValue(true)
+    vi.mocked(r2.getObject).mockResolvedValue({ buffer: Buffer.from('cached-png'), contentType: 'image/png' })
 
     const result = await getOrRenderStory('post-1', 'user-1')
 
-    expect(result).toEqual({ kind: 'redirect', url: 'https://cdn.example.com/stories/post-1/1.png' })
+    // Proxies the cached bytes (r2.dev has no CORS, so we never 302 cross-origin).
+    expect(r2.getObject).toHaveBeenCalledWith('stories/post-1/1.png')
+    expect(result.buffer.toString()).toBe('cached-png')
+    expect(result.contentType).toBe('image/png')
     expect(r2.putObject).not.toHaveBeenCalled()
   })
 
@@ -130,11 +134,8 @@ describe('getOrRenderStory', () => {
 
     const result = await getOrRenderStory('post-1', 'user-1')
 
-    expect(result.kind).toBe('buffer')
-    if (result.kind === 'buffer') {
-      expect(result.buffer.toString()).toBe('png-bytes')
-      expect(result.contentType).toBe('image/png')
-    }
+    expect(result.buffer.toString()).toBe('png-bytes')
+    expect(result.contentType).toBe('image/png')
     expect(r2.putObject).toHaveBeenCalledWith(
       'story-src/post-1.jpg',
       expect.any(Buffer),
@@ -171,7 +172,7 @@ describe('getOrRenderStory', () => {
 
     const result = await getOrRenderStory('post-1', 'user-1')
 
-    expect(result.kind).toBe('buffer')
+    expect(result.contentType).toBe('image/png')
     expect(storiesRepo.upsertPendingStory).toHaveBeenCalledWith('post-1', 'user-1', expect.any(Object), 2)
     expect(r2.putObject).toHaveBeenCalledWith(
       'stories/post-1/2.png',
