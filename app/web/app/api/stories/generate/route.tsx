@@ -6,8 +6,14 @@ import { findPostById } from '@/server/modules/posts/posts.repo'
 import { getMyStreak } from '@/server/modules/streaks/streaks.service'
 import { getProfile } from '@/server/modules/users/users.service'
 import { StoryCard, type StoryCardData } from '@/lib/story-card/StoryCard'
-import { getPlant, WORKOUT_LABELS, WORKOUT_ICONS } from '@/lib/story-card/constants'
+import { getPlant, WORKOUT_LABELS } from '@/lib/story-card/constants'
 import { loadStoryFonts, type StoryFont } from '@/lib/story-card/font'
+
+// Pin to the Node runtime with the Pro 60s ceiling. ImageResponse's lazy
+// Satori render (image fetch + font embed + layout) can exceed the Hobby
+// default of 10s, which previously crashed the worker mid-stream.
+export const runtime = 'nodejs'
+export const maxDuration = 60
 
 // ---------------------------------------------------------------------------
 // Image pre-fetching — convert a remote URL to a base64 data URI so Satori
@@ -79,11 +85,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       avatarUrl: avatarDataUri,
       username: profile.username,
       workoutLabel: WORKOUT_LABELS[workoutType] ?? 'WORKOUT',
-      workoutIcon: WORKOUT_ICONS[workoutType] ?? '💪',
+      workoutType,
       streakCount,
       bestStreak,
       isPersonalBest: streakCount > 1 && streakCount === bestStreak,
-      plantEmoji: plant.emoji,
+      plant: { level: plant.level, color: plant.color, bgColor: plant.bgColor, borderColor: plant.borderColor },
       plantName: plant.name,
       debug,
     }

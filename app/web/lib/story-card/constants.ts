@@ -108,13 +108,13 @@ export function particleGradient(opacity: number): string {
 // node render path. Values must stay in sync with streak-levels.ts.
 // ---------------------------------------------------------------------------
 export const PLANT_LEVELS = [
-  { level: 0, emoji: '🌱', name: 'Dormant Seed', from: 0 },
-  { level: 1, emoji: '🌿', name: 'Sprout', from: 1 },
-  { level: 2, emoji: '🪴', name: 'Young Plant', from: 7 },
-  { level: 3, emoji: '🌲', name: 'Strong Tree', from: 30 },
-  { level: 4, emoji: '🌳', name: 'Ancient Tree', from: 100 },
-  { level: 5, emoji: '🎄', name: 'Elder Tree', from: 200 },
-  { level: 6, emoji: '🌸', name: 'Legendary Bloom', from: 365 },
+  { level: 0, name: 'Dormant Seed', from: 0, color: '#9ca3af', bgColor: '#f3f4f6', borderColor: '#e5e7eb' },
+  { level: 1, name: 'Sprout', from: 1, color: '#22c55e', bgColor: '#f0fdf4', borderColor: '#bbf7d0' },
+  { level: 2, name: 'Young Plant', from: 7, color: '#16a34a', bgColor: '#dcfce7', borderColor: '#86efac' },
+  { level: 3, name: 'Strong Tree', from: 30, color: '#15803d', bgColor: '#dcfce7', borderColor: '#4ade80' },
+  { level: 4, name: 'Ancient Tree', from: 100, color: '#166534', bgColor: '#dcfce7', borderColor: '#16a34a' },
+  { level: 5, name: 'Elder Tree', from: 200, color: '#14532d', bgColor: '#dcfce7', borderColor: '#15803d' },
+  { level: 6, name: 'Legendary Bloom', from: 365, color: '#be185d', bgColor: '#fdf2f8', borderColor: '#f9a8d4' },
 ] as const
 
 export type PlantLevel = (typeof PLANT_LEVELS)[number]
@@ -129,7 +129,8 @@ export function getPlant(days: number): PlantLevel {
 }
 
 // ---------------------------------------------------------------------------
-// Workout type → display label + emoji glyph (twemoji renders these in Satori).
+// Workout type → display label. The icon glyph for each type is rendered by
+// <WorkoutIcon type={...}> (lib/story-card/icons.tsx) — local SVG, not emoji.
 // ---------------------------------------------------------------------------
 export const WORKOUT_LABELS: Record<string, string> = {
   GYM: 'GYM DAY',
@@ -139,14 +140,4 @@ export const WORKOUT_LABELS: Record<string, string> = {
   OUTDOOR: 'OUTDOOR',
   SPORTS: 'SPORT',
   OTHER: 'WORKOUT',
-}
-
-export const WORKOUT_ICONS: Record<string, string> = {
-  GYM: '🏋️',
-  RUNNING: '🏃',
-  CYCLING: '🚴',
-  SWIMMING: '🏊',
-  OUTDOOR: '🌄',
-  SPORTS: '⚽',
-  OTHER: '💪',
 }

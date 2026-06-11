@@ -15,6 +15,7 @@ import {
   type EdgeOffsets,
 } from './constants'
 import type { StoryCardData } from './StoryCard'
+import { VerifiedBadge, WorkoutIcon, PlantGlyph } from './icons'
 
 // ---------------------------------------------------------------------------
 // StoryCardLive — the animated, in-app twin of <StoryCard>/<StoryFrame>.
@@ -262,11 +263,11 @@ function CardLive({
   avatarUrl,
   username,
   workoutLabel,
-  workoutIcon,
+  workoutType,
   streakCount,
   bestStreak,
   isPersonalBest,
-  plantEmoji,
+  plant,
   plantName,
 }: StoryCardLiveData) {
   return (
@@ -328,13 +329,13 @@ function CardLive({
             boxShadow: '0 4px 18px rgba(0,0,0,0.20)',
           }}
         >
-          <span style={{ fontSize: cw(32) }}>{workoutIcon}</span>
+          <WorkoutIcon type={workoutType} size={cw(32)} />
           <span style={{ color: '#0B0F0C', fontSize: cw(28), fontWeight: 800, letterSpacing: '0.02em' }}>{workoutLabel}</span>
         </div>
 
         {/* verified badge */}
         <div style={{ position: 'absolute', top: ch(22), right: cw(24), display: 'flex' }}>
-          <span style={{ fontSize: cw(66), lineHeight: 1 }}>✅</span>
+          <VerifiedBadge size={cw(66)} />
         </div>
 
         {/* identity chip */}
@@ -391,7 +392,7 @@ function CardLive({
           <MetricDividerLive />
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: ch(6) }}>
-            <span style={{ fontSize: cw(58), lineHeight: 1 }}>{plantEmoji}</span>
+            <PlantGlyph plant={plant} size={cw(58)} />
             <span
               style={{
                 color: '#16A34A',

@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { ImageResponse } from 'next/og'
 import { NextRequest, NextResponse } from 'next/server'
 import { StoryCard, type StoryCardData } from '@/lib/story-card/StoryCard'
-import { getPlant, WORKOUT_LABELS, WORKOUT_ICONS } from '@/lib/story-card/constants'
+import { getPlant, WORKOUT_LABELS } from '@/lib/story-card/constants'
 import { loadStoryFonts, type StoryFont } from '@/lib/story-card/font'
 
 // ---------------------------------------------------------------------------
@@ -71,11 +71,11 @@ export async function GET(request: NextRequest): Promise<ImageResponse | NextRes
       avatarUrl: noAvatar ? null : imageUri,
       username,
       workoutLabel: WORKOUT_LABELS[workoutType] ?? 'WORKOUT',
-      workoutIcon: WORKOUT_ICONS[workoutType] ?? '💪',
+      workoutType,
       streakCount,
       bestStreak,
       isPersonalBest: searchParams.get('pb') === '1' || (streakCount > 1 && streakCount === bestStreak),
-      plantEmoji: plant.emoji,
+      plant: { level: plant.level, color: plant.color, bgColor: plant.bgColor, borderColor: plant.borderColor },
       plantName: plant.name,
       debug,
       igChrome,

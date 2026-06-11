@@ -1,5 +1,5 @@
 import { StoryCardLive } from '@/lib/story-card/StoryCardLive'
-import { getPlant, WORKOUT_LABELS, WORKOUT_ICONS } from '@/lib/story-card/constants'
+import { getPlant, WORKOUT_LABELS } from '@/lib/story-card/constants'
 
 // ---------------------------------------------------------------------------
 // DEV-ONLY — live, animated preview of the V2 story card "liquid glass"
@@ -33,11 +33,11 @@ export default function StoryPreviewLivePage() {
         avatarUrl="/sample-workout.jpg"
         username="arhamfit"
         workoutLabel={WORKOUT_LABELS.GYM}
-        workoutIcon={WORKOUT_ICONS.GYM}
+        workoutType="GYM"
         streakCount={STREAK}
         bestStreak={BEST}
         isPersonalBest={false}
-        plantEmoji={plant.emoji}
+        plant={{ level: plant.level, color: plant.color, bgColor: plant.bgColor, borderColor: plant.borderColor }}
         plantName={plant.name}
       />
     </main>

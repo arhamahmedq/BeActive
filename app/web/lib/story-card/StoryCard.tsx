@@ -1,5 +1,6 @@
 import { StoryFrame } from './StoryFrame'
 import { STORY_SAFE_BAND } from './constants'
+import { VerifiedBadge, WorkoutIcon, PlantGlyph, type StoryCardPlant } from './icons'
 
 // ---------------------------------------------------------------------------
 // StoryCard — the BeActive "proof card" template (reusable; rendered by the
@@ -24,11 +25,11 @@ export interface StoryCardData {
   avatarUrl: string | null
   username: string
   workoutLabel: string
-  workoutIcon: string
+  workoutType: string
   streakCount: number
   bestStreak: number
   isPersonalBest: boolean
-  plantEmoji: string
+  plant: StoryCardPlant
   plantName: string
   /** Overlay the IG safe zones for verification (via ?debug=safe). */
   debug?: boolean
@@ -55,11 +56,11 @@ export function StoryCard({
   avatarUrl,
   username,
   workoutLabel,
-  workoutIcon,
+  workoutType,
   streakCount,
   bestStreak,
   isPersonalBest,
-  plantEmoji,
+  plant,
   plantName,
   debug = false,
   igChrome = false,
@@ -135,15 +136,13 @@ export function StoryCard({
               boxShadow: '0 4px 18px rgba(0,0,0,0.20)',
             }}
           >
-            <span style={{ fontSize: 32 }}>{workoutIcon}</span>
+            <WorkoutIcon type={workoutType} size={32} />
             <span style={{ color: '#0B0F0C', fontSize: 28, fontWeight: 800, letterSpacing: '0.02em' }}>{workoutLabel}</span>
           </div>
 
-          {/* verified badge — top-right (AI-verified proof is the product).
-              Uses the twemoji ✅ glyph (proven to render in Satori); we avoid
-              inline <svg>, which can crash the OG renderer mid-stream. */}
+          {/* verified badge — top-right (AI-verified proof is the product) */}
           <div style={{ position: 'absolute', top: 22, right: 24, display: 'flex' }}>
-            <span style={{ fontSize: 66, lineHeight: 1 }}>✅</span>
+            <VerifiedBadge size={66} />
           </div>
 
           {/* identity chip — bottom-left, on the scrim */}
@@ -208,7 +207,7 @@ export function StoryCard({
 
             {/* PLANT */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 58, lineHeight: 1 }}>{plantEmoji}</span>
+              <PlantGlyph plant={plant} size={58} />
               <span
                 style={{
                   color: '#16A34A',

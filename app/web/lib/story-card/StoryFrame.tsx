@@ -10,6 +10,7 @@ import {
   GLASS_PARTICLES,
   particleGradient,
 } from './constants'
+import { HeartIcon, SendIcon } from './icons'
 
 // ---------------------------------------------------------------------------
 // StoryFrame — the safe-area enforcer for every BeActive story template.
@@ -268,8 +269,8 @@ function IGChromeOverlay({ username }: { username: string }) {
         >
           <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 28, fontWeight: 600 }}>Send message</span>
         </div>
-        <span style={{ fontSize: 56, lineHeight: 1, display: 'flex' }}>❤️</span>
-        <span style={{ fontSize: 56, lineHeight: 1, display: 'flex' }}>✈️</span>
+        <HeartIcon size={56} />
+        <SendIcon size={56} />
       </div>
     </div>
   )
