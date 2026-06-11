@@ -8,6 +8,14 @@ import { createPost } from '@/server/modules/posts/posts.service'
 import { processUploadedPost } from '@/server/workers/aiClassifier'
 import { logger } from '@/server/core/logger/index'
 
+// The after() callback below runs classification (AI call with up to ~21s of
+// retry backoff) + the verify transaction + notifications inside this same
+// invocation, post-response. Without an explicit ceiling this falls back to a
+// platform default that can be shorter than that worst case, killing the
+// after() callback before the streak-credit transaction runs.
+export const runtime = 'nodejs'
+export const maxDuration = 60
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
