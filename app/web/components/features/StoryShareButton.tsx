@@ -52,9 +52,24 @@ export function StoryShareButton({
   const handleShare = useCallback(async () => {
     setShareState('generating')
     try {
-      const res = await fetch(`/api/stories/${encodeURIComponent(postId)}`)
-      if (!res.ok) {
-        setErrorMsg(getErrorMessage(res.status))
+      // Cold render (sharp + Satori on a freshly-spun serverless instance) can
+      // fail or be slow on the very first hit, then succeed once warm. Auto-retry
+      // transient failures (network / 5xx) with backoff so the user never has to
+      // manually wait-and-tap-again. 4xx (auth / not-ready / rate-limit) are
+      // terminal and surfaced immediately.
+      let res: Response | null = null
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          res = await fetch(`/api/stories/${encodeURIComponent(postId)}`)
+        } catch {
+          res = null
+        }
+        if (res && res.ok) break
+        if (res && res.status < 500) break
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 1400 * (attempt + 1)))
+      }
+      if (!res || !res.ok) {
+        setErrorMsg(getErrorMessage(res?.status ?? 500))
         setShareState('error')
         setTimeout(() => setShareState('idle'), 5000)
         return
