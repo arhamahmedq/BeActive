@@ -39,7 +39,7 @@ export async function buildStoryPayload(postId: string, userId: string): Promise
     postId,
     userId,
     shareVersion: 1,
-    storySrcKey: `story-src/${postId}.webp`,
+    storySrcKey: `story-src/${postId}.jpg`,
     username: post.user?.username ?? '',
     avatarUrl: post.user?.avatarUrl ?? null,
     workoutType,
@@ -67,11 +67,14 @@ export async function generateAndPersistStory(postId: string, userId: string): P
     const sourceRes = await fetch(post.imageUrl)
     if (!sourceRes.ok) throw new Error(`source photo fetch failed: HTTP ${sourceRes.status}`)
     const sourceBuf = Buffer.from(await sourceRes.arrayBuffer())
+    // Satori (the @vercel/og render engine) cannot decode WebP — embedding a
+    // WebP data URI throws "u2 is not iterable" mid-render. Encode the cached
+    // source as JPEG, which Satori decodes reliably.
     const resized = await sharp(sourceBuf)
       .resize(STORY_SRC_WIDTH, STORY_SRC_HEIGHT, { fit: 'cover' })
-      .webp({ quality: 80 })
+      .jpeg({ quality: 82 })
       .toBuffer()
-    await putObject(payload.storySrcKey, resized, 'image/webp', 'private, max-age=31536000, immutable')
+    await putObject(payload.storySrcKey, resized, 'image/jpeg', 'private, max-age=31536000, immutable')
 
     const png = await renderStoryPng(payload)
     const assetKey = `stories/${postId}/${payload.shareVersion}.png`

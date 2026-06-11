@@ -10,8 +10,8 @@ vi.mock('@/lib/story-card/renderStoryPng', () => ({
 vi.mock('sharp', () => ({
   default: vi.fn(() => ({
     resize: vi.fn().mockReturnThis(),
-    webp: vi.fn().mockReturnThis(),
-    toBuffer: vi.fn().mockResolvedValue(Buffer.from('webp-bytes')),
+    jpeg: vi.fn().mockReturnThis(),
+    toBuffer: vi.fn().mockResolvedValue(Buffer.from('jpeg-bytes')),
   })),
 }))
 
@@ -68,7 +68,7 @@ describe('buildStoryPayload', () => {
     expect(payload.streakCount).toBe(10)
     expect(payload.bestStreak).toBe(10)
     expect(payload.isPersonalBest).toBe(true)
-    expect(payload.storySrcKey).toBe('story-src/post-1.webp')
+    expect(payload.storySrcKey).toBe('story-src/post-1.jpg')
     expect(payload.shareVersion).toBe(1)
   })
 
@@ -136,9 +136,9 @@ describe('getOrRenderStory', () => {
       expect(result.contentType).toBe('image/png')
     }
     expect(r2.putObject).toHaveBeenCalledWith(
-      'story-src/post-1.webp',
+      'story-src/post-1.jpg',
       expect.any(Buffer),
-      'image/webp',
+      'image/jpeg',
       expect.any(String)
     )
     expect(r2.putObject).toHaveBeenCalledWith(
