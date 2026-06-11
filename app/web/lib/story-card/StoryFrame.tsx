@@ -35,7 +35,7 @@ interface StoryFrameProps {
   /** Override the brand background gradient if a template needs a custom one. */
   background?: string
   /** Vertical placement of content within the safe band. Default: centered. */
-  align?: 'center' | 'top'
+  align?: 'center' | 'top' | 'bottom'
   /** Show the small translucent "BeActive" wordmark in the top unsafe zone. */
   brandMark?: boolean
   /** Overlay the unsafe zones + safe band outline for verification. */
@@ -177,7 +177,7 @@ export function StoryFrame({
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: align === 'top' ? 'flex-start' : 'center',
+          justifyContent: align === 'top' ? 'flex-start' : align === 'bottom' ? 'flex-end' : 'center',
         }}
       >
         {children}

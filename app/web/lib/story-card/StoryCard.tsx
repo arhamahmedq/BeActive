@@ -66,15 +66,19 @@ export function StoryCard({
   igChrome = false,
 }: StoryCardData) {
   const CARD_W = STORY_SAFE_BAND.width // fills the safe band width (936px)
-  const PHOTO_H = 620
+  const PHOTO_H = 560
 
+  // Bottom-anchored + no top brand mark: all vertical slack collects at the TOP
+  // so the composition sits in the lower-middle, leaving the top ~20-25% as
+  // ambient-only breathing room that clears Instagram's header/controls overlay.
+  // The only BeActive brand is the footer bar — protected in the bottom third.
   return (
-    <StoryFrame debug={debug} igChrome={igChrome} igUsername={username}>
+    <StoryFrame brandMark={false} align="bottom" debug={debug} igChrome={igChrome} igUsername={username}>
       {/* ===== THE CARD ===== */}
       <div
         style={{
           width: CARD_W,
-          height: 1180,
+          height: 1040,
           background: 'rgba(255,255,255,0.97)',
           borderRadius: 56,
           border: '1px solid rgba(255,255,255,0.9)',
