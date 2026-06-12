@@ -187,6 +187,8 @@ NEXT_PUBLIC_APP_URL             # App URL
 NEXT_PUBLIC_SENTRY_DSN          # Production only
 NEXT_PUBLIC_STREAK_DEBUG="true" # Dev only — never in production
 UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN
+QSTASH_TOKEN                    # Publishes classification jobs from posts/create
+QSTASH_CURRENT_SIGNING_KEY / QSTASH_NEXT_SIGNING_KEY  # Verify /api/queue/classify
 ```
 
 Never commit `.env`. `SUPABASE_SERVICE_KEY` and `AI_API_KEY` are never `NEXT_PUBLIC_`.
@@ -211,6 +213,7 @@ Never commit `.env`. `SUPABASE_SERVICE_KEY` and `AI_API_KEY` are never `NEXT_PUB
 | GET | `/api/users/[username]` · `/api/users/[username]/posts` | Profiles |
 | GET/POST | `/api/notifications?cursor` · `/api/notifications/read` | Notifications |
 | GET | `/api/stories/generate?postId=X` | 1080×1920 story card PNG (owner + VERIFIED only) |
+| POST | `/api/queue/classify` | QStash-only — runs AI classification (signature-verified) |
 
 Full shapes → `/docs/API_CONTRACTS.md`
 
@@ -335,6 +338,7 @@ Update CLAUDE.md when: tech stack changes · slice status changes · new command
 - One VERIFIED post per user per local calendar date (enforced via DailyCompletion P2002).
 - In-memory rate limiter is per-serverless-instance — needs Redis/Upstash pre-launch (Upstash configured ✅).
 - **cron-job.org jobs MUST use `https://`, never `http://`.** Vercel responds to `http://` with a `308` redirect at the edge (~17ms, never invokes the function); cron-job.org doesn't follow it and reports "Failed (HTTP error)", then auto-disables the job after enough failures. If a cron-job.org job shows a sub-100ms "HTTP error" on an endpoint that otherwise works, check the URL scheme first.
+- **QStash can't reach `localhost`.** `posts/create` enqueues classification via QStash to `${NEXT_PUBLIC_APP_URL}/api/queue/classify` — if `QSTASH_TOKEN`/signing keys aren't set (typical local dev), `enqueueClassificationJob` logs an error and returns false, and the post stays `PENDING` until the `reprocess-pending` reconciler (or a manual call to it) re-runs `processUploadedPost` directly. To test the full queue locally, use QStash's local dev server or an ngrok tunnel as `NEXT_PUBLIC_APP_URL`.
 
 ### QA Commands
 ```bash

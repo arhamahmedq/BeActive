@@ -1,20 +1,14 @@
-import { NextRequest, NextResponse, after } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/server/core/middleware/auth'
 import { validateBody } from '@/server/core/middleware/validate'
 import { postUserRateLimit } from '@/server/core/middleware/rateLimit'
 import { isAppError, toErrorResponse, InternalError } from '@/server/core/errors/AppError'
 import { createPostSchema } from '@/server/modules/posts/posts.schema'
 import { createPost } from '@/server/modules/posts/posts.service'
-import { processUploadedPost } from '@/server/workers/aiClassifier'
+import { enqueueClassificationJob } from '@/server/core/queue/qstash'
 import { logger } from '@/server/core/logger/index'
 
-// The after() callback below runs classification (AI call with up to ~21s of
-// retry backoff) + the verify transaction + notifications inside this same
-// invocation, post-response. Without an explicit ceiling this falls back to a
-// platform default that can be shorter than that worst case, killing the
-// after() callback before the streak-credit transaction runs.
 export const runtime = 'nodejs'
-export const maxDuration = 60
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const auth = await requireAuth(request)
@@ -32,24 +26,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       caption: bodyOrError.caption,
     })
 
-    // Trigger AI classification after the 201 response is flushed to the client.
-    // after() runs within the same function invocation but post-response — this
-    // satisfies the async classification requirement without blocking upload UX.
-    after(async () => {
-      try {
-        await processUploadedPost({
-          postId: post.id,
-          imageUrl: post.imageUrl,
-          userId: auth.userId,
-          correlationId: post.id,
-        })
-      } catch (err) {
-        logger.error('AI classification after() handler threw unexpectedly', {
-          postId: post.id,
-          error: String(err),
-        })
-      }
+    // Enqueue AI classification via QStash instead of running it inline.
+    // QStash POSTs this payload to /api/queue/classify, which calls
+    // processUploadedPost — identical body to the old after() handler. If the
+    // publish itself fails (network, misconfiguration), the post stays
+    // PENDING and the reprocess-pending reconciler picks it up.
+    const enqueued = await enqueueClassificationJob({
+      postId: post.id,
+      imageUrl: post.imageUrl,
+      userId: auth.userId,
+      correlationId: post.id,
     })
+    if (!enqueued) {
+      logger.error('Failed to enqueue classification job — post left PENDING for reconciler', {
+        postId: post.id,
+      })
+    }
 
     return NextResponse.json({ post }, { status: 201 })
   } catch (err) {
