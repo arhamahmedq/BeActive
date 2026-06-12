@@ -334,6 +334,7 @@ Update CLAUDE.md when: tech stack changes · slice status changes · new command
 - Vercel serverless timeout: 10s (free) / 60s (pro) — AI classification MUST be async.
 - One VERIFIED post per user per local calendar date (enforced via DailyCompletion P2002).
 - In-memory rate limiter is per-serverless-instance — needs Redis/Upstash pre-launch (Upstash configured ✅).
+- **cron-job.org jobs MUST use `https://`, never `http://`.** Vercel responds to `http://` with a `308` redirect at the edge (~17ms, never invokes the function); cron-job.org doesn't follow it and reports "Failed (HTTP error)", then auto-disables the job after enough failures. If a cron-job.org job shows a sub-100ms "HTTP error" on an endpoint that otherwise works, check the URL scheme first.
 
 ### QA Commands
 ```bash
