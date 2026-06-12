@@ -14,6 +14,7 @@
 | Auth | Supabase Auth (JWT + HTTP-only cookies) | Supabase |
 | Object storage | Cloudflare R2 | Cloudflare |
 | AI classification | Gemini Flash 2.0 | Google AI Studio |
+| Classification queue | QStash, signature-verified | Upstash |
 | Cron jobs | External HTTP triggers, bearer-protected | cron-job.org |
 
 ---
@@ -82,6 +83,19 @@ CRON_SECRET=<generate with: openssl rand -hex 32>
 - Both cron routes (`/api/cron/streak-evaluator`, `/api/cron/reprocess-pending`) require
   `Authorization: Bearer <CRON_SECRET>` — set this header on each cron-job.org job
 - See [Cron Jobs](#cron-jobs-cron-joborg) below for schedules and setup
+
+#### QStash (classification queue)
+```
+QSTASH_TOKEN=your-qstash-token
+QSTASH_CURRENT_SIGNING_KEY=your-current-signing-key
+QSTASH_NEXT_SIGNING_KEY=your-next-signing-key
+```
+- Enable QStash on the same Upstash account used for Redis: [console.upstash.com/qstash](https://console.upstash.com/qstash)
+- `QSTASH_TOKEN` is used by `posts/create` to publish classification jobs
+- `QSTASH_CURRENT_SIGNING_KEY` / `QSTASH_NEXT_SIGNING_KEY` verify the
+  `Upstash-Signature` header on inbound `POST /api/queue/classify` requests
+- `NEXT_PUBLIC_APP_URL` (above) must be the real `https://` deployment URL —
+  QStash publishes to `${NEXT_PUBLIC_APP_URL}/api/queue/classify`
 
 #### Optional (recommended for production)
 ```
@@ -167,17 +181,16 @@ Always apply migrations **before** deploying code that depends on the new schema
 The in-memory rate limiter resets on each cold Vercel invocation. It provides protection within a single request burst but not across invocations. **Fix before launch:** provision Upstash Redis via Vercel Marketplace and swap the rate limiter implementation.
 
 ### AI classification timeout risk
-`POST /api/posts/create` uses `after()` to run AI classification after the response. On Hobby tier (10s function timeout), classification that takes >10s will be killed. The post stays `PENDING` — the upload UI handles this with a "still checking" state. Classification timeout is rare with Gemini Flash (typical: 1–3s).
+`POST /api/posts/create` enqueues a QStash job and returns immediately —
+classification runs in a separate invocation of `POST /api/queue/classify`
+(`maxDuration = 60`), so `posts/create` itself is no longer at risk of being
+killed mid-classification. The post stays `PENDING` until `/api/queue/classify`
+completes — the upload UI handles this with a "still checking" state.
+Classification timeout is rare with Gemini Flash (typical: 1–3s).
 
-**If needed:** upgrade to Pro plan (60s timeout) and increase `maxDuration` in `app/web/vercel.json`:
-```json
-{
-  "functions": {
-    "app/api/posts/create/route.ts": { "maxDuration": 60 },
-    "app/api/cron/streak-evaluator/route.ts": { "maxDuration": 60 }
-  }
-}
-```
+If `/api/queue/classify` itself times out or QStash fails to deliver the job,
+the post stays `PENDING` and the `reprocess-pending` reconciler cron picks it
+up — see [Cron Jobs](#cron-jobs-cron-joborg).
 
 ### Event bus is in-process only
 The `EventEmitter` event bus is a process-level singleton. Events emitted in one serverless invocation are not visible in another. This is by design — the bus is for best-effort side effects (Slice 7 notifications) that run within the same invocation. Streak updates and post classification are direct awaited calls, not bus events.
@@ -191,7 +204,7 @@ The `EventEmitter` event bus is a process-level singleton. Events emitted in one
 | Auth sessions | HTTP-only cookies, SameSite=Lax | Same | Identical |
 | Supabase calls | Direct to Supabase URL | Same | Identical |
 | R2 presigned uploads | `fetch()` PUT to R2 | Same (CORS must be configured) | Requires R2 CORS config |
-| AI classification | Runs synchronously via `after()` | Same API, possible timeout on Hobby | Timeout risk on free tier |
+| AI classification | Enqueued via QStash to `/api/queue/classify` | Same | Identical |
 | Rate limiting | In-memory, per-process | In-memory, per-invocation (resets) | Effectively disabled between requests |
 | Cron (streak evaluator, reconciler) | Manual: `GET /api/cron/...` | cron-job.org, scheduled (see [Cron Jobs](#cron-jobs-cron-joborg)) | Identical logic, automated trigger |
 | Prisma connection | Direct PostgreSQL | PgBouncer pooler (connection_limit=1) | `DATABASE_URL` must use pooler |
@@ -290,8 +303,12 @@ and the `Authorization: Bearer <CRON_SECRET>` header is set. Test manually:
 **Fix:** Ensure `DATABASE_URL` uses the Supabase PgBouncer pooler URL with `?pgbouncer=true&connection_limit=1`.
 
 ### Posts stuck as PENDING (AI classification never completes)
-**Cause:** `GEMINI_API_KEY` not set, or classification timed out on Hobby tier.  
-**Fix:** Verify `GEMINI_API_KEY` is set. If timing out, upgrade to Pro or lower `MAX_ATTEMPTS` in `aiClassifier.ts`.
+**Cause:** `GEMINI_API_KEY` not set, classification timed out, or the QStash job
+to `/api/queue/classify` was never delivered (missing `QSTASH_TOKEN`/signing
+keys, or `NEXT_PUBLIC_APP_URL` misconfigured).  
+**Fix:** Verify `GEMINI_API_KEY` and the `QSTASH_*` env vars are set. Check the
+Upstash QStash dashboard for failed/DLQ messages to `/api/queue/classify`. The
+`reprocess-pending` cron retries stale `PENDING` posts regardless of cause.
 
 ---
 
@@ -345,4 +362,7 @@ Upload a workout post — the presigned URL from `/api/uploads/sign` should reac
 | `NEXT_PUBLIC_STREAK_DEBUG` | ❌ | ❌ | Never set in production |
 | `UPSTASH_REDIS_REST_URL` | ❌* | ✅ | *Needed for reliable rate limiting |
 | `UPSTASH_REDIS_REST_TOKEN` | ❌* | ✅ | *Needed for reliable rate limiting |
+| `QSTASH_TOKEN` | ✅ | ✅ | Publishes classification jobs from posts/create |
+| `QSTASH_CURRENT_SIGNING_KEY` | ✅ | ✅ | Verifies inbound `/api/queue/classify` requests |
+| `QSTASH_NEXT_SIGNING_KEY` | ✅ | ✅ | Verifies inbound `/api/queue/classify` requests (key rotation) |
 | `SENTRY_DSN` | ❌ | ❌ | Recommended for production error tracking |
