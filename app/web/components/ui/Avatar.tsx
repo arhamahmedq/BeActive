@@ -26,7 +26,7 @@ export function Avatar({ src, name, size = 'md', className = '', onClick }: Avat
 
   const inner = src ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={name ? `${name}'s profile picture` : ''} className="h-full w-full object-cover" />
+    <img src={src} alt={name ? `${name}'s profile picture` : ''} loading="lazy" className="h-full w-full object-cover" />
   ) : (
     <span aria-hidden>{initial}</span>
   )

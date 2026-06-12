@@ -27,6 +27,7 @@ export function ProfilePostCard({ post }: { post: FeedPostResponse }) {
       <img
         src={imageUrl}
         alt={caption ?? 'workout'}
+        loading="lazy"
         className="w-full aspect-square object-cover bg-gray-50"
       />
 
