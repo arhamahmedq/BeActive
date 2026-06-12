@@ -8,24 +8,31 @@ import { usePostStatus } from '@/hooks/usePostStatus'
 import { useStreak } from '@/hooks/useStreak'
 
 // ---------------------------------------------------------------------------
-// EXIF stripping via canvas — drawing to canvas discards all metadata
+// EXIF stripping via canvas — drawing to canvas discards all metadata.
+// Also caps the longest edge at MAX_DIMENSION: phone cameras commonly produce
+// 3000-4000px images, which the feed/profile then fetch at full size with no
+// server-side resize. 1600px keeps plenty of detail while cutting pixel count
+// (and R2 payload size) by 5-10x for typical uploads.
 // ---------------------------------------------------------------------------
+const MAX_DIMENSION = 1600
+
 async function stripExif(file: File): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     const objectUrl = URL.createObjectURL(file)
 
     img.onload = () => {
+      const scale = Math.min(1, MAX_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight))
       const canvas = document.createElement('canvas')
-      canvas.width = img.naturalWidth
-      canvas.height = img.naturalHeight
+      canvas.width = Math.round(img.naturalWidth * scale)
+      canvas.height = Math.round(img.naturalHeight * scale)
       const ctx = canvas.getContext('2d')
       if (!ctx) {
         URL.revokeObjectURL(objectUrl)
         reject(new Error('Canvas 2D context unavailable'))
         return
       }
-      ctx.drawImage(img, 0, 0)
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
       URL.revokeObjectURL(objectUrl)
       canvas.toBlob(
         (blob) => {
@@ -33,7 +40,7 @@ async function stripExif(file: File): Promise<Blob> {
           else reject(new Error('Canvas toBlob returned null'))
         },
         file.type,
-        0.92
+        0.85
       )
     }
 
