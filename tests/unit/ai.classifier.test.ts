@@ -20,6 +20,9 @@ vi.mock('../../server/modules/friends/friends.service', () => ({
 vi.mock('../../server/modules/users/users.service', () => ({
   getProfile: vi.fn(),
 }))
+vi.mock('../../server/modules/stories/stories.service', () => ({
+  generateAndPersistStory: vi.fn().mockResolvedValue(undefined),
+}))
 // The VERIFIED branch now runs inside prisma.$transaction. Mock it to invoke the
 // callback with a stub tx so the wiring (markPostVerified → event → streak) is
 // exercised; a callback rejection propagates exactly as a real rollback would.
@@ -27,13 +30,14 @@ vi.mock('../../app/web/lib/prisma', () => ({
   prisma: { $transaction: vi.fn((cb: (tx: unknown) => unknown) => cb({})) },
 }))
 
-import { processUploadedPost } from '../../server/workers/aiClassifier'
+import { processUploadedPost, reprocessStalePendingPosts } from '../../server/workers/aiClassifier'
 import * as aiService from '../../server/modules/ai/ai.service'
 import * as aiRepo from '../../server/modules/ai/ai.repo'
 import * as streaksService from '../../server/modules/streaks/streaks.service'
 import * as notificationsService from '../../server/modules/notifications/notifications.service'
 import * as friendsService from '../../server/modules/friends/friends.service'
 import * as usersService from '../../server/modules/users/users.service'
+import * as storiesService from '../../server/modules/stories/stories.service'
 
 const VERIFIED_RESULT = {
   isWorkout: true,
@@ -90,6 +94,7 @@ beforeEach(() => {
   vi.mocked(notificationsService.createNotification).mockResolvedValue(undefined)
   vi.mocked(friendsService.getAcceptedFriendIds).mockResolvedValue([])
   vi.mocked(usersService.getProfile).mockResolvedValue(POSTER_PROFILE)
+  vi.mocked(storiesService.generateAndPersistStory).mockResolvedValue(undefined)
 })
 
 // ---------------------------------------------------------------------------
@@ -324,5 +329,116 @@ describe('processUploadedPost — notification wiring (Slice 7)', () => {
     await expect(
       processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2/abc.jpg', userId: 'user-1' })
     ).resolves.toBeUndefined()
+  })
+})
+
+// ===========================================================================
+// Story generation — fire-and-forget (P0.2)
+// ===========================================================================
+describe('processUploadedPost — story generation (P0.2)', () => {
+  it('triggers story generation on VERIFIED', async () => {
+    vi.mocked(aiService.classifyImage).mockResolvedValue(VERIFIED_RESULT)
+
+    await processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2/abc.jpg', userId: 'user-1' })
+
+    expect(storiesService.generateAndPersistStory).toHaveBeenCalledWith('post-1', 'user-1')
+  })
+
+  it('a story-generation failure does not throw out of processUploadedPost (fire-and-forget)', async () => {
+    vi.mocked(aiService.classifyImage).mockResolvedValue(VERIFIED_RESULT)
+    vi.mocked(storiesService.generateAndPersistStory).mockRejectedValue(new Error('satori boom'))
+
+    await expect(
+      processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2/abc.jpg', userId: 'user-1' })
+    ).resolves.toBeUndefined()
+  })
+
+  it('does not generate a story when the post is REJECTED', async () => {
+    vi.mocked(aiService.classifyImage).mockResolvedValue(REJECTED_RESULT)
+
+    await processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2/abc.jpg', userId: 'user-1' })
+
+    expect(storiesService.generateAndPersistStory).not.toHaveBeenCalled()
+  })
+})
+
+// ===========================================================================
+// Reconciliation — reprocess stale PENDING posts (P0.1)
+// ===========================================================================
+describe('reprocessStalePendingPosts', () => {
+  const STALE_POST_A = {
+    id: 'post-a',
+    imageUrl: 'https://r2.example.com/a.jpg',
+    userId: 'user-a',
+    createdAt: new Date('2026-06-01T00:00:00Z'),
+  }
+  const STALE_POST_B = {
+    id: 'post-b',
+    imageUrl: 'https://r2.example.com/b.jpg',
+    userId: 'user-b',
+    createdAt: new Date('2026-06-01T00:01:00Z'),
+  }
+  const NOW = new Date('2026-06-01T00:05:00Z')
+
+  beforeEach(() => {
+    vi.mocked(aiService.classifyImage).mockResolvedValue(VERIFIED_RESULT)
+  })
+
+  it('is a no-op when there are no stale PENDING posts', async () => {
+    vi.mocked(aiRepo.findStalePendingPosts).mockResolvedValue([])
+
+    const result = await reprocessStalePendingPosts(NOW)
+
+    expect(result).toEqual({ found: 0, succeeded: 0, failed: 0 })
+    expect(aiService.classifyImage).not.toHaveBeenCalled()
+  })
+
+  it('queries with a 2-minute staleness cutoff and a bounded batch size', async () => {
+    vi.mocked(aiRepo.findStalePendingPosts).mockResolvedValue([])
+
+    await reprocessStalePendingPosts(NOW)
+
+    expect(aiRepo.findStalePendingPosts).toHaveBeenCalledWith(
+      new Date(NOW.getTime() - 2 * 60 * 1000),
+      10
+    )
+  })
+
+  it('reprocesses each stale post and reports success counts', async () => {
+    vi.mocked(aiRepo.findStalePendingPosts).mockResolvedValue([STALE_POST_A, STALE_POST_B])
+    vi.mocked(aiRepo.findPostForClassification)
+      .mockResolvedValueOnce({ id: 'post-a', status: PostStatus.PENDING, imageUrl: STALE_POST_A.imageUrl, userId: 'user-a' })
+      .mockResolvedValueOnce({ id: 'post-b', status: PostStatus.PENDING, imageUrl: STALE_POST_B.imageUrl, userId: 'user-b' })
+
+    const result = await reprocessStalePendingPosts(NOW)
+
+    expect(result).toEqual({ found: 2, succeeded: 2, failed: 0 })
+    expect(aiRepo.markPostVerified).toHaveBeenCalledTimes(2)
+  })
+
+  it('skips a post that was already classified by the time the reconciler runs (idempotency)', async () => {
+    vi.mocked(aiRepo.findStalePendingPosts).mockResolvedValue([STALE_POST_A])
+    vi.mocked(aiRepo.findPostForClassification).mockResolvedValue({
+      id: 'post-a',
+      status: PostStatus.VERIFIED,
+      imageUrl: STALE_POST_A.imageUrl,
+      userId: 'user-a',
+    })
+
+    const result = await reprocessStalePendingPosts(NOW)
+
+    expect(result).toEqual({ found: 1, succeeded: 1, failed: 0 })
+    expect(aiService.classifyImage).not.toHaveBeenCalled()
+  })
+
+  it('counts a post as failed if reprocessing throws unexpectedly, and continues to the next', async () => {
+    vi.mocked(aiRepo.findStalePendingPosts).mockResolvedValue([STALE_POST_A, STALE_POST_B])
+    vi.mocked(aiRepo.findPostForClassification)
+      .mockRejectedValueOnce(new Error('DB unreachable'))
+      .mockResolvedValueOnce({ id: 'post-b', status: PostStatus.PENDING, imageUrl: STALE_POST_B.imageUrl, userId: 'user-b' })
+
+    const result = await reprocessStalePendingPosts(NOW)
+
+    expect(result).toEqual({ found: 2, succeeded: 1, failed: 1 })
   })
 })

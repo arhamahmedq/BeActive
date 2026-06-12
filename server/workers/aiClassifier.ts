@@ -5,6 +5,7 @@ import { EventType } from '../core/events/index'
 import { classifyImage } from '../modules/ai/ai.service'
 import {
   findPostForClassification,
+  findStalePendingPosts,
   markPostVerified,
   markPostRejected,
   persistClassificationEvent,
@@ -25,6 +26,13 @@ const VERIFY_THRESHOLD = 0.70
 // 3 attempts: backoff 1s → 4s → 16s
 const MAX_ATTEMPTS = 3
 const BACKOFF_BASE_MS = 1_000
+
+// Reconciliation: posts left PENDING longer than this were dropped by the
+// after()-based trigger (instance reclaimed, function killed, etc.) — see
+// processUploadedPost's idempotency guard, which makes re-running it safe even
+// if the original after() eventually does complete.
+const STALE_PENDING_THRESHOLD_MS = 2 * 60 * 1000
+const RECONCILE_BATCH_LIMIT = 10
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -193,9 +201,11 @@ export async function processUploadedPost(params: {
     })()
 
     // Story Sharing V3 — pre-render and persist the share card so the share
-    // button's read path is a fast cache-aside hit. Best-effort: a render
-    // failure here must never affect the verified post or streak.
-    await generateAndPersistStory(postId, userId).catch((e: unknown) => {
+    // button's read path is a fast cache-aside hit. Fire-and-forget (not
+    // awaited): the streak-critical work above has already committed, and the
+    // share route renders on demand if this never finishes — it must not
+    // extend the after() window the verify transaction depends on.
+    void generateAndPersistStory(postId, userId).catch((e: unknown) => {
       logger.error('Story generation failed', { postId, error: String(e) })
     })
 
@@ -214,4 +224,53 @@ export async function processUploadedPost(params: {
       logger.error('Failed to persist WORKOUT_REJECTED event', { postId, error: String(e) })
     }
   }
+}
+
+// Reconciliation: re-run classification for posts whose after()-based trigger
+// was dropped (instance reclaimed/killed before or during processing — see
+// the upload pipeline investigation). processUploadedPost is idempotent (it
+// re-checks status === PENDING before doing anything), so re-invoking it for
+// a post whose original after() actually did complete is a harmless no-op.
+//
+// Sequential, small batch — this runs on a frequent external cron
+// (cron-job.org), so a backlog drains over a few runs rather than risking a
+// single invocation exceeding maxDuration.
+export async function reprocessStalePendingPosts(
+  now: Date = new Date(),
+  options?: { thresholdMs?: number; limit?: number }
+): Promise<{ found: number; succeeded: number; failed: number }> {
+  const thresholdMs = options?.thresholdMs ?? STALE_PENDING_THRESHOLD_MS
+  const limit = options?.limit ?? RECONCILE_BATCH_LIMIT
+  const cutoff = new Date(now.getTime() - thresholdMs)
+  const stale = await findStalePendingPosts(cutoff, limit)
+
+  let succeeded = 0
+  let failed = 0
+  for (const post of stale) {
+    logger.info('Reconciler: reprocessing stale PENDING post', {
+      postId: post.id,
+      ageMs: now.getTime() - post.createdAt.getTime(),
+    })
+    try {
+      await processUploadedPost({
+        postId: post.id,
+        imageUrl: post.imageUrl,
+        userId: post.userId,
+        correlationId: post.id,
+      })
+      succeeded++
+    } catch (e: unknown) {
+      failed++
+      logger.error('Reconciler: failed to reprocess stale PENDING post', {
+        postId: post.id,
+        error: String(e),
+      })
+    }
+  }
+
+  if (stale.length > 0) {
+    logger.info('Reconciler: run complete', { found: stale.length, succeeded, failed })
+  }
+
+  return { found: stale.length, succeeded, failed }
 }

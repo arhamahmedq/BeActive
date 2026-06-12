@@ -18,6 +18,28 @@ export async function findPostForClassification(
   })
 }
 
+export interface StalePendingPost {
+  id: string
+  imageUrl: string
+  userId: string
+  createdAt: Date
+}
+
+// Posts left in PENDING past `olderThan` — the after()-based classification
+// trigger never ran or was killed mid-flight. Oldest first so a backlog drains
+// in submission order.
+export async function findStalePendingPosts(
+  olderThan: Date,
+  limit: number
+): Promise<StalePendingPost[]> {
+  return prisma.post.findMany({
+    where: { status: PostStatus.PENDING, createdAt: { lt: olderThan } },
+    select: { id: true, imageUrl: true, userId: true, createdAt: true },
+    orderBy: { createdAt: 'asc' },
+    take: limit,
+  })
+}
+
 // Runs on whatever client is passed: in the verify flow this is the SHARED
 // transaction client (`tx`) so the Post→VERIFIED flip and the Workout row commit
 // atomically with the streak update. Callers in the verify path MUST pass `tx`.
