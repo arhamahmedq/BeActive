@@ -70,6 +70,18 @@ export async function markPostRejected(postId: string): Promise<void> {
   })
 }
 
+// Poison-post cap (H1): bumped every time classifyWithRetry exhausts its
+// retries for this post. Returns the new total so the caller can compare
+// against CLASSIFICATION_GIVEUP_THRESHOLD.
+export async function incrementClassificationAttempts(postId: string): Promise<number> {
+  const updated = await prisma.post.update({
+    where: { id: postId },
+    data: { classificationAttempts: { increment: 1 } },
+    select: { classificationAttempts: true },
+  })
+  return updated.classificationAttempts
+}
+
 export async function persistClassificationEvent(
   params: {
     type: string

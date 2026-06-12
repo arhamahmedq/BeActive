@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { evaluateStreaks } from '@/server/workers/streakEvaluator'
 import { logger } from '@/server/core/logger/index'
 
@@ -11,7 +12,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const result = await evaluateStreaks()
+    // Schedule must match the cron-job.org job — see docs/DEPLOYMENT.md#cron-jobs-cron-joborg.
+    const result = await Sentry.withMonitor(
+      'streak-evaluator',
+      () => evaluateStreaks(),
+      { schedule: { type: 'crontab', value: '0 * * * *' }, timezone: 'UTC' }
+    )
     logger.info('Streak evaluator cron completed', result)
     return NextResponse.json({ ok: true, ...result }, { status: 200 })
   } catch (err) {

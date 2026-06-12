@@ -11,42 +11,93 @@ export interface RateLimitConfig {
 // Upstash Redis backend (production) — falls back to in-memory in local dev.
 // Set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN in Vercel env vars.
 // Upstash free tier: 10k commands/day, sufficient for MVP traffic.
+//
+// One Ratelimit instance per distinct (maxRequests, windowMs) config — each
+// instance is created with its own slidingWindow(maxRequests, window), so the
+// configured per-endpoint limit is the limit actually enforced (previously a
+// single shared instance hardcoded to 100/min was used for every config).
 // ---------------------------------------------------------------------------
 
-let _upstashLimiter: import('@upstash/ratelimit').Ratelimit | null = null
+type Ratelimit = import('@upstash/ratelimit').Ratelimit
+type Redis = import('@upstash/redis').Redis
+type Duration = `${number} ${'ms' | 's' | 'm' | 'h' | 'd'}`
 
-async function getUpstashLimiter(): Promise<import('@upstash/ratelimit').Ratelimit | null> {
+let _redis: Redis | null | undefined
+const _limiterCache = new Map<string, Ratelimit>()
+
+function msToUpstashDuration(windowMs: number): Duration {
+  if (windowMs % 3_600_000 === 0) return `${windowMs / 3_600_000} h`
+  if (windowMs % 60_000 === 0) return `${windowMs / 60_000} m`
+  if (windowMs % 1_000 === 0) return `${windowMs / 1_000} s`
+  return `${windowMs} ms`
+}
+
+async function getRedis(): Promise<Redis | null> {
+  if (_redis !== undefined) return _redis
+
   const url = process.env.UPSTASH_REDIS_REST_URL
   const token = process.env.UPSTASH_REDIS_REST_TOKEN
-  if (!url || !token) return null
+  if (!url || !token) {
+    _redis = null
+    return _redis
+  }
 
-  if (_upstashLimiter) return _upstashLimiter
+  try {
+    const { Redis: RedisCtor } = await import('@upstash/redis')
+    _redis = new RedisCtor({ url, token })
+  } catch (err) {
+    logger.error('Failed to initialise Upstash Redis client — falling back to in-memory', { error: String(err) })
+    _redis = null
+  }
+  return _redis
+}
+
+async function getLimiterForConfig(config: RateLimitConfig): Promise<Ratelimit | null> {
+  const cacheKey = `${config.maxRequests}:${config.windowMs}`
+  const cached = _limiterCache.get(cacheKey)
+  if (cached) return cached
+
+  const redis = await getRedis()
+  if (!redis) return null
 
   try {
     const { Ratelimit } = await import('@upstash/ratelimit')
-    const { Redis } = await import('@upstash/redis')
-    _upstashLimiter = new Ratelimit({
-      redis: new Redis({ url, token }),
-      // Sliding window: accurate, prevents burst-at-boundary attacks.
-      limiter: Ratelimit.slidingWindow(100, '1 m'),
-      prefix: 'beactive:rl',
+    const limiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(config.maxRequests, msToUpstashDuration(config.windowMs)),
+      prefix: `beactive:rl:${cacheKey}`,
       analytics: false,
     })
-    return _upstashLimiter
+    _limiterCache.set(cacheKey, limiter)
+    return limiter
   } catch (err) {
-    logger.error('Failed to initialise Upstash rate limiter — falling back to in-memory', { error: String(err) })
+    logger.error('Failed to initialise Upstash rate limiter — falling back to in-memory', {
+      error: String(err),
+      config: cacheKey,
+    })
     return null
   }
 }
 
 // ---------------------------------------------------------------------------
-// In-memory fallback (local dev / CI — non-functional on Vercel serverless)
+// In-memory fallback (local dev / CI — non-functional across multiple
+// Vercel serverless instances, but still correct within a single process).
+// Capped and lazily swept to avoid an unbounded Map.
 // ---------------------------------------------------------------------------
 
 const _memStore = new Map<string, { count: number; resetAt: number }>()
+const MEM_STORE_MAX_SIZE = 10_000
+
+function sweepMemStore(now: number): void {
+  if (_memStore.size <= MEM_STORE_MAX_SIZE) return
+  for (const [k, v] of _memStore) {
+    if (v.resetAt < now) _memStore.delete(k)
+  }
+}
 
 function memCheck(key: string, maxRequests: number, windowMs: number): NextResponse | null {
   const now = Date.now()
+  sweepMemStore(now)
   const rec = _memStore.get(key)
 
   if (!rec || rec.resetAt < now) {
@@ -67,26 +118,34 @@ function memCheck(key: string, maxRequests: number, windowMs: number): NextRespo
 // Async Upstash check (per-key, keyed by callers using ip: or user: prefixes)
 // ---------------------------------------------------------------------------
 
-async function upstashCheck(key: string, maxRequests: number, windowMs: number): Promise<NextResponse | null> {
-  const limiter = await getUpstashLimiter()
-  if (!limiter) return null // use in-memory fallback in caller
+interface UpstashCheckResult {
+  // true once Upstash has answered (allow or deny) — caller must NOT also run
+  // memCheck in this case, or every allowed request would be double-counted.
+  handled: boolean
+  response: NextResponse | null
+}
+
+async function upstashCheck(key: string, config: RateLimitConfig): Promise<UpstashCheckResult> {
+  const limiter = await getLimiterForConfig(config)
+  if (!limiter) return { handled: false, response: null }
 
   try {
-    // Override the global config with per-call maxRequests/windowMs by using
-    // the key as the identifier (Upstash uses the Ratelimit instance's config
-    // for sliding window, so we embed limits in a namespaced key).
-    const scopedKey = `${key}:${maxRequests}:${windowMs}`
-    const { success } = await limiter.limit(scopedKey)
+    const { success } = await limiter.limit(key)
     if (!success) {
       const endpoint = key.split(':').slice(2).join(':')
-      logger.warn('Rate limit exceeded (Upstash)', { endpoint, windowMs })
-      return NextResponse.json(toErrorResponse(new RateLimitError()), { status: 429 })
+      logger.warn('Rate limit exceeded (Upstash)', {
+        endpoint,
+        maxRequests: config.maxRequests,
+        windowMs: config.windowMs,
+      })
+      return { handled: true, response: NextResponse.json(toErrorResponse(new RateLimitError()), { status: 429 }) }
     }
-    return null
+    return { handled: true, response: null }
   } catch (err) {
-    // Upstash unavailable — fail open (don't block users on Redis outage).
+    // Upstash unavailable — fail open (don't block users on Redis outage) and
+    // fall back to the in-memory check for this request.
     logger.error('Upstash rate limit check failed — failing open', { error: String(err) })
-    return null
+    return { handled: false, response: null }
   }
 }
 
@@ -107,8 +166,8 @@ export function createRateLimiter(config: RateLimitConfig) {
       'unknown'
     const key = `ip:${ip}:${request.nextUrl.pathname}`
 
-    const upstash = await upstashCheck(key, config.maxRequests, config.windowMs)
-    if (upstash !== null) return upstash
+    const { handled, response } = await upstashCheck(key, config)
+    if (handled) return response
     return memCheck(key, config.maxRequests, config.windowMs)
   }
 }
@@ -120,8 +179,8 @@ export function createUserRateLimiter(config: RateLimitConfig) {
   ): Promise<NextResponse | null> {
     const key = `user:${userId}:${endpoint}`
 
-    const upstash = await upstashCheck(key, config.maxRequests, config.windowMs)
-    if (upstash !== null) return upstash
+    const { handled, response } = await upstashCheck(key, config)
+    if (handled) return response
     return memCheck(key, config.maxRequests, config.windowMs)
   }
 }
