@@ -1,5 +1,9 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 import tsconfigPaths from 'vite-tsconfig-paths'
+
+const rootDir = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   plugins: [tsconfigPaths()],
@@ -15,9 +19,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@/lib': '/Users/arhamahmedfiroz/Documents/Projects/BeActive/app/web/lib',
-      '@/server': '/Users/arhamahmedfiroz/Documents/Projects/BeActive/server',
-      '@/shared': '/Users/arhamahmedfiroz/Documents/Projects/BeActive/shared',
+      '@/lib': path.join(rootDir, 'app/web/lib'),
+      '@/server': path.join(rootDir, 'server'),
+      '@/shared': path.join(rootDir, 'shared'),
     },
   },
 })
