@@ -9,6 +9,12 @@ vi.mock('@/server/core/logger/index', () => ({
   logger: { info: vi.fn(), error: vi.fn() },
 }))
 
+// withMonitor sends Sentry check-ins as a side effect — pass the callback
+// straight through so the route's actual behavior is what's under test.
+vi.mock('@sentry/nextjs', () => ({
+  withMonitor: (_slug: string, callback: () => unknown) => callback(),
+}))
+
 import { GET } from '../../app/web/app/api/cron/reprocess-pending/route'
 import { reprocessStalePendingPosts } from '@/server/workers/aiClassifier'
 

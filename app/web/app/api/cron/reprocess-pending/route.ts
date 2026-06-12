@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { reprocessStalePendingPosts } from '@/server/workers/aiClassifier'
 import { logger } from '@/server/core/logger/index'
 
@@ -35,7 +36,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     maxAgeMinutes !== undefined ? Math.max(maxAgeMinutes, MIN_BACKFILL_AGE_MINUTES) * 60 * 1000 : undefined
 
   try {
-    const result = await reprocessStalePendingPosts(new Date(), { limit, thresholdMs })
+    // Interval is approximate — keep in sync with the cron-job.org schedule.
+    // See docs/DEPLOYMENT.md#cron-jobs-cron-joborg.
+    const result = await Sentry.withMonitor(
+      'reprocess-pending',
+      () => reprocessStalePendingPosts(new Date(), { limit, thresholdMs }),
+      { schedule: { type: 'interval', value: 5, unit: 'minute' }, timezone: 'UTC' }
+    )
     logger.info('Reprocess-pending cron completed', result)
     return NextResponse.json({ ok: true, ...result }, { status: 200 })
   } catch (err) {

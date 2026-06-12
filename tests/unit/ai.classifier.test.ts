@@ -87,6 +87,7 @@ beforeEach(() => {
   vi.mocked(aiRepo.findPostForClassification).mockResolvedValue(PENDING_POST)
   vi.mocked(aiRepo.markPostVerified).mockResolvedValue('workout-1')
   vi.mocked(aiRepo.markPostRejected).mockResolvedValue(undefined)
+  vi.mocked(aiRepo.incrementClassificationAttempts).mockResolvedValue(1)
   vi.mocked(aiRepo.persistClassificationEvent).mockResolvedValue(undefined)
   vi.mocked(streaksService.onWorkoutVerified).mockResolvedValue(undefined)
   // clearAllMocks wipes call history but not implementations; set explicit
@@ -180,8 +181,51 @@ describe('processUploadedPost', () => {
     // Post stays PENDING — no verify or reject
     expect(aiRepo.markPostVerified).not.toHaveBeenCalled()
     expect(aiRepo.markPostRejected).not.toHaveBeenCalled()
-    // Failure event logged
+    // Poison-post counter bumped for this invocation
+    expect(aiRepo.incrementClassificationAttempts).toHaveBeenCalledWith('post-1')
+    // Failure event logged, including the running attempt count
     expect(aiRepo.persistClassificationEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'AI_CLASSIFICATION_FAILED', payload: expect.objectContaining({ attempts: 1 }) })
+    )
+  })
+
+  it('keeps the post PENDING below the giveup cap, reporting the running attempt count', async () => {
+    vi.mocked(aiService.classifyImage).mockRejectedValue(new Error('HF timeout'))
+    vi.mocked(aiRepo.incrementClassificationAttempts).mockResolvedValue(4)
+    vi.spyOn(global, 'setTimeout').mockImplementation((fn: any) => { fn(); return 0 as any })
+
+    await processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2.example.com/abc.jpg', userId: 'user-1' })
+
+    expect(aiRepo.markPostRejected).not.toHaveBeenCalled()
+    expect(aiRepo.persistClassificationEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'AI_CLASSIFICATION_FAILED', payload: expect.objectContaining({ attempts: 4 }) })
+    )
+    expect(notificationsService.createNotification).not.toHaveBeenCalled()
+  })
+
+  it('rejects the post with reason classification_unavailable and notifies the user once classificationAttempts reaches the cap', async () => {
+    vi.mocked(aiService.classifyImage).mockRejectedValue(new Error('HF timeout'))
+    vi.mocked(aiRepo.incrementClassificationAttempts).mockResolvedValue(5)
+    vi.spyOn(global, 'setTimeout').mockImplementation((fn: any) => { fn(); return 0 as any })
+
+    await processUploadedPost({ postId: 'post-1', imageUrl: 'https://r2.example.com/abc.jpg', userId: 'user-1' })
+
+    expect(aiRepo.markPostRejected).toHaveBeenCalledWith('post-1')
+    expect(aiRepo.persistClassificationEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'WORKOUT_REJECTED',
+        payload: expect.objectContaining({ postId: 'post-1', reason: 'classification_unavailable', attempts: 5 }),
+      })
+    )
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        type: NotificationType.WORKOUT_REJECTED,
+        idempotencyKey: 'post:post-1:CLASSIFICATION_GAVE_UP',
+      })
+    )
+    // No leftover AI_CLASSIFICATION_FAILED event once the post is rejected
+    expect(aiRepo.persistClassificationEvent).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'AI_CLASSIFICATION_FAILED' })
     )
   })
@@ -440,6 +484,27 @@ describe('reprocessStalePendingPosts', () => {
     const result = await reprocessStalePendingPosts(NOW)
 
     expect(result).toEqual({ found: 2, succeeded: 1, failed: 1 })
+  })
+
+  it('rejects a poison post at the attempt cap during reconciliation, taking it out of the PENDING pool', async () => {
+    vi.mocked(aiRepo.findStalePendingPosts).mockResolvedValue([STALE_POST_A])
+    vi.mocked(aiRepo.findPostForClassification).mockResolvedValue({
+      id: 'post-a',
+      status: PostStatus.PENDING,
+      imageUrl: STALE_POST_A.imageUrl,
+      userId: 'user-a',
+    })
+    vi.mocked(aiService.classifyImage).mockRejectedValue(new Error('HF timeout'))
+    vi.mocked(aiRepo.incrementClassificationAttempts).mockResolvedValue(5)
+    vi.spyOn(global, 'setTimeout').mockImplementation((fn: any) => { fn(); return 0 as any })
+
+    const result = await reprocessStalePendingPosts(NOW)
+
+    // markPostRejected flips status to REJECTED, so the next run's
+    // findStalePendingPosts (status: PENDING) query no longer returns it —
+    // the reconciler stops retrying this post.
+    expect(aiRepo.markPostRejected).toHaveBeenCalledWith('post-a')
+    expect(result).toEqual({ found: 1, succeeded: 1, failed: 0 })
   })
 
   it('stops early and reports truncated:true once the time budget is exceeded', async () => {

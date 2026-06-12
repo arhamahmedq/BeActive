@@ -46,6 +46,7 @@
 | AI API timeout (>10s) | Post stuck in PENDING | Worker timeout | Retry once. If still fails, mark for manual review. |
 | AI API rate limited (429) | Delayed classification | 429 response | Exponential backoff: 1s → 4s → 16s. Max 3 retries. |
 | AI API 500 error | Classification fails | Error response | Retry 3x with backoff. If persistent, circuit breaker. |
+| Image permanently unclassifiable ("poison post") | Reconciler would retry the same post forever, burning 3 Gemini calls/run | `Post.classificationAttempts` incremented each time `classifyWithRetry` exhausts its 3 retries | After `CLASSIFICATION_GIVEUP_THRESHOLD` (5) failed invocations, post → REJECTED with `reason: 'classification_unavailable'`, user notified (`idempotencyKey: post:{postId}:CLASSIFICATION_GAVE_UP`) to re-upload. Operational timeout, not an AI decision — AI Boundary unaffected. |
 | AI returns malformed JSON | Cannot parse result | JSON parse error | Log full response, mark PENDING, flag for review. |
 | AI confidence in ambiguous range (0.50-0.69) | User uncertain | Confidence check | Mark PENDING, notify user "under review". |
 | AI model degraded (low accuracy) | False verifications/rejections | Confidence distribution drift | Alert on verification rate changes. Fall back to previous model. |

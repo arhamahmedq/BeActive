@@ -14,7 +14,7 @@
 | Auth | Supabase Auth (JWT + HTTP-only cookies) | Supabase |
 | Object storage | Cloudflare R2 | Cloudflare |
 | AI classification | Gemini Flash 2.0 | Google AI Studio |
-| Cron jobs | Vercel Cron | Vercel |
+| Cron jobs | External HTTP triggers, bearer-protected | cron-job.org |
 
 ---
 
@@ -79,8 +79,9 @@ NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
 ```
 CRON_SECRET=<generate with: openssl rand -hex 32>
 ```
-- Vercel sends `Authorization: Bearer <CRON_SECRET>` to cron routes
-- The streak evaluator route validates this header
+- Both cron routes (`/api/cron/streak-evaluator`, `/api/cron/reprocess-pending`) require
+  `Authorization: Bearer <CRON_SECRET>` — set this header on each cron-job.org job
+- See [Cron Jobs](#cron-jobs-cron-joborg) below for schedules and setup
 
 #### Optional (recommended for production)
 ```
@@ -192,10 +193,45 @@ The `EventEmitter` event bus is a process-level singleton. Events emitted in one
 | R2 presigned uploads | `fetch()` PUT to R2 | Same (CORS must be configured) | Requires R2 CORS config |
 | AI classification | Runs synchronously via `after()` | Same API, possible timeout on Hobby | Timeout risk on free tier |
 | Rate limiting | In-memory, per-process | In-memory, per-invocation (resets) | Effectively disabled between requests |
-| Cron (streak evaluator) | Manual: `GET /api/cron/streak-evaluator` | Vercel Cron, hourly | Identical logic, automated trigger |
+| Cron (streak evaluator, reconciler) | Manual: `GET /api/cron/...` | cron-job.org, scheduled (see [Cron Jobs](#cron-jobs-cron-joborg)) | Identical logic, automated trigger |
 | Prisma connection | Direct PostgreSQL | PgBouncer pooler (connection_limit=1) | `DATABASE_URL` must use pooler |
 | Event bus | Per-process singleton, persistent | Per-invocation singleton, ephemeral | Side effects only, no state loss |
 | `NEXT_PUBLIC_STREAK_DEBUG` | Can be `"true"` | Must NOT be `"true"` | Admin debug panel hidden |
+
+---
+
+## Cron Jobs (cron-job.org)
+
+Vercel Cron is **not used** (Hobby tier limits Vercel Cron to once/day, and Vercel's
+Root Directory setting means a `crons` block in the root `vercel.json` is silently
+ignored anyway). Both scheduled jobs are triggered externally by
+[cron-job.org](https://cron-job.org) hitting bearer-protected Next.js API routes.
+
+| Job | Path | Schedule | Purpose |
+|-----|------|----------|---------|
+| Streak evaluator | `/api/cron/streak-evaluator` | Hourly | R5/R6 — AT_RISK / BROKEN streak transitions + notifications |
+| Reconciler | `/api/cron/reprocess-pending` | Every few minutes | Reprocesses stale `PENDING` posts whose `after()` classification trigger was dropped |
+
+### Setup
+
+For each job in the cron-job.org dashboard:
+1. **URL**: `https://your-app.vercel.app/api/cron/<path>` — **must use `https://`**.
+   Vercel responds to `http://` with a `308` redirect at the edge (~17ms, never
+   invokes the function); cron-job.org does not follow it, reports
+   `Failed (HTTP error)`, and **auto-disables the job** after enough failures.
+   If a job shows a sub-100ms "HTTP error" on an endpoint that otherwise works
+   when called directly, check the URL scheme first.
+2. **Headers**: add `Authorization: Bearer <CRON_SECRET>` (same value as the
+   `CRON_SECRET` Vercel env var) — both routes return `401` without it.
+3. **Notifications**: enable cron-job.org's failure-notification emails so a
+   disabled/failing job is caught quickly.
+
+### Idempotency
+
+Both routes are safe to run more often than scheduled or to overlap:
+- Streak evaluator notifications are deduplicated via `idempotencyKey` (`userId:type:date`).
+- The reconciler re-runs `processUploadedPost`, which checks `status === PENDING`
+  before doing anything — re-invoking it for an already-classified post is a no-op.
 
 ---
 
@@ -242,8 +278,12 @@ Prisma does not auto-rollback migrations. For a broken migration:
 **Fix:** Check `useUpdateAvatar.ts` and `upload/page.tsx` — both use `image.type` from the actual Blob for both signing and uploading.
 
 ### Cron not running
-**Cause:** `CRON_SECRET` not set in Vercel env vars, or `app/web/vercel.json` crons not being read.  
-**Fix:** Verify Vercel Root Directory is set to `app/web`. Check `CRON_SECRET` is set. Test manually: `curl -H "Authorization: Bearer $CRON_SECRET" https://your-app.vercel.app/api/cron/streak-evaluator`.
+**Cause:** `CRON_SECRET` not set in Vercel env vars, or the cron-job.org job is
+disabled/misconfigured — see [Cron Jobs](#cron-jobs-cron-joborg).
+**Fix:** Check `CRON_SECRET` is set in Vercel. In cron-job.org, confirm the job
+is enabled, the URL uses `https://` (not `http://` — see the scheme note above),
+and the `Authorization: Bearer <CRON_SECRET>` header is set. Test manually:
+`curl -H "Authorization: Bearer $CRON_SECRET" https://your-app.vercel.app/api/cron/streak-evaluator`.
 
 ### `/api/health` returns `{"ok":false,"checks":{"database":false}}`
 **Cause:** `DATABASE_URL` not set or points to wrong endpoint.  
