@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { buildContentSecurityPolicy, generateNonce } from './lib/csp'
 
 // Authenticated-only pages — unauthenticated requests redirect to /login.
 // Keep this list in sync whenever new top-level routes are added.
@@ -15,7 +16,13 @@ const PROTECTED_PATHS = [
 const AUTH_PATHS = ['/login', '/signup', '/verify-email']
 
 export async function proxy(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
+  const nonce = generateNonce()
+  const cspHeader = buildContentSecurityPolicy(nonce)
+
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-nonce', nonce)
+
+  let supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,7 +36,7 @@ export async function proxy(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
-          supabaseResponse = NextResponse.next({ request })
+          supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
@@ -51,15 +58,20 @@ export async function proxy(request: NextRequest) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
     loginUrl.searchParams.set('redirectTo', pathname)
-    return NextResponse.redirect(loginUrl)
+    const response = NextResponse.redirect(loginUrl)
+    response.headers.set('Content-Security-Policy', cspHeader)
+    return response
   }
 
   if (isAuthPath && user) {
     const feedUrl = request.nextUrl.clone()
     feedUrl.pathname = '/feed'
-    return NextResponse.redirect(feedUrl)
+    const response = NextResponse.redirect(feedUrl)
+    response.headers.set('Content-Security-Policy', cspHeader)
+    return response
   }
 
+  supabaseResponse.headers.set('Content-Security-Policy', cspHeader)
   return supabaseResponse
 }
 
