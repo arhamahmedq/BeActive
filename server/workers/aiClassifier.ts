@@ -34,6 +34,12 @@ const BACKOFF_BASE_MS = 1_000
 const STALE_PENDING_THRESHOLD_MS = 2 * 60 * 1000
 const RECONCILE_BATCH_LIMIT = 10
 
+// Each post can take up to ~21s of classification backoff alone. A full batch
+// of RECONCILE_BATCH_LIMIT could exceed the route's maxDuration (60s), getting
+// the function killed mid-batch with nothing reported. Bail out before that —
+// the remaining stale posts simply get picked up on the next cron run.
+const RECONCILE_TIME_BUDGET_MS = 45 * 1000
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -238,15 +244,23 @@ export async function processUploadedPost(params: {
 export async function reprocessStalePendingPosts(
   now: Date = new Date(),
   options?: { thresholdMs?: number; limit?: number }
-): Promise<{ found: number; succeeded: number; failed: number }> {
+): Promise<{ found: number; succeeded: number; failed: number; truncated?: boolean }> {
   const thresholdMs = options?.thresholdMs ?? STALE_PENDING_THRESHOLD_MS
   const limit = options?.limit ?? RECONCILE_BATCH_LIMIT
   const cutoff = new Date(now.getTime() - thresholdMs)
   const stale = await findStalePendingPosts(cutoff, limit)
 
+  const startedAt = Date.now()
   let succeeded = 0
   let failed = 0
+  let truncated = false
+
   for (const post of stale) {
+    if (Date.now() - startedAt > RECONCILE_TIME_BUDGET_MS) {
+      truncated = true
+      break
+    }
+
     logger.info('Reconciler: reprocessing stale PENDING post', {
       postId: post.id,
       ageMs: now.getTime() - post.createdAt.getTime(),
@@ -269,8 +283,8 @@ export async function reprocessStalePendingPosts(
   }
 
   if (stale.length > 0) {
-    logger.info('Reconciler: run complete', { found: stale.length, succeeded, failed })
+    logger.info('Reconciler: run complete', { found: stale.length, succeeded, failed, truncated })
   }
 
-  return { found: stale.length, succeeded, failed }
+  return truncated ? { found: stale.length, succeeded, failed, truncated } : { found: stale.length, succeeded, failed }
 }

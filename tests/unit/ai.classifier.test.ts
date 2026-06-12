@@ -441,4 +441,24 @@ describe('reprocessStalePendingPosts', () => {
 
     expect(result).toEqual({ found: 2, succeeded: 1, failed: 1 })
   })
+
+  it('stops early and reports truncated:true once the time budget is exceeded', async () => {
+    vi.mocked(aiRepo.findStalePendingPosts).mockResolvedValue([STALE_POST_A, STALE_POST_B])
+    vi.mocked(aiRepo.findPostForClassification).mockResolvedValue({
+      id: 'post-a',
+      status: PostStatus.PENDING,
+      imageUrl: STALE_POST_A.imageUrl,
+      userId: 'user-a',
+    })
+
+    // Date.now() calls: 1) startedAt, 2) budget check before post A (not yet
+    // exceeded), 3) budget check before post B (exceeded) — breaks before
+    // post B is ever looked up.
+    vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(50_000)
+
+    const result = await reprocessStalePendingPosts(NOW)
+
+    expect(result).toEqual({ found: 2, succeeded: 1, failed: 0, truncated: true })
+    expect(aiRepo.findPostForClassification).toHaveBeenCalledTimes(1)
+  })
 })
