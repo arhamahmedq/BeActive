@@ -67,6 +67,15 @@ export function StoryCard({
 }: StoryCardData) {
   const CARD_W = STORY_SAFE_BAND.width // fills the safe band width (936px)
   const PHOTO_H = 560
+  const CARD_RADIUS = 56
+  // The photo's top corners must round to the card's INNER radius (card radius
+  // minus the 1px border) so they sit flush with the rounded bottom corners.
+  // Satori does NOT reliably clip an absolutely-positioned child to the parent's
+  // overflow:hidden + borderRadius, so we round the photo layer explicitly (both
+  // the clipping container AND the <img>) — otherwise the square image corners
+  // paint over the card's rounded top, making the top look cropped while the
+  // bottom (the card's own white background) stays premium-rounded.
+  const PHOTO_TOP_RADIUS = CARD_RADIUS - 1
 
   // Bottom-anchored + no top brand mark: all vertical slack collects at the TOP
   // so the composition sits in the lower-middle, leaving the top ~20-25% as
@@ -80,7 +89,7 @@ export function StoryCard({
           width: CARD_W,
           height: 1040,
           background: 'rgba(255,255,255,0.97)',
-          borderRadius: 56,
+          borderRadius: CARD_RADIUS,
           border: '1px solid rgba(255,255,255,0.9)',
           boxShadow:
             '0 60px 140px rgba(20,83,45,0.14), 0 30px 90px rgba(15,42,24,0.18), 0 6px 22px rgba(15,42,24,0.07), inset 0 1px 0 rgba(255,255,255,1)',
@@ -90,13 +99,33 @@ export function StoryCard({
         }}
       >
         {/* --- Section 1: PHOTO (the proof) --- */}
-        <div style={{ position: 'relative', width: '100%', height: PHOTO_H, display: 'flex', overflow: 'hidden' }}>
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            height: PHOTO_H,
+            display: 'flex',
+            overflow: 'hidden',
+            borderTopLeftRadius: PHOTO_TOP_RADIUS,
+            borderTopRightRadius: PHOTO_TOP_RADIUS,
+          }}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={imageUrl}
             width={CARD_W}
             height={PHOTO_H}
-            style={{ position: 'absolute', top: 0, left: 0, width: CARD_W, height: PHOTO_H, objectFit: 'cover', objectPosition: 'center' }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: CARD_W,
+              height: PHOTO_H,
+              objectFit: 'cover',
+              objectPosition: 'center',
+              borderTopLeftRadius: PHOTO_TOP_RADIUS,
+              borderTopRightRadius: PHOTO_TOP_RADIUS,
+            }}
             alt=""
           />
 

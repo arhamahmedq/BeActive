@@ -286,12 +286,32 @@ function CardLive({
       }}
     >
       {/* --- PHOTO --- */}
-      <div style={{ position: 'relative', width: '100%', height: ch(620), overflow: 'hidden' }}>
+      {/* Top corners rounded to the card's inner radius so the photo doesn't
+          paint square corners over the card's rounded top (parity with StoryCard). */}
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: ch(620),
+          overflow: 'hidden',
+          borderTopLeftRadius: cw(55),
+          borderTopRightRadius: cw(55),
+        }}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imageUrl}
           alt=""
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center',
+            borderTopLeftRadius: cw(55),
+            borderTopRightRadius: cw(55),
+          }}
         />
         <div
           style={{
