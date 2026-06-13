@@ -95,6 +95,8 @@ interface DomainEvent {
 |------|--------|---------|-----------|--------|
 | `STORY_PUBLISHED` | stories.service | `{ postId, userId, expiresAt }` | feed (story bar) | No |
 | `STORY_EXPIRED` | story.worker (cron) | `{ postId, userId }` | feed cache | Yes |
+| `STORY_GENERATED` | stories.service | `{ postId, shareVersion, renderMs, workoutType, streakCount, isPersonalBest }` | analytics (future) | No |
+| `STORY_SHARED` | stories.service | `{ postId, shareVersion, method, workoutType, streakCount }` | analytics (future) | No |
 
 ### MESSAGE EVENTS (Post-MVP)
 

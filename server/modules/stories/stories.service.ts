@@ -12,9 +12,12 @@ import { getMyStreak } from '../streaks/streaks.service'
 import { getPlant, WORKOUT_LABELS } from '@/lib/story-card/constants'
 import { renderStoryPng } from '@/lib/story-card/renderStoryPng'
 import { putObject, getObject, objectExists, buildPublicUrl } from '@/lib/storage/r2'
-import { getStoryByPostId, upsertPendingStory, markStoryReady, markStoryFailed } from './stories.repo'
+import { getStoryByPostId, upsertPendingStory, markStoryReady, markStoryFailed, persistEvent } from './stories.repo'
 import { NotFoundError } from '../../core/errors/AppError'
+import { logger } from '../../core/logger/index'
+import { EventType } from '../../core/events/index'
 import type { StoryPayload } from './stories.types'
+import type { ShareMethod } from './stories.schema'
 
 const STORY_SRC_WIDTH = 936
 const STORY_SRC_HEIGHT = 620
@@ -80,10 +83,28 @@ export async function generateAndPersistStory(postId: string, userId: string): P
     const assetKey = `stories/${postId}/${payload.shareVersion}.png`
     await putObject(assetKey, png, 'image/png', 'public, max-age=31536000, immutable')
 
+    const renderMs = Date.now() - startedAt
     await markStoryReady(storyId, {
       assetKey,
       assetUrl: buildPublicUrl(assetKey),
-      renderMs: Date.now() - startedAt,
+      renderMs,
+    })
+
+    await persistEvent({
+      type: EventType.STORY_GENERATED,
+      userId,
+      payload: {
+        postId,
+        shareVersion: payload.shareVersion,
+        renderMs,
+        workoutType: payload.workoutType,
+        streakCount: payload.streakCount,
+        isPersonalBest: payload.isPersonalBest,
+      },
+      source: 'stories.service',
+      correlationId: postId,
+    }).catch((err: unknown) => {
+      logger.error('Failed to persist STORY_GENERATED event', { error: String(err) })
     })
 
     return png
@@ -91,6 +112,29 @@ export async function generateAndPersistStory(postId: string, userId: string): P
     await markStoryFailed(storyId, String(err)).catch(() => {})
     throw err
   }
+}
+
+export async function recordStoryShared(
+  postId: string,
+  userId: string,
+  method: ShareMethod
+): Promise<void> {
+  const story = await getStoryByPostId(postId)
+  if (!story || story.userId !== userId) throw new NotFoundError('Post')
+
+  await persistEvent({
+    type: EventType.STORY_SHARED,
+    userId,
+    payload: {
+      postId,
+      shareVersion: story.shareVersion,
+      method,
+      workoutType: story.payload.workoutType,
+      streakCount: story.payload.streakCount,
+    },
+    source: 'stories.service',
+    correlationId: postId,
+  })
 }
 
 export async function getOrRenderStory(

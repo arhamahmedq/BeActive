@@ -4,8 +4,8 @@ import { NextResponse } from 'next/server'
 import { requireAuth } from '../../core/middleware/auth'
 import { generalRateLimit } from '../../core/middleware/rateLimit'
 import { isAppError, toErrorResponse, InternalError, ValidationError } from '../../core/errors/AppError'
-import { storyParamsSchema } from './stories.schema'
-import { getOrRenderStory } from './stories.service'
+import { storyParamsSchema, reportStorySharedSchema } from './stories.schema'
+import { getOrRenderStory, recordStoryShared } from './stories.service'
 
 export async function handleGetStory(request: NextRequest, postIdParam: string): Promise<NextResponse> {
   const authResult = await requireAuth(request)
@@ -31,6 +31,33 @@ export async function handleGetStory(request: NextRequest, postIdParam: string):
         'cache-control': 'private, max-age=3600',
       },
     })
+  } catch (err) {
+    if (isAppError(err)) return NextResponse.json(toErrorResponse(err), { status: err.statusCode })
+    return NextResponse.json(toErrorResponse(new InternalError()), { status: 500 })
+  }
+}
+
+export async function handleReportStoryShared(request: NextRequest, postIdParam: string): Promise<NextResponse> {
+  const authResult = await requireAuth(request)
+  if (authResult instanceof NextResponse) return authResult
+
+  const limited = await generalRateLimit(request)
+  if (limited) return limited
+
+  const params = storyParamsSchema.safeParse({ postId: postIdParam })
+  if (!params.success) {
+    return NextResponse.json(toErrorResponse(new ValidationError(params.error.issues)), { status: 400 })
+  }
+
+  const body: unknown = await request.json().catch(() => null)
+  const parsed = reportStorySharedSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json(toErrorResponse(new ValidationError(parsed.error.issues)), { status: 400 })
+  }
+
+  try {
+    await recordStoryShared(params.data.postId, authResult.userId, parsed.data.method)
+    return NextResponse.json({ ok: true })
   } catch (err) {
     if (isAppError(err)) return NextResponse.json(toErrorResponse(err), { status: err.statusCode })
     return NextResponse.json(toErrorResponse(new InternalError()), { status: 500 })

@@ -36,6 +36,15 @@ function checkCanShareFiles(): boolean {
   }
 }
 
+// Fire-and-forget analytics beacon — never blocks or affects share/download UX.
+function reportShare(postId: string, method: 'web_share' | 'download') {
+  void fetch(`/api/stories/${encodeURIComponent(postId)}/share`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ method }),
+  }).catch(() => {})
+}
+
 export function StoryShareButton({
   postId,
   streakCount,
@@ -83,6 +92,7 @@ export function StoryShareButton({
       if (checkCanShareFiles()) {
         await navigator.share({ files: [file] })
         setShareState('success')
+        reportShare(postId, 'web_share')
         setTimeout(() => setShareState('idle'), 3000)
       } else {
         // Desktop / unsupported browser — download the PNG
@@ -95,6 +105,7 @@ export function StoryShareButton({
         document.body.removeChild(anchor)
         URL.revokeObjectURL(url)
         setShareState('downloaded')
+        reportShare(postId, 'download')
         setTimeout(() => setShareState('idle'), 5000)
       }
     } catch (err) {
