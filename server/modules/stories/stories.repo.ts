@@ -78,3 +78,21 @@ export async function markStoryFailed(id: string, error: string): Promise<void> 
     },
   })
 }
+
+export async function persistEvent(params: {
+  type: string
+  userId: string
+  payload: Record<string, unknown>
+  source: string
+  correlationId?: string
+}): Promise<void> {
+  await prisma.event.create({
+    data: {
+      type: params.type,
+      userId: params.userId,
+      payload: params.payload as Prisma.InputJsonValue,
+      source: params.source,
+      correlationId: params.correlationId ?? null,
+    },
+  })
+}

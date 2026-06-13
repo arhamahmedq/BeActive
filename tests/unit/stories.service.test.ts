@@ -15,13 +15,14 @@ vi.mock('sharp', () => ({
   })),
 }))
 
-import { buildStoryPayload, getOrRenderStory } from '../../server/modules/stories/stories.service'
+import { buildStoryPayload, getOrRenderStory, recordStoryShared } from '../../server/modules/stories/stories.service'
 import * as postsService from '../../server/modules/posts/posts.service'
 import * as streaksService from '../../server/modules/streaks/streaks.service'
 import * as storiesRepo from '../../server/modules/stories/stories.repo'
 import * as r2 from '@/lib/storage/r2'
 import { renderStoryPng } from '@/lib/story-card/renderStoryPng'
 import { NotFoundError } from '../../server/core/errors/AppError'
+import { EventType } from '@/lib/events/types'
 
 const VERIFIED_POST = {
   id: 'post-1',
@@ -53,6 +54,7 @@ beforeEach(() => {
       arrayBuffer: () => Promise.resolve(Buffer.from('source-bytes')),
     })
   )
+  vi.mocked(storiesRepo.persistEvent).mockResolvedValue(undefined)
 })
 
 describe('buildStoryPayload', () => {
@@ -200,5 +202,109 @@ describe('getOrRenderStory', () => {
 
     await expect(getOrRenderStory('post-1', 'user-1')).rejects.toThrow(NotFoundError)
     expect(storiesRepo.getStoryByPostId).not.toHaveBeenCalled()
+  })
+
+  it('emits STORY_GENERATED after a fresh render', async () => {
+    vi.mocked(storiesRepo.getStoryByPostId).mockResolvedValue(null)
+    vi.mocked(storiesRepo.upsertPendingStory).mockResolvedValue({ id: 'story-1', shareVersion: 1 })
+    vi.mocked(renderStoryPng).mockResolvedValue(Buffer.from('png-bytes'))
+    vi.mocked(r2.buildPublicUrl).mockReturnValue('https://cdn.example.com/stories/post-1/1.png')
+
+    await getOrRenderStory('post-1', 'user-1')
+
+    expect(storiesRepo.persistEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: EventType.STORY_GENERATED,
+        userId: 'user-1',
+        source: 'stories.service',
+        correlationId: 'post-1',
+        payload: expect.objectContaining({
+          postId: 'post-1',
+          shareVersion: 1,
+          workoutType: 'RUNNING',
+          streakCount: 10,
+          isPersonalBest: true,
+        }),
+      })
+    )
+  })
+
+  it('does not emit STORY_GENERATED when serving a cached card', async () => {
+    vi.mocked(storiesRepo.getStoryByPostId).mockResolvedValue({
+      id: 'story-1',
+      postId: 'post-1',
+      userId: 'user-1',
+      payload: {} as never,
+      shareVersion: 1,
+      status: 'READY' as never,
+      assetKey: 'stories/post-1/1.png',
+      assetUrl: 'https://cdn.example.com/stories/post-1/1.png',
+    })
+    vi.mocked(r2.objectExists).mockResolvedValue(true)
+    vi.mocked(r2.getObject).mockResolvedValue({ buffer: Buffer.from('cached-png'), contentType: 'image/png' })
+
+    await getOrRenderStory('post-1', 'user-1')
+
+    expect(storiesRepo.persistEvent).not.toHaveBeenCalled()
+  })
+
+  it('does not fail the render when persisting STORY_GENERATED rejects', async () => {
+    vi.mocked(storiesRepo.getStoryByPostId).mockResolvedValue(null)
+    vi.mocked(storiesRepo.upsertPendingStory).mockResolvedValue({ id: 'story-1', shareVersion: 1 })
+    vi.mocked(renderStoryPng).mockResolvedValue(Buffer.from('png-bytes'))
+    vi.mocked(r2.buildPublicUrl).mockReturnValue('https://cdn.example.com/stories/post-1/1.png')
+    vi.mocked(storiesRepo.persistEvent).mockRejectedValue(new Error('db down'))
+
+    const result = await getOrRenderStory('post-1', 'user-1')
+
+    expect(result.buffer.toString()).toBe('png-bytes')
+    expect(storiesRepo.markStoryFailed).not.toHaveBeenCalled()
+  })
+})
+
+describe('recordStoryShared', () => {
+  const STORY_ROW = {
+    id: 'story-1',
+    postId: 'post-1',
+    userId: 'user-1',
+    payload: { workoutType: 'RUNNING', streakCount: 10 } as never,
+    shareVersion: 2,
+    status: 'READY' as never,
+    assetKey: 'stories/post-1/2.png',
+    assetUrl: 'https://cdn.example.com/stories/post-1/2.png',
+  }
+
+  it('persists STORY_SHARED with fields from the story payload', async () => {
+    vi.mocked(storiesRepo.getStoryByPostId).mockResolvedValue(STORY_ROW)
+
+    await recordStoryShared('post-1', 'user-1', 'web_share')
+
+    expect(storiesRepo.persistEvent).toHaveBeenCalledWith({
+      type: EventType.STORY_SHARED,
+      userId: 'user-1',
+      payload: {
+        postId: 'post-1',
+        shareVersion: 2,
+        method: 'web_share',
+        workoutType: 'RUNNING',
+        streakCount: 10,
+      },
+      source: 'stories.service',
+      correlationId: 'post-1',
+    })
+  })
+
+  it('throws NotFoundError when the story does not exist', async () => {
+    vi.mocked(storiesRepo.getStoryByPostId).mockResolvedValue(null)
+
+    await expect(recordStoryShared('post-1', 'user-1', 'download')).rejects.toThrow(NotFoundError)
+    expect(storiesRepo.persistEvent).not.toHaveBeenCalled()
+  })
+
+  it('throws NotFoundError when the story belongs to a different user', async () => {
+    vi.mocked(storiesRepo.getStoryByPostId).mockResolvedValue({ ...STORY_ROW, userId: 'someone-else' })
+
+    await expect(recordStoryShared('post-1', 'user-1', 'download')).rejects.toThrow(NotFoundError)
+    expect(storiesRepo.persistEvent).not.toHaveBeenCalled()
   })
 })

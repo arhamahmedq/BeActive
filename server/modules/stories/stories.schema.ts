@@ -5,3 +5,9 @@ export const storyParamsSchema = z.object({
 })
 
 export type StoryParams = z.infer<typeof storyParamsSchema>
+
+export const reportStorySharedSchema = z.object({
+  method: z.enum(['web_share', 'download']),
+})
+
+export type ShareMethod = z.infer<typeof reportStorySharedSchema>['method']
