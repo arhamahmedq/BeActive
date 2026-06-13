@@ -163,28 +163,34 @@ Vercel auto-deploys master → production. Preview deployments are created for a
 
 1. `npm install` (from `app/web/`)
 2. `npx prisma generate --schema ../../prisma/schema.prisma` (generates Prisma client)
-3. **`npx prisma migrate deploy` — production builds only** (guarded by `[ "$VERCEL_ENV" = "production" ]` in `app/web/vercel.json`; preview builds skip it since Preview env has no DB credentials)
-4. `next build` (compiles Next.js)
+3. `next build` (compiles Next.js)
 
-> **Why step 3 exists (incident 2026-06-13):** the build previously ran only
-> `prisma generate`, never `migrate deploy`. A schema change (`Post.classificationAttempts`,
-> migration `20260612120000`) shipped to prod — the generated Client started writing the
-> new column, but the DB was never migrated. Every `POST /api/posts/create` then failed with
-> `column "classificationAttempts" does not exist` → 500 "An unexpected error occurred". The
-> guarded build step makes prod migrations automatic so Client/DB can't silently drift again.
+> ⚠️ **The Vercel build does NOT run `prisma migrate deploy`** — and cannot. The
+> Supabase **direct** host (`db.<ref>.supabase.co:5432`, what `DIRECT_URL` points
+> at) is **IPv6-only**, and Vercel build containers are **IPv4-only**, so a build-time
+> `migrate deploy` fails with **`P1001: Can't reach database server`**. (We tried this
+> 2026-06-13 — it broke the production build; reverted in the same session.)
+> **You MUST apply migrations out-of-band before/with any deploy that needs them** —
+> see below. This is the gap that caused the `classificationAttempts` incident, so
+> treat "did I run the migration?" as a release checklist item.
 
-### Manually applying migrations (fallback / out-of-band)
+### Applying migrations (REQUIRED, out-of-band — Vercel can't do it)
 
-If you need to apply migrations without a deploy (e.g. additive column hotfix), run against
-the **direct** connection (port 5432 via `DIRECT_URL`), never the pooler:
+Run from a network that can reach the Supabase **direct** host (your local machine via
+`app/web/.env.local` works; a CI runner needs IPv6 **or** the Supavisor *session* pooler
+URL, `aws-0-<region>.pooler.supabase.com:5432`, which is IPv4):
 
 ```bash
-# from app/web/, with prod DATABASE_URL/DIRECT_URL loaded:
+# from app/web/, with prod DATABASE_URL/DIRECT_URL loaded (e.g. set -a; . ./.env.local; set +a):
 npx prisma migrate status --schema ../../prisma/schema.prisma   # read-only — see what's pending
 npx prisma migrate deploy  --schema ../../prisma/schema.prisma   # idempotent — applies pending only
 ```
 
 Always apply migrations **before** (or with) deploying code that depends on the new schema.
+
+> **Proper automation (TODO):** a GitHub Action on push to `master` that runs
+> `prisma migrate deploy` using the **session pooler** connection string (IPv4-reachable
+> from CI). Needs a `MIGRATE_DATABASE_URL` secret. Until then, migrations are manual.
 
 ---
 
