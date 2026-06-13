@@ -34,6 +34,11 @@ describe('signUploadSchema', () => {
     expect(signUploadSchema.safeParse({ ...valid, mimeType: 'application/octet-stream' }).success).toBe(false)
   })
 
+  it('rejects video/mp4 — uploads are image-only', () => {
+    const result = signUploadSchema.safeParse({ ...valid, mimeType: 'video/mp4' })
+    expect(result.success).toBe(false)
+  })
+
   it('accepts exactly 10 MB', () => {
     expect(signUploadSchema.safeParse({ ...valid, fileSize: TEN_MB }).success).toBe(true)
   })

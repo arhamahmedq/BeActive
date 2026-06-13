@@ -46,7 +46,7 @@ async function stripExif(file: File): Promise<Blob> {
 
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl)
-      reject(new Error('Failed to load image for EXIF stripping'))
+      reject(new Error("We couldn't read that image. Try a JPEG or PNG from your gallery."))
     }
 
     img.src = objectUrl
