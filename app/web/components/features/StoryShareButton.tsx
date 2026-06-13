@@ -179,7 +179,7 @@ export function StoryShareButton({
     } else {
       downloadFile(file)
     }
-  }, [shareState, prepareCard, downloadFile])
+  }, [postId, shareState, prepareCard, downloadFile])
 
   const label = (() => {
     if (shareState === 'preparing') return 'Preparing your story card…'
