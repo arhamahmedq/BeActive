@@ -71,7 +71,7 @@ describe('buildStoryPayload', () => {
     expect(payload.bestStreak).toBe(10)
     expect(payload.isPersonalBest).toBe(true)
     expect(payload.storySrcKey).toBe('story-src/post-1.jpg')
-    expect(payload.shareVersion).toBe(1)
+    expect(payload.shareVersion).toBe(2)
   })
 
   it('defaults streak fields to 0 and is not a personal best when there is no streak', async () => {
@@ -111,10 +111,10 @@ describe('getOrRenderStory', () => {
       postId: 'post-1',
       userId: 'user-1',
       payload: {} as never,
-      shareVersion: 1,
+      shareVersion: 2,
       status: 'READY' as never,
-      assetKey: 'stories/post-1/1.png',
-      assetUrl: 'https://cdn.example.com/stories/post-1/1.png',
+      assetKey: 'stories/post-1/2.png',
+      assetUrl: 'https://cdn.example.com/stories/post-1/2.png',
     })
     vi.mocked(r2.objectExists).mockResolvedValue(true)
     vi.mocked(r2.getObject).mockResolvedValue({ buffer: Buffer.from('cached-png'), contentType: 'image/png' })
@@ -122,7 +122,7 @@ describe('getOrRenderStory', () => {
     const result = await getOrRenderStory('post-1', 'user-1')
 
     // Proxies the cached bytes (r2.dev has no CORS, so we never 302 cross-origin).
-    expect(r2.getObject).toHaveBeenCalledWith('stories/post-1/1.png')
+    expect(r2.getObject).toHaveBeenCalledWith('stories/post-1/2.png')
     expect(result.buffer.toString()).toBe('cached-png')
     expect(result.contentType).toBe('image/png')
     expect(r2.putObject).not.toHaveBeenCalled()
@@ -130,9 +130,9 @@ describe('getOrRenderStory', () => {
 
   it('renders and persists a fresh story when none exists yet', async () => {
     vi.mocked(storiesRepo.getStoryByPostId).mockResolvedValue(null)
-    vi.mocked(storiesRepo.upsertPendingStory).mockResolvedValue({ id: 'story-1', shareVersion: 1 })
+    vi.mocked(storiesRepo.upsertPendingStory).mockResolvedValue({ id: 'story-1', shareVersion: 2 })
     vi.mocked(renderStoryPng).mockResolvedValue(Buffer.from('png-bytes'))
-    vi.mocked(r2.buildPublicUrl).mockReturnValue('https://cdn.example.com/stories/post-1/1.png')
+    vi.mocked(r2.buildPublicUrl).mockReturnValue('https://cdn.example.com/stories/post-1/2.png')
 
     const result = await getOrRenderStory('post-1', 'user-1')
 
@@ -145,14 +145,14 @@ describe('getOrRenderStory', () => {
       expect.any(String)
     )
     expect(r2.putObject).toHaveBeenCalledWith(
-      'stories/post-1/1.png',
+      'stories/post-1/2.png',
       expect.any(Buffer),
       'image/png',
       expect.any(String)
     )
     expect(storiesRepo.markStoryReady).toHaveBeenCalledWith(
       'story-1',
-      expect.objectContaining({ assetKey: 'stories/post-1/1.png', assetUrl: 'https://cdn.example.com/stories/post-1/1.png' })
+      expect.objectContaining({ assetKey: 'stories/post-1/2.png', assetUrl: 'https://cdn.example.com/stories/post-1/2.png' })
     )
   })
 
@@ -184,6 +184,40 @@ describe('getOrRenderStory', () => {
     )
   })
 
+  it('treats a stale-version cached row as a miss and re-renders to the current version', async () => {
+    // A card rendered before a design bump: READY + object present, but its
+    // shareVersion is behind CURRENT_SHARE_VERSION. It must NOT be served from
+    // cache — it should re-render so the owner gets the new design.
+    vi.mocked(storiesRepo.getStoryByPostId).mockResolvedValue({
+      id: 'story-1',
+      postId: 'post-1',
+      userId: 'user-1',
+      payload: {} as never,
+      shareVersion: 1, // stale: older than CURRENT_SHARE_VERSION (2)
+      status: 'READY' as never,
+      assetKey: 'stories/post-1/1.png',
+      assetUrl: 'https://cdn.example.com/stories/post-1/1.png',
+    })
+    vi.mocked(r2.objectExists).mockResolvedValue(true)
+    vi.mocked(storiesRepo.upsertPendingStory).mockResolvedValue({ id: 'story-1', shareVersion: 2 })
+    vi.mocked(renderStoryPng).mockResolvedValue(Buffer.from('png-bytes-v2'))
+    vi.mocked(r2.buildPublicUrl).mockReturnValue('https://cdn.example.com/stories/post-1/2.png')
+
+    const result = await getOrRenderStory('post-1', 'user-1')
+
+    // Did NOT serve the stale cached object...
+    expect(r2.getObject).not.toHaveBeenCalled()
+    // ...re-rendered and wrote the new versioned asset instead.
+    expect(result.buffer.toString()).toBe('png-bytes-v2')
+    expect(storiesRepo.upsertPendingStory).toHaveBeenCalledWith('post-1', 'user-1', expect.any(Object), 2)
+    expect(r2.putObject).toHaveBeenCalledWith(
+      'stories/post-1/2.png',
+      expect.any(Buffer),
+      'image/png',
+      expect.any(String)
+    )
+  })
+
   it('marks the story as failed and rethrows when rendering fails', async () => {
     vi.mocked(storiesRepo.getStoryByPostId).mockResolvedValue(null)
     vi.mocked(storiesRepo.upsertPendingStory).mockResolvedValue({ id: 'story-1', shareVersion: 1 })
@@ -206,9 +240,9 @@ describe('getOrRenderStory', () => {
 
   it('emits STORY_GENERATED after a fresh render', async () => {
     vi.mocked(storiesRepo.getStoryByPostId).mockResolvedValue(null)
-    vi.mocked(storiesRepo.upsertPendingStory).mockResolvedValue({ id: 'story-1', shareVersion: 1 })
+    vi.mocked(storiesRepo.upsertPendingStory).mockResolvedValue({ id: 'story-1', shareVersion: 2 })
     vi.mocked(renderStoryPng).mockResolvedValue(Buffer.from('png-bytes'))
-    vi.mocked(r2.buildPublicUrl).mockReturnValue('https://cdn.example.com/stories/post-1/1.png')
+    vi.mocked(r2.buildPublicUrl).mockReturnValue('https://cdn.example.com/stories/post-1/2.png')
 
     await getOrRenderStory('post-1', 'user-1')
 
@@ -220,7 +254,7 @@ describe('getOrRenderStory', () => {
         correlationId: 'post-1',
         payload: expect.objectContaining({
           postId: 'post-1',
-          shareVersion: 1,
+          shareVersion: 2,
           workoutType: 'RUNNING',
           streakCount: 10,
           isPersonalBest: true,
@@ -235,10 +269,10 @@ describe('getOrRenderStory', () => {
       postId: 'post-1',
       userId: 'user-1',
       payload: {} as never,
-      shareVersion: 1,
+      shareVersion: 2,
       status: 'READY' as never,
-      assetKey: 'stories/post-1/1.png',
-      assetUrl: 'https://cdn.example.com/stories/post-1/1.png',
+      assetKey: 'stories/post-1/2.png',
+      assetUrl: 'https://cdn.example.com/stories/post-1/2.png',
     })
     vi.mocked(r2.objectExists).mockResolvedValue(true)
     vi.mocked(r2.getObject).mockResolvedValue({ buffer: Buffer.from('cached-png'), contentType: 'image/png' })

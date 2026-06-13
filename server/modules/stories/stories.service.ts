@@ -22,6 +22,16 @@ import type { ShareMethod } from './stories.schema'
 const STORY_SRC_WIDTH = 936
 const STORY_SRC_HEIGHT = 620
 
+// Bump this whenever the rendered card design changes in a way that should
+// invalidate already-cached PNGs. The asset key is `stories/{postId}/{v}.png`
+// (immutable in R2), and getOrRenderStory() treats any row whose shareVersion
+// differs from this as a cache MISS — so existing cards lazily re-render to the
+// new design on the owner's next view/share. Old vN assets are left orphaned
+// (immutable, harmless) rather than deleted.
+//   v1 → original card
+//   v2 → photo top corners rounded to match the card radius (2026-06-14)
+export const CURRENT_SHARE_VERSION = 2
+
 async function assertOwnedVerifiedPost(postId: string, userId: string) {
   const post = await getPost(userId, postId)
   if (post.user?.id !== userId) throw new NotFoundError('Post')
@@ -41,7 +51,7 @@ export async function buildStoryPayload(postId: string, userId: string): Promise
   return {
     postId,
     userId,
-    shareVersion: 1,
+    shareVersion: CURRENT_SHARE_VERSION,
     storySrcKey: `story-src/${postId}.jpg`,
     username: post.user?.username ?? '',
     avatarUrl: post.user?.avatarUrl ?? null,
@@ -59,9 +69,11 @@ export async function buildStoryPayload(postId: string, userId: string): Promise
 export async function generateAndPersistStory(postId: string, userId: string): Promise<Buffer> {
   const startedAt = Date.now()
 
-  const existing = await getStoryByPostId(postId)
+  // Always render at CURRENT_SHARE_VERSION (set in buildStoryPayload). We must
+  // NOT pin to an existing row's version — that would freeze old cards on the
+  // outdated design forever. The upsert below carries the new version onto the
+  // existing row, and the asset is written to the new versioned key.
   const payload = await buildStoryPayload(postId, userId)
-  if (existing) payload.shareVersion = existing.shareVersion
 
   const { id: storyId } = await upsertPendingStory(postId, userId, payload, payload.shareVersion)
 
@@ -149,8 +161,16 @@ export async function getOrRenderStory(
   // cross-origin redirect to r2.dev (which sends no Access-Control-Allow-Origin
   // and 403s preflight) is blocked by the browser's CORS check. Proxying the
   // bytes keeps the response same-origin; R2->Vercel egress is free.
+  // Cache hit ONLY when the stored card matches the CURRENT design version. A
+  // row left at an older shareVersion (e.g. a card rendered before a design
+  // bump) is treated as a miss so it lazily re-renders to the new version.
   const story = await getStoryByPostId(postId)
-  if (story?.status === 'READY' && story.assetKey && (await objectExists(story.assetKey))) {
+  if (
+    story?.status === 'READY' &&
+    story.shareVersion === CURRENT_SHARE_VERSION &&
+    story.assetKey &&
+    (await objectExists(story.assetKey))
+  ) {
     return getObject(story.assetKey)
   }
 
