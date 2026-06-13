@@ -40,6 +40,15 @@ function getErrorMessage(status: number): string {
   return ERROR_MESSAGES[status] ?? `Render failed (${status}) — tap to retry`
 }
 
+// Fire-and-forget analytics beacon — never blocks or affects share/download UX.
+function reportShare(postId: string, method: 'web_share' | 'download') {
+  void fetch(`/api/stories/${encodeURIComponent(postId)}/share`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ method }),
+  }).catch(() => {})
+}
+
 // Safe to call in render — guards typeof navigator for SSR.
 function checkCanShareFiles(): boolean {
   if (typeof navigator === 'undefined' || !('share' in navigator)) return false
@@ -125,12 +134,13 @@ export function StoryShareButton({
       anchor.click()
       document.body.removeChild(anchor)
       URL.revokeObjectURL(url)
+      reportShare(postId, 'download')
       setShareState('downloaded')
       setTimeout(() => {
         if (mountedRef.current) setShareState('ready')
       }, 5000)
     },
-    [filename]
+    [filename, postId]
   )
 
   // IMPORTANT: not async. share() must be called synchronously inside the click
@@ -148,6 +158,7 @@ export function StoryShareButton({
       navigator
         .share({ files: [file] })
         .then(() => {
+          reportShare(postId, 'web_share')
           if (!mountedRef.current) return
           setShareState('shared')
           setTimeout(() => {
