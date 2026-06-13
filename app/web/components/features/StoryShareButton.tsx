@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 
 interface StoryShareButtonProps {
   postId: string
@@ -8,23 +8,39 @@ interface StoryShareButtonProps {
   isPersonalBest: boolean
 }
 
-type ShareState = 'idle' | 'generating' | 'success' | 'downloaded' | 'error'
+// ---------------------------------------------------------------------------
+// Why this component prepares the card BEFORE the tap:
+//
+// navigator.share({ files }) requires *transient user activation* — it must run
+// within ~5s of the user's tap. The card render is slow (prod p50 ~19s, p90 ~44s:
+// cold sharp + Satori). The old design did `await fetch(...)` INSIDE the click
+// handler, then called share() — by the time the render finished, activation had
+// expired and share() threw NotAllowedError, surfaced as a generic error. The
+// next tap hit the now-cached asset (fast) and shared within the window, which is
+// exactly the "fails first, succeeds second" symptom.
+//
+// Fix: kick off the render/fetch on MOUNT (off the gesture path). The held fetch
+// also keeps the serverless render alive to completion + R2 persistence (the
+// fire-and-forget server pre-gen frequently gets reaped). The Share button only
+// becomes actionable once the File is in hand; the tap then calls share()
+// SYNCHRONOUSLY with the ready file, so activation is always fresh.
+// ---------------------------------------------------------------------------
+
+type ShareState = 'preparing' | 'ready' | 'sharing' | 'shared' | 'downloaded' | 'error'
 
 const ERROR_MESSAGES: Record<number, string> = {
   401: 'Sign in to share',
   403: "This post isn't yours to share",
   404: 'Post not ready — wait for verification',
   429: 'Too many attempts — try in a minute',
-  500: 'Card generation failed — tap to retry',
+  500: 'Card render failed — tap to retry',
 }
 
 function getErrorMessage(status: number): string {
-  return ERROR_MESSAGES[status] ?? `Generation failed (${status}) — tap to retry`
+  return ERROR_MESSAGES[status] ?? `Render failed (${status}) — tap to retry`
 }
 
 // Safe to call in render — guards typeof navigator for SSR.
-// This component only appears after workout verification so hydration is
-// complete by the time the user ever sees the button.
 function checkCanShareFiles(): boolean {
   if (typeof navigator === 'undefined' || !('share' in navigator)) return false
   try {
@@ -42,76 +58,122 @@ export function StoryShareButton({
   workoutType,
   isPersonalBest,
 }: StoryShareButtonProps) {
-  const [shareState, setShareState] = useState<ShareState>('idle')
-  const [errorMsg, setErrorMsg] = useState<string>('Card generation failed — tap to retry')
+  const [shareState, setShareState] = useState<ShareState>('preparing')
+  const [errorMsg, setErrorMsg] = useState<string>('Card render failed — tap to retry')
 
-  // Derived each render — no effect needed, no hydration mismatch risk at
-  // this point in the flow (component mounts after a multi-second AI round-trip)
+  // The prepared PNG, ready for a synchronous share() at tap time.
+  const fileRef = useRef<File | null>(null)
+  // Guards against React Strict Mode double-invoking the mount effect in dev,
+  // and against setState after unmount.
+  const startedRef = useRef(false)
+  const mountedRef = useRef(true)
+
   const canShare = checkCanShareFiles()
 
-  const handleShare = useCallback(async () => {
-    setShareState('generating')
-    try {
-      // Cold render (sharp + Satori on a freshly-spun serverless instance) can
-      // fail or be slow on the very first hit, then succeed once warm. Auto-retry
-      // transient failures (network / 5xx) with backoff so the user never has to
-      // manually wait-and-tap-again. 4xx (auth / not-ready / rate-limit) are
-      // terminal and surfaced immediately.
-      let res: Response | null = null
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          res = await fetch(`/api/stories/${encodeURIComponent(postId)}`)
-        } catch {
-          res = null
-        }
-        if (res && res.ok) break
-        if (res && res.status < 500) break
-        if (attempt < 2) await new Promise((r) => setTimeout(r, 1400 * (attempt + 1)))
-      }
-      if (!res || !res.ok) {
-        setErrorMsg(getErrorMessage(res?.status ?? 500))
-        setShareState('error')
-        setTimeout(() => setShareState('idle'), 5000)
-        return
-      }
-      const blob = await res.blob()
+  const filename = `beactive-${workoutType?.toLowerCase() ?? 'workout'}-day${streakCount ?? 0}.png`
 
-      const filename = `beactive-${workoutType?.toLowerCase() ?? 'workout'}-day${streakCount ?? 0}.png`
-      const file = new File([blob], filename, { type: 'image/png' })
+  // Render + fetch the card off the gesture path. Bounded retry handles genuine
+  // cold-render 5xx crashes (evidence: stories stuck mid-render). 4xx is terminal.
+  const prepareCard = useCallback(async () => {
+    if (mountedRef.current) setShareState('preparing')
+    fileRef.current = null
 
-      // Re-check at call time — handles edge case where capability changed
-      if (checkCanShareFiles()) {
-        await navigator.share({ files: [file] })
-        setShareState('success')
-        setTimeout(() => setShareState('idle'), 3000)
-      } else {
-        // Desktop / unsupported browser — download the PNG
-        const url = URL.createObjectURL(blob)
-        const anchor = document.createElement('a')
-        anchor.href = url
-        anchor.download = filename
-        document.body.appendChild(anchor)
-        anchor.click()
-        document.body.removeChild(anchor)
-        URL.revokeObjectURL(url)
-        setShareState('downloaded')
-        setTimeout(() => setShareState('idle'), 5000)
+    let res: Response | null = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        res = await fetch(`/api/stories/${encodeURIComponent(postId)}`)
+      } catch {
+        res = null
       }
-    } catch (err) {
-      // AbortError = user dismissed the OS share sheet — not a failure
-      if (err instanceof Error && err.name === 'AbortError') {
-        setShareState('idle')
-        return
-      }
-      setErrorMsg('Something went wrong — card may have downloaded')
-      setShareState('error')
-      setTimeout(() => setShareState('idle'), 5000)
+      if (res && res.ok) break
+      if (res && res.status < 500) break // 4xx — terminal, don't retry
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)))
     }
-  }, [postId, streakCount, workoutType])
+
+    if (!res || !res.ok) {
+      if (!mountedRef.current) return
+      setErrorMsg(getErrorMessage(res?.status ?? 500))
+      setShareState('error')
+      return
+    }
+
+    const blob = await res.blob()
+    if (!mountedRef.current) return
+    fileRef.current = new File([blob], filename, { type: 'image/png' })
+    setShareState('ready')
+  }, [postId, filename])
+
+  useEffect(() => {
+    mountedRef.current = true
+    if (!startedRef.current) {
+      startedRef.current = true
+      void prepareCard()
+    }
+    return () => {
+      mountedRef.current = false
+    }
+  }, [prepareCard])
+
+  // Synchronous download — anchor click within the gesture (no await beforehand).
+  const downloadFile = useCallback(
+    (file: File) => {
+      const url = URL.createObjectURL(file)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = filename
+      document.body.appendChild(anchor)
+      anchor.click()
+      document.body.removeChild(anchor)
+      URL.revokeObjectURL(url)
+      setShareState('downloaded')
+      setTimeout(() => {
+        if (mountedRef.current) setShareState('ready')
+      }, 5000)
+    },
+    [filename]
+  )
+
+  // IMPORTANT: not async. share() must be called synchronously inside the click
+  // so transient activation is still valid. The file is already in hand.
+  const handleClick = useCallback(() => {
+    if (shareState === 'error') {
+      void prepareCard()
+      return
+    }
+    const file = fileRef.current
+    if (!file) return // still preparing — button is disabled, defensive guard
+
+    if (checkCanShareFiles()) {
+      setShareState('sharing')
+      navigator
+        .share({ files: [file] })
+        .then(() => {
+          if (!mountedRef.current) return
+          setShareState('shared')
+          setTimeout(() => {
+            if (mountedRef.current) setShareState('ready')
+          }, 3000)
+        })
+        .catch((err: unknown) => {
+          if (!mountedRef.current) return
+          // User dismissed the OS share sheet — not a failure.
+          if (err instanceof Error && err.name === 'AbortError') {
+            setShareState('ready')
+            return
+          }
+          // NotAllowedError (activation edge case) or any other share failure —
+          // fall back to a direct download rather than a dead end.
+          downloadFile(file)
+        })
+    } else {
+      downloadFile(file)
+    }
+  }, [shareState, prepareCard, downloadFile])
 
   const label = (() => {
-    if (shareState === 'generating') return 'Creating your story…'
-    if (shareState === 'success') return 'Story shared!'
+    if (shareState === 'preparing') return 'Preparing your story card…'
+    if (shareState === 'sharing') return 'Opening share…'
+    if (shareState === 'shared') return 'Story shared!'
     if (shareState === 'downloaded') return 'Card saved — post it to your story'
     if (shareState === 'error') return errorMsg
     const action = canShare ? 'Share' : 'Download'
@@ -120,14 +182,14 @@ export function StoryShareButton({
     return `${action}${qualifier} story card${day}`
   })()
 
-  const isGenerating = shareState === 'generating'
+  const isBusy = shareState === 'preparing' || shareState === 'sharing'
   const isError = shareState === 'error'
-  const isSuccess = shareState === 'success' || shareState === 'downloaded'
+  const isSuccess = shareState === 'shared' || shareState === 'downloaded'
 
   return (
     <button
-      onClick={handleShare}
-      disabled={isGenerating}
+      onClick={handleClick}
+      disabled={isBusy}
       className="w-full inline-flex items-center justify-center gap-2.5 rounded-full py-3.5 text-sm font-semibold transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
       style={{
         background: isError
@@ -142,7 +204,7 @@ export function StoryShareButton({
       }}
       aria-label={label}
     >
-      {isGenerating ? (
+      {isBusy ? (
         <SpinnerIcon />
       ) : isError ? (
         <ErrorIcon />
