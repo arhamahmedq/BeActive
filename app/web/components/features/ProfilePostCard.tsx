@@ -23,13 +23,27 @@ export function ProfilePostCard({ post }: { post: FeedPostResponse }) {
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={imageUrl}
-        alt={caption ?? 'workout'}
-        loading="lazy"
-        className="w-full aspect-square object-cover bg-gray-50"
-      />
+      {/* Hero photo — full image, never cropped, any orientation. A blurred
+          copy of the same image fills any letterbox space (no dead bars). */}
+      <div
+        className="relative overflow-hidden bg-gray-100 flex items-center justify-center"
+        style={{ minHeight: '220px', maxHeight: '560px' }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={imageUrl}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 h-full w-full object-cover scale-110 blur-2xl opacity-50"
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={imageUrl}
+          alt={caption ?? 'workout'}
+          loading="lazy"
+          className="relative z-[1] max-h-[560px] max-w-full w-auto h-auto object-contain"
+        />
+      </div>
 
       <div className="px-4 pt-3 flex items-center gap-2">
         {workout && (
