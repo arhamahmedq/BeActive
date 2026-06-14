@@ -6,6 +6,7 @@ export interface PostDetail {
   imageUrl: string
   caption: string | null
   createdAt: string // ISO 8601
+  status: string
   user?: { id: string; username: string; avatarUrl: string | null }
   workout?: { type: string } | null
 }

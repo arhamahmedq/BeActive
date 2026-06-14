@@ -2,6 +2,8 @@
 // Populated as needed
 
 export { isValidIANATimezone } from './timezone'
+export { canShowStoryShare } from './storyShare'
+export type { StorySharePost } from './storyShare'
 
 export function formatDate(date: Date): string {
   return date.toISOString()
