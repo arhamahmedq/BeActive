@@ -2,8 +2,12 @@
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { usePost } from '@/hooks/usePost'
+import { useAuth } from '@/hooks/useAuth'
+import { useStreak } from '@/hooks/useStreak'
 import { ApiError } from '@/lib/api/friends.api'
 import { Avatar } from '@/components/ui/Avatar'
+import { StoryShareButton } from '@/components/features/StoryShareButton'
+import { canShowStoryShare } from '@/shared/utils'
 
 function relativeTime(isoStr: string): string {
   const diffMs = Date.now() - new Date(isoStr).getTime()
@@ -15,12 +19,15 @@ function relativeTime(isoStr: string): string {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
-// Read-only single-post view (Slice 8A). No likes/comments/share — those are
-// later slices. Visibility (friends-only) is enforced by GET /api/posts/[id].
+// Read-only single-post view (Slice 8A). Visibility (friends-only) is
+// enforced by GET /api/posts/[id]. The story-card share surface is shown
+// only to the post's owner once it's VERIFIED (see canShowStoryShare).
 export default function PostDetailPage() {
   const params = useParams<{ postId: string }>()
   const postId = params?.postId ?? ''
   const { data: post, isLoading, isError, error } = usePost(postId)
+  const { user } = useAuth()
+  const { data: streakData } = useStreak()
 
   if (isLoading) {
     return <div className="bg-white rounded-xl border border-gray-100 overflow-hidden animate-pulse h-96" />
@@ -41,6 +48,9 @@ export default function PostDetailPage() {
   }
 
   const author = post.user
+  const isPersonalBest = streakData
+    ? streakData.current === streakData.best && streakData.current > 1
+    : false
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
@@ -70,6 +80,17 @@ export default function PostDetailPage() {
             </span>
           )}
           {post.caption && <p className="text-sm text-gray-800">{post.caption}</p>}
+        </div>
+      )}
+
+      {canShowStoryShare(user?.id, post) && (
+        <div className="px-4 pb-4">
+          <StoryShareButton
+            postId={post.id}
+            streakCount={streakData?.current ?? null}
+            workoutType={post.workout?.type}
+            isPersonalBest={isPersonalBest}
+          />
         </div>
       )}
     </div>

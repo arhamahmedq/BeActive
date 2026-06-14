@@ -256,14 +256,17 @@ export default function UploadPage() {
     }
   }, [selected])
 
-  const { data: postStatus } = usePostStatus(postId, stage === 'verifying')
+  const isVerifying = stage === 'verifying' || stage === 'still_checking'
+  const { data: postStatus } = usePostStatus(postId, isVerifying)
   const { data: streakData } = useStreak()
 
   // Drive stage transitions from poll result.
   // This effect subscribes to an external polling system (TanStack Query) and updates
   // local stage state when the server reports a terminal classification result.
+  // Runs for both 'verifying' and 'still_checking' so a slow classification that
+  // crosses the 30s reassurance threshold still auto-promotes once it resolves.
   useEffect(() => {
-    if (stage !== 'verifying' || !postStatus) return
+    if (!isVerifying || !postStatus) return
     if (postStatus.status === 'VERIFIED') {
       queryClient.invalidateQueries({ queryKey: ['streak', 'me'] })
       queryClient.invalidateQueries({ queryKey: ['feed'] })
@@ -272,9 +275,9 @@ export default function UploadPage() {
     } else if (postStatus.status === 'REJECTED') {
       setStageState({ stage: 'not_a_workout' })
     }
-  }, [postStatus, stage, queryClient])
+  }, [postStatus, isVerifying, queryClient])
 
-  // 30-second timeout → still_checking
+  // 30-second timeout → still_checking (reassurance UI only; polling continues)
   useEffect(() => {
     if (stage !== 'verifying') return
     const t = setTimeout(() => setStage('still_checking'), 30_000)

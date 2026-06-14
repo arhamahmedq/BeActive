@@ -217,8 +217,8 @@ export async function processUploadedPost(params: {
     await createNotification({
       userId,
       type: NotificationType.WORKOUT_VERIFIED,
-      title: 'Workout verified',
-      body: 'Your streak has been updated.',
+      title: 'Workout verified — share your story',
+      body: 'Your streak has been updated. Tap to share a story card.',
       data: { postId },
       idempotencyKey: `post:${postId}:WORKOUT_VERIFIED`,
     }).catch((e: unknown) => {

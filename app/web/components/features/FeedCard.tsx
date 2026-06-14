@@ -5,9 +5,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { FeedPostResponse } from '@/shared/types/feed'
 import { Avatar } from '@/components/ui/Avatar'
 import { PostEngagementBar } from './PostEngagementBar'
+import { StoryShareButton } from './StoryShareButton'
 import { formatRelativeTime } from '@/lib/formatters'
+import { useAuth } from '@/hooks/useAuth'
 import { useSavedPosts } from '@/hooks/useSavedPosts'
 import { blockUser } from '@/lib/api/friends.api'
+import { canShowStoryShare } from '@/shared/utils'
 
 // Workout type → color-coded badge styling
 const workoutBadgeStyle: Record<string, string> = {
@@ -34,7 +37,11 @@ export function FeedCard({ post }: FeedCardProps) {
   const [isBlocking, setIsBlocking] = useState(false)
   const [pressed, setPressed] = useState(false)
   const { isSaved, savePost, unsavePost } = useSavedPosts()
+  const { user: viewer } = useAuth()
   const qc = useQueryClient()
+  // feed.repo.ts (getFeedCandidates) always filters status: VERIFIED, so every
+  // FeedPostResponse is implicitly VERIFIED — only the ownership check matters here.
+  const showStoryShare = canShowStoryShare(viewer?.id, { status: 'VERIFIED', user })
 
   async function handleBlock() {
     setIsBlocking(true)
@@ -211,6 +218,18 @@ export function FeedCard({ post }: FeedCardProps) {
 
       {/* ── Engagement bar ───────────────────────────────────────────────── */}
       <PostEngagementBar post={post} />
+
+      {/* ── Story share (own VERIFIED posts only) ──────────────────────────── */}
+      {showStoryShare && (
+        <div className="px-4 pb-3">
+          <StoryShareButton
+            postId={post.id}
+            streakCount={user.streak.current}
+            workoutType={workout?.type}
+            isPersonalBest={false}
+          />
+        </div>
+      )}
     </article>
   )
 }
