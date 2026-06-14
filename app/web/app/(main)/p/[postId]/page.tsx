@@ -64,12 +64,26 @@ export default function PostDetailPage() {
         </Link>
       )}
 
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={post.imageUrl}
-        alt={post.caption ?? 'workout'}
-        className="w-full aspect-[4/5] object-cover bg-gray-50"
-      />
+      {/* Hero photo — full image, never cropped, any orientation. A blurred
+          copy of the same image fills any letterbox space (no dead bars). */}
+      <div
+        className="relative overflow-hidden bg-gray-100 flex items-center justify-center"
+        style={{ minHeight: '240px', maxHeight: '640px' }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={post.imageUrl}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 h-full w-full object-cover scale-110 blur-2xl opacity-50"
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={post.imageUrl}
+          alt={post.caption ?? 'workout'}
+          className="relative z-[1] max-h-[640px] max-w-full w-auto h-auto object-contain"
+        />
+      </div>
 
       {(post.workout || post.caption) && (
         <div className="px-4 py-3 space-y-1.5">

@@ -206,39 +206,53 @@ export function FeedCard({ post }: FeedCardProps) {
       </div>
 
       {/* ── Photo + signature proof strip ──────────────────────────────────── */}
+      {/* The user's photo is the hero: shown in full (object-contain), never
+          cropped, regardless of orientation. A blurred copy of the same image
+          fills any letterbox space so portrait/landscape/square all stay
+          premium with no dead gray bars. The proof strip lives BELOW the photo
+          so it can never cover user content. */}
       <div className="px-2">
-        <div className="relative group/image rounded-[18px] overflow-hidden bg-gray-100">
+        <div
+          className="relative group/image rounded-[18px] overflow-hidden bg-gray-100 flex items-center justify-center"
+          style={{ minHeight: '220px', maxHeight: '560px' }}
+        >
+          {/* Blurred backdrop — fills letterbox area for off-ratio photos */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 h-full w-full object-cover scale-110 blur-2xl opacity-50"
+          />
+
+          {/* The hero photo — full image, aspect preserved, never cropped */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={imageUrl}
             alt={caption ?? `${user.username}'s workout`}
             loading="lazy"
-            className="w-full aspect-[4/5] max-h-[420px] object-cover transition-opacity duration-200 group-hover/image:opacity-95"
+            className="relative z-[1] max-h-[560px] max-w-full w-auto h-auto object-contain transition-opacity duration-200 group-hover/image:opacity-95"
           />
-
-          {/* Top gradient — keeps the workout badge readable on bright photos */}
-          <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/10 to-transparent pointer-events-none" aria-hidden />
 
           {/* Workout type badge — color-coded, top-left */}
           {workout && (
             <span
-              className="absolute top-2.5 left-2.5 flex items-center gap-1 text-white text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-md border border-white/20 tracking-wide uppercase"
+              className="absolute z-[2] top-2.5 left-2.5 flex items-center gap-1 text-white text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-md border border-white/20 tracking-wide uppercase"
               style={{ background: `${m.color}d9` }}
             >
               {m.emoji} {m.label}
             </span>
           )}
+        </div>
 
-          {/* Proof strip — the three real facts (Streak · Activity · Evolution) */}
-          <div className="absolute left-3 right-3 bottom-3">
-            <div className="rounded-2xl bg-white/85 backdrop-blur-md px-2.5 sm:px-3 py-2.5 flex items-center gap-1.5 sm:gap-2 shadow-[0_8px_28px_-10px_rgba(0,0,0,0.4)]">
-              <StripStat label="Streak" value={`${streak}d`} />
-              <span className="h-7 w-px bg-gray-200" />
-              <StripStat label="Activity" value={m.label} />
-              <span className="h-7 w-px bg-gray-200" />
-              <StripStat label="Evolution" value={`${plant.emoji} ${plant.shortName}`} />
-            </div>
-          </div>
+        {/* Proof strip — three real facts (Streak · Activity · Evolution).
+            Sits below the photo so it never obscures the image. */}
+        <div className="mt-2 rounded-2xl bg-white/85 backdrop-blur-md border border-black/[0.04] px-2.5 sm:px-3 py-2.5 flex items-center gap-1.5 sm:gap-2 shadow-[0_4px_16px_-8px_rgba(0,0,0,0.25)]">
+          <StripStat label="Streak" value={`${streak}d`} />
+          <span className="h-7 w-px bg-gray-200" />
+          <StripStat label="Activity" value={m.label} />
+          <span className="h-7 w-px bg-gray-200" />
+          <StripStat label="Evolution" value={`${plant.emoji} ${plant.shortName}`} />
         </div>
       </div>
 
