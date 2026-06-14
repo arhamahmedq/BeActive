@@ -7,24 +7,36 @@ import { Avatar } from '@/components/ui/Avatar'
 import { PostEngagementBar } from './PostEngagementBar'
 import { StoryShareButton } from './StoryShareButton'
 import { formatRelativeTime } from '@/lib/formatters'
+import { getPlantLevel, getPlantLevelProgress } from '@/lib/streak-levels'
 import { useAuth } from '@/hooks/useAuth'
 import { useSavedPosts } from '@/hooks/useSavedPosts'
 import { blockUser } from '@/lib/api/friends.api'
 import { canShowStoryShare } from '@/shared/utils'
 
-// Workout type → color-coded badge styling
-const workoutBadgeStyle: Record<string, string> = {
-  GYM:      'bg-violet-500/80',
-  RUNNING:  'bg-orange-500/80',
-  CYCLING:  'bg-blue-500/80',
-  SWIMMING: 'bg-cyan-500/80',
-  YOGA:     'bg-pink-500/80',
-  HIIT:     'bg-red-500/80',
-  SPORTS:   'bg-green-600/80',
-  OTHER:    'bg-gray-600/80',
+// Workout type → on-brand label + emoji + accent. Mirrors the badge palette
+// but exposes a hex accent so the photo badge can tint itself.
+const WORKOUT_META: Record<string, { label: string; emoji: string; color: string }> = {
+  GYM:      { label: 'Strength', emoji: '🏋️', color: '#8b5cf6' },
+  RUNNING:  { label: 'Running',  emoji: '🏃', color: '#f97316' },
+  CYCLING:  { label: 'Cycling',  emoji: '🚴', color: '#3b82f6' },
+  SWIMMING: { label: 'Swimming', emoji: '🏊', color: '#06b6d4' },
+  YOGA:     { label: 'Yoga',     emoji: '🧘', color: '#ec4899' },
+  HIIT:     { label: 'HIIT',     emoji: '⚡', color: '#ef4444' },
+  SPORTS:   { label: 'Sports',   emoji: '⚽', color: '#16a34a' },
+  OTHER:    { label: 'Workout',  emoji: '💪', color: '#6b7280' },
 }
 
 const menuItemCls = 'w-full text-left px-4 py-2.5 text-sm font-medium transition-colors focus:outline-none'
+
+// Signature proof-strip stat — one real fact (Streak · Activity · Evolution).
+function StripStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex-1 min-w-0 text-center">
+      <div className="text-[9px] uppercase tracking-[0.1em] text-gray-400 font-bold truncate">{label}</div>
+      <div className="mt-0.5 text-[12px] sm:text-[13px] font-extrabold tracking-tight text-gray-900 truncate tabular-nums">{value}</div>
+    </div>
+  )
+}
 
 interface FeedCardProps {
   post: FeedPostResponse
@@ -42,6 +54,12 @@ export function FeedCard({ post }: FeedCardProps) {
   // feed.repo.ts (getFeedCandidates) always filters status: VERIFIED, so every
   // FeedPostResponse is implicitly VERIFIED — only the ownership check matters here.
   const showStoryShare = canShowStoryShare(viewer?.id, { status: 'VERIFIED', user })
+
+  // Evolution + activity — all from real post data (streak-levels ladder).
+  const streak = user.streak.current
+  const plant = getPlantLevel(streak)
+  const haloPct = Math.round(getPlantLevelProgress(streak, plant) * 100)
+  const m = workout ? (WORKOUT_META[workout.type] ?? WORKOUT_META.OTHER) : WORKOUT_META.OTHER
 
   async function handleBlock() {
     setIsBlocking(true)
@@ -67,8 +85,6 @@ export function FeedCard({ post }: FeedCardProps) {
     setMenuOpen(false)
   }
 
-  const badgeBg = workout ? (workoutBadgeStyle[workout.type] ?? workoutBadgeStyle.OTHER) : ''
-
   return (
     <article
       className="glass-card rounded-2xl overflow-hidden transition-all duration-200 ease-out
@@ -84,36 +100,42 @@ export function FeedCard({ post }: FeedCardProps) {
       onMouseLeave={() => setPressed(false)}
     >
       {/* ── Card header ─────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-3 py-2">
-        {/* User identity */}
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        {/* User identity — evolution-halo avatar */}
         <Link
           href={`/u/${user.username}`}
           className="flex items-center gap-2.5 flex-1 min-w-0 py-1 px-1.5 rounded-xl transition-all duration-150 hover:bg-black/[0.03]"
         >
-          <span className="flex-shrink-0 transition-transform duration-150 hover:scale-105">
-            <Avatar src={user.avatarUrl} name={user.username} size="md" />
+          <span className="relative h-11 w-11 flex-shrink-0 block transition-transform duration-150 hover:scale-105">
+            {/* conic ring = progress to next plant tier */}
+            <span
+              className="absolute inset-0 rounded-full"
+              style={{ background: `conic-gradient(#22c55e ${haloPct * 3.6}deg, rgba(34,197,94,0.16) 0deg)` }}
+              aria-hidden
+            />
+            <span className="absolute inset-[3px] rounded-full bg-white" aria-hidden />
+            <span className="absolute inset-[4px] rounded-full overflow-hidden">
+              <Avatar src={user.avatarUrl} name={user.username} size="lg" className="!h-full !w-full" />
+            </span>
+            {streak > 0 && (
+              <span className="absolute -bottom-1 -right-1 text-[14px] drop-shadow-sm select-none" aria-hidden>{plant.emoji}</span>
+            )}
           </span>
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-semibold text-gray-900 truncate leading-tight">
               @{user.username}
             </p>
             <p className="text-[11px] text-gray-400 leading-none mt-0.5">
-              {formatRelativeTime(createdAt)}
+              {m.label} · {formatRelativeTime(createdAt)}
             </p>
           </div>
         </Link>
 
-        {/* Streak pill */}
-        {user.streak.current > 0 && (
-          <div
-            className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${
-              user.streak.current >= 7
-                ? 'text-brand-700 bg-brand-100'
-                : 'text-gray-600 bg-gray-100'
-            }`}
-          >
+        {/* Streak flame chip */}
+        {streak > 0 && (
+          <div className="flex items-center gap-1 text-[12px] font-extrabold px-2 py-0.5 rounded-full flex-shrink-0 bg-brand-50 border border-brand-100 text-brand-700">
             <span aria-hidden className="text-[10px]">🔥</span>
-            <span className="tabular-nums">{user.streak.current}</span>
+            <span className="tabular-nums">{streak}</span>
           </div>
         )}
 
@@ -183,40 +205,51 @@ export function FeedCard({ post }: FeedCardProps) {
         </div>
       </div>
 
-      {/* ── Photo ────────────────────────────────────────────────────────── */}
-      <div className="relative group/image">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={imageUrl}
-          alt={caption ?? `${user.username}'s workout`}
-          loading="lazy"
-          className="w-full aspect-[4/5] max-h-[420px] object-cover bg-gray-100 transition-opacity duration-200 group-hover/image:opacity-95"
-        />
+      {/* ── Photo + signature proof strip ──────────────────────────────────── */}
+      <div className="px-2">
+        <div className="relative group/image rounded-[18px] overflow-hidden bg-gray-100">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt={caption ?? `${user.username}'s workout`}
+            loading="lazy"
+            className="w-full aspect-[4/5] max-h-[420px] object-cover transition-opacity duration-200 group-hover/image:opacity-95"
+          />
 
-        {/* Top gradient — smooth caption + badge readability */}
-        <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/10 to-transparent pointer-events-none" aria-hidden />
+          {/* Top gradient — keeps the workout badge readable on bright photos */}
+          <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/10 to-transparent pointer-events-none" aria-hidden />
 
-        {/* Bottom gradient — subtle depth */}
-        <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/12 to-transparent pointer-events-none" aria-hidden />
+          {/* Workout type badge — color-coded, top-left */}
+          {workout && (
+            <span
+              className="absolute top-2.5 left-2.5 flex items-center gap-1 text-white text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-md border border-white/20 tracking-wide uppercase"
+              style={{ background: `${m.color}d9` }}
+            >
+              {m.emoji} {m.label}
+            </span>
+          )}
 
-        {/* Workout type badge — color-coded, top-left */}
-        {workout && (
-          <span
-            className={`absolute top-2.5 left-2.5 flex items-center gap-1 ${badgeBg} text-white text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-md border border-white/15 tracking-wide uppercase`}
-          >
-            💪 {workout.type.charAt(0) + workout.type.slice(1).toLowerCase()}
-          </span>
-        )}
+          {/* Proof strip — the three real facts (Streak · Activity · Evolution) */}
+          <div className="absolute left-3 right-3 bottom-3">
+            <div className="rounded-2xl bg-white/85 backdrop-blur-md px-2.5 sm:px-3 py-2.5 flex items-center gap-1.5 sm:gap-2 shadow-[0_8px_28px_-10px_rgba(0,0,0,0.4)]">
+              <StripStat label="Streak" value={`${streak}d`} />
+              <span className="h-7 w-px bg-gray-200" />
+              <StripStat label="Activity" value={m.label} />
+              <span className="h-7 w-px bg-gray-200" />
+              <StripStat label="Evolution" value={`${plant.emoji} ${plant.shortName}`} />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ── Caption ──────────────────────────────────────────────────────── */}
       {caption && (
-        <div className="px-4 pt-2.5 pb-0">
+        <div className="px-4 pt-3 pb-0">
           <p className="text-[13px] text-gray-700 leading-relaxed">{caption}</p>
         </div>
       )}
 
-      {/* ── Engagement bar ───────────────────────────────────────────────── */}
+      {/* ── Engagement bar (real likes / comments / share) ─────────────────── */}
       <PostEngagementBar post={post} />
 
       {/* ── Story share (own VERIFIED posts only) ──────────────────────────── */}
