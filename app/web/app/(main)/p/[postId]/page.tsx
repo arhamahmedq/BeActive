@@ -47,7 +47,7 @@ export default function PostDetailPage() {
   const { data: streakData } = useStreak()
 
   if (isLoading) {
-    return <div className="bg-[#faf9f6] rounded-2xl border border-gray-200 overflow-hidden animate-pulse h-96" />
+    return <div className="bg-white rounded-3xl border-[1.5px] border-black overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)] animate-pulse h-96" />
   }
 
   if (isError || !post) {
@@ -70,9 +70,10 @@ export default function PostDetailPage() {
     : false
 
   return (
-    <div className="bg-[#faf9f6] rounded-2xl border border-gray-200 overflow-hidden">
-      {/* ── Top bar — Instagram-style identity (avatar · username · time) ───── */}
-      <div className="flex items-center gap-2.5 px-3.5 pt-3 pb-2.5">
+    <div className="bg-white rounded-3xl border-[1.5px] border-black overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)]">
+      {/* ── Top bar — Instagram-style identity (avatar · username · time).
+            A full-width divider under it separates identity from the content. ── */}
+      <div className="flex items-center gap-2.5 px-3.5 pt-3 pb-2.5 border-b-[1.5px] border-black">
         {author && (
           <Link
             href={`/u/${author.username}`}
@@ -95,7 +96,7 @@ export default function PostDetailPage() {
             of the same image fills any letterbox space. ───────────────────────── */}
       <div className="px-3 pb-3">
         <div
-          className="relative rounded-[6px] overflow-hidden bg-gray-100 flex items-center justify-center"
+          className="relative rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center"
           style={{ minHeight: '240px', maxHeight: '640px' }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -116,8 +117,8 @@ export default function PostDetailPage() {
 
       {/* ── Caption — pull quote ────────────────────────────────────────────── */}
       {post.caption && (
-        <div className="px-4 pb-1">
-          <p className="text-[13px] text-gray-700 leading-relaxed italic border-t border-gray-200 pt-3">
+        <div className="px-4 pt-3 pb-1 border-t-[1.5px] border-black">
+          <p className="text-[13px] text-gray-700 leading-relaxed italic">
             “{post.caption}”
           </p>
         </div>

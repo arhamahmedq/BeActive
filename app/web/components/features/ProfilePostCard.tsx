@@ -41,7 +41,7 @@ export function ProfilePostCard({ post }: { post: FeedPostResponse }) {
   const plant = getPlantLevel(streak)
 
   return (
-    <div className="bg-[#faf9f6] rounded-2xl border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-3xl border-[1.5px] border-black overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)]">
       {/* ── Masthead — drop-cap streak + time + activity / evolution chips.
             Author identity is intentionally omitted on a profile (the page
             header already establishes whose posts these are). ─────────────── */}
@@ -69,7 +69,7 @@ export function ProfilePostCard({ post }: { post: FeedPostResponse }) {
             of the same image fills any letterbox space. ───────────────────────── */}
       <div className="px-3 pb-3">
         <div
-          className="relative rounded-[6px] overflow-hidden bg-gray-100 flex items-center justify-center"
+          className="relative rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center"
           style={{ minHeight: '220px', maxHeight: '560px' }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -89,10 +89,14 @@ export function ProfilePostCard({ post }: { post: FeedPostResponse }) {
         </div>
       </div>
 
+      {/* ── Footer divider — always present (full-width, dark): separates the
+            photo from the caption / engagement footer, even with no caption ─── */}
+      <div className="border-t-[1.5px] border-black" />
+
       {/* ── Caption — pull quote ────────────────────────────────────────────── */}
       {caption && (
-        <div className="px-4 pb-1">
-          <p className="text-[13px] text-gray-700 leading-relaxed italic border-t border-gray-200 pt-3">
+        <div className="px-4 pt-3 pb-1">
+          <p className="text-[13px] text-gray-700 leading-relaxed italic">
             “{caption}”
           </p>
         </div>
