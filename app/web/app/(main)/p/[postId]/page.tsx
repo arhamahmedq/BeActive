@@ -9,6 +9,15 @@ import { Avatar } from '@/components/ui/Avatar'
 import { StoryShareButton } from '@/components/features/StoryShareButton'
 import { canShowStoryShare } from '@/shared/utils'
 
+// Workout type → editorial headline label (mirrors FeedCard).
+const WORKOUT_LABELS: Record<string, string> = {
+  GYM: 'Strength', RUNNING: 'Running', CYCLING: 'Cycling', SWIMMING: 'Swimming',
+  YOGA: 'Yoga', HIIT: 'HIIT', SPORTS: 'Sports', OTHER: 'Workout',
+}
+function workoutLabel(type?: string): string {
+  return (type && WORKOUT_LABELS[type]) || 'Workout'
+}
+
 function relativeTime(isoStr: string): string {
   const diffMs = Date.now() - new Date(isoStr).getTime()
   const mins = Math.floor(diffMs / 60_000)
@@ -30,7 +39,7 @@ export default function PostDetailPage() {
   const { data: streakData } = useStreak()
 
   if (isLoading) {
-    return <div className="bg-white rounded-xl border border-gray-100 overflow-hidden animate-pulse h-96" />
+    return <div className="bg-[#faf9f6] rounded-2xl border border-gray-200 overflow-hidden animate-pulse h-96" />
   }
 
   if (isError || !post) {
@@ -53,52 +62,63 @@ export default function PostDetailPage() {
     : false
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-      {author && (
-        <Link href={`/u/${author.username}`} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
-          <Avatar src={author.avatarUrl} name={author.username} size="md" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate">@{author.username}</p>
-            <p className="text-xs text-gray-400">{relativeTime(post.createdAt)}</p>
-          </div>
-        </Link>
-      )}
-
-      {/* Hero photo — full image, never cropped, any orientation. A blurred
-          copy of the same image fills any letterbox space (no dead bars). */}
-      <div
-        className="relative overflow-hidden bg-gray-100 flex items-center justify-center"
-        style={{ minHeight: '240px', maxHeight: '640px' }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={post.imageUrl}
-          alt=""
-          aria-hidden
-          className="absolute inset-0 h-full w-full object-cover scale-110 blur-2xl opacity-50"
-        />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={post.imageUrl}
-          alt={post.caption ?? 'workout'}
-          className="relative z-[1] max-h-[640px] max-w-full w-auto h-auto object-contain"
-        />
+    <div className="bg-[#faf9f6] rounded-2xl border border-gray-200 overflow-hidden">
+      {/* ── Eyebrow rule ────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 px-4 pt-3.5 pb-2 border-b-2 border-black">
+        <span className="text-[10px] font-black uppercase tracking-[0.22em] text-black">BeActive · Daily Proof</span>
+        <span className="ml-auto text-[10px] font-bold uppercase tracking-widest text-gray-400">{relativeTime(post.createdAt)}</span>
       </div>
 
-      {(post.workout || post.caption) && (
-        <div className="px-4 py-3 space-y-1.5">
-          {post.workout && (
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-              <span className="h-1.5 w-1.5 rounded-full bg-gray-400" />
-              {post.workout.type.charAt(0) + post.workout.type.slice(1).toLowerCase()}
-            </span>
-          )}
-          {post.caption && <p className="text-sm text-gray-800">{post.caption}</p>}
+      {/* ── Masthead — activity headline + author identity ───────────────────── */}
+      <div className="px-4 pt-3 pb-3">
+        <h2 className="text-[32px] sm:text-[38px] leading-[0.92] font-black uppercase tracking-tight text-black">
+          {workoutLabel(post.workout?.type)}<br />Session
+        </h2>
+        {author && (
+          <Link
+            href={`/u/${author.username}`}
+            className="mt-3 flex items-center gap-2.5 w-fit rounded-lg py-1 px-1.5 -mx-1.5 transition-colors hover:bg-black/[0.04]"
+          >
+            <Avatar src={author.avatarUrl} name={author.username} size="md" />
+            <span className="text-[14px] font-bold text-gray-900 truncate">@{author.username}</span>
+          </Link>
+        )}
+      </div>
+
+      {/* ── Photo — full image, never cropped (object-contain). A blurred copy
+            of the same image fills any letterbox space. ───────────────────────── */}
+      <div className="px-3 pb-3">
+        <div
+          className="relative rounded-[6px] overflow-hidden bg-gray-100 flex items-center justify-center"
+          style={{ minHeight: '240px', maxHeight: '640px' }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={post.imageUrl}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 h-full w-full object-cover scale-110 blur-2xl opacity-50"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={post.imageUrl}
+            alt={post.caption ?? 'workout'}
+            className="relative z-[1] max-h-[640px] max-w-full w-auto h-auto object-contain"
+          />
+        </div>
+      </div>
+
+      {/* ── Caption — pull quote ────────────────────────────────────────────── */}
+      {post.caption && (
+        <div className="px-4 pb-1">
+          <p className="text-[13px] text-gray-700 leading-relaxed italic border-t border-gray-200 pt-3">
+            “{post.caption}”
+          </p>
         </div>
       )}
 
       {canShowStoryShare(user?.id, post) && (
-        <div className="px-4 pb-4">
+        <div className="px-4 pt-3 pb-4">
           <StoryShareButton
             postId={post.id}
             streakCount={streakData?.current ?? null}
