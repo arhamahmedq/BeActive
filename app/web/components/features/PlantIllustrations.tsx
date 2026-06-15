@@ -101,7 +101,10 @@ interface PlantIllustrationProps {
 export function PlantIllustration({ level, size = 64, locked = false }: PlantIllustrationProps) {
   return (
     <svg
-      viewBox="0 0 64 64"
+      // viewBox padded 4px on every side so the background circle's stroke and
+      // the plant silhouette never sit flush against (and get clipped by) the
+      // SVG frame — keeps every tier fully "inside the picture".
+      viewBox="-4 -4 72 72"
       width={size}
       height={size}
       className={locked ? 'grayscale opacity-40' : ''}
