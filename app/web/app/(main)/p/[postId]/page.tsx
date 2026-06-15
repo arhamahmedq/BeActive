@@ -18,6 +18,14 @@ function workoutLabel(type?: string): string {
   return (type && WORKOUT_LABELS[type]) || 'Workout'
 }
 
+const WORKOUT_EMOJIS: Record<string, string> = {
+  GYM: '🏋️', RUNNING: '🏃', CYCLING: '🚴', SWIMMING: '🏊',
+  YOGA: '🧘', HIIT: '⚡', SPORTS: '⚽', OTHER: '💪',
+}
+function workoutEmoji(type?: string): string {
+  return (type && WORKOUT_EMOJIS[type]) || '💪'
+}
+
 function relativeTime(isoStr: string): string {
   const diffMs = Date.now() - new Date(isoStr).getTime()
   const mins = Math.floor(diffMs / 60_000)
@@ -63,23 +71,24 @@ export default function PostDetailPage() {
 
   return (
     <div className="bg-[#faf9f6] rounded-2xl border border-gray-200 overflow-hidden">
-      {/* ── Eyebrow rule ────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-4 pt-3.5 pb-2 border-b-2 border-black">
-        <span className="text-[10px] font-black uppercase tracking-[0.22em] text-black">{workoutLabel(post.workout?.type)} · Daily Proof</span>
-        <span className="ml-auto text-[10px] font-bold uppercase tracking-widest text-gray-400">{relativeTime(post.createdAt)}</span>
-      </div>
-
-      {/* ── Masthead — author identity ──────────────────────────────────────── */}
-      <div className="px-4 pt-3 pb-3">
+      {/* ── Top bar — Instagram-style identity (avatar · username · time) ───── */}
+      <div className="flex items-center gap-2.5 px-3.5 pt-3 pb-2.5">
         {author && (
           <Link
             href={`/u/${author.username}`}
-            className="flex items-center gap-2.5 w-fit rounded-lg py-1 px-1.5 -mx-1.5 transition-colors hover:bg-black/[0.04]"
+            className="-my-0.5 flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-0.5 transition-colors hover:bg-black/[0.04]"
           >
-            <Avatar src={author.avatarUrl} name={author.username} size="md" />
-            <span className="text-[14px] font-bold text-gray-900 truncate">@{author.username}</span>
+            <Avatar src={author.avatarUrl} name={author.username} size="lg" />
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-[14px] font-semibold leading-tight text-gray-900">{author.username}</span>
+              <span className="text-gray-300" aria-hidden>·</span>
+              <span className="shrink-0 text-[12px] font-medium text-gray-400">{relativeTime(post.createdAt)}</span>
+            </span>
           </Link>
         )}
+        <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-600">
+          {workoutEmoji(post.workout?.type)} {workoutLabel(post.workout?.type)}
+        </span>
       </div>
 
       {/* ── Photo — full image, never cropped (object-contain). A blurred copy

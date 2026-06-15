@@ -98,10 +98,19 @@ export function FeedCard({ post }: FeedCardProps) {
       onMouseUp={() => setPressed(false)}
       onMouseLeave={() => setPressed(false)}
     >
-      {/* ── Eyebrow rule ────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-4 pt-3.5 pb-2 border-b-2 border-black">
-        <span className="text-[10px] font-black uppercase tracking-[0.22em] text-black">{m.label} · Daily Proof</span>
-        <span className="ml-auto text-[10px] font-bold uppercase tracking-widest text-gray-400">{formatRelativeTime(createdAt)}</span>
+      {/* ── Top bar — Instagram-style identity (avatar · username · time) ───── */}
+      <div className="flex items-center gap-2.5 px-3.5 pt-3 pb-2.5">
+        <Link
+          href={`/u/${user.username}`}
+          className="-my-0.5 flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-0.5 transition-colors hover:bg-black/[0.04]"
+        >
+          <Avatar src={user.avatarUrl} name={user.username} size="lg" />
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-[14px] font-semibold leading-tight text-gray-900">{user.username}</span>
+            <span className="text-gray-300" aria-hidden>·</span>
+            <span className="shrink-0 text-[12px] font-medium text-gray-400">{formatRelativeTime(createdAt)}</span>
+          </span>
+        </Link>
 
         {/* Save button */}
         <button
@@ -169,25 +178,21 @@ export function FeedCard({ post }: FeedCardProps) {
         </div>
       </div>
 
-      {/* ── Masthead — drop-cap streak + identity ───────────────────────────── */}
+      {/* ── Masthead — drop-cap streak + activity / evolution chips ─────────── */}
       <div className="px-4 pt-3 pb-3">
         <div className="flex items-end gap-3">
           <span className="text-[52px] sm:text-[60px] leading-[0.78] font-black tabular-nums text-black">{streak}</span>
           <span className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-500 leading-tight">Day<br />streak</span>
-          <Link
-            href={`/u/${user.username}`}
-            className="mb-0.5 ml-auto flex items-center gap-2 min-w-0 rounded-lg py-1 px-1.5 -mr-1.5 transition-colors hover:bg-black/[0.04]"
-          >
-            <Avatar src={user.avatarUrl} name={user.username} size="md" />
-            <span className="min-w-0">
-              <span className="block text-[13px] font-bold text-gray-900 truncate leading-tight">@{user.username}</span>
-              {streak > 0 && (
-                <span className="block text-[10px] font-bold uppercase tracking-wide text-brand-700 leading-tight mt-0.5">
-                  {plant.emoji} {plant.shortName}
-                </span>
-              )}
+          <span className="mb-1.5 ml-auto flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-600">
+              {m.emoji} {m.label}
             </span>
-          </Link>
+            {streak > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-brand-700">
+                {plant.emoji} {plant.shortName}
+              </span>
+            )}
+          </span>
         </div>
       </div>
 
