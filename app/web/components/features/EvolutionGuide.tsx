@@ -10,7 +10,7 @@ interface EvolutionGuideProps {
 }
 
 // ── Progress bar with animated fill ─────────────────────────────────────────
-function ProgressBar({ progress, color, size = 'sm' }: { progress: number; color: string; size?: 'sm' | 'md' }) {
+function ProgressBar({ progress, color, size = 'sm' }: { progress: number; color: string; size?: 'xs' | 'sm' | 'md' }) {
   const barRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const bar = barRef.current
@@ -24,7 +24,7 @@ function ProgressBar({ progress, color, size = 'sm' }: { progress: number; color
   }, [progress])
 
   return (
-    <div className={`${size === 'md' ? 'h-2' : 'h-1.5'} rounded-full overflow-hidden`} style={{ background: 'rgba(0,0,0,0.06)' }}>
+    <div className={`${size === 'md' ? 'h-2' : size === 'xs' ? 'h-1' : 'h-1.5'} rounded-full overflow-hidden`} style={{ background: 'rgba(0,0,0,0.06)' }}>
       <div ref={barRef} className="h-full rounded-full" style={{ background: color, width: '0%' }} />
     </div>
   )
@@ -107,8 +107,10 @@ function FullGuide({ currentDays }: { currentDays: number }) {
         })}
       </div>
 
-      {/* Overall journey progress */}
-      <ProgressBar progress={overallProgress} color="#9ca3af" size="md" />
+      {/* Overall journey progress — kept thin (secondary) so it reads as a
+          subtle context rail beneath the tiles, not a heavy bar crowding the
+          tier row below it. */}
+      <ProgressBar progress={overallProgress} color="#9ca3af" size="xs" />
 
       {/* Current tier progress */}
       <div className="space-y-1.5">
