@@ -60,14 +60,16 @@ function EvolutionCard({
 
   return (
     <div
-      className={`flex flex-col items-center justify-center gap-2 rounded-2xl text-center transition-all duration-200 ${
+      className={`flex flex-col items-center justify-start gap-2 rounded-2xl text-center transition-all duration-200 ${
         compact ? 'w-16 flex-shrink-0 px-2 py-3 gap-1.5' : 'px-2 py-4'
       } ${compact && isCurrent ? 'ring-2 ring-brand-500 scale-105' : ''}`}
       style={containerStyle}
     >
       <PlantIllustration level={lvl} locked={isFuture} size={compact ? 40 : 64} />
+      {/* Reserve a fixed two-line height so single- and two-line labels (and the
+          past-state checkmark below) line up across the row, regardless of tier. */}
       <span
-        className={`text-eyebrow leading-tight ${compact ? '!text-[9px]' : ''}`}
+        className={`text-eyebrow leading-tight flex items-center justify-center ${compact ? '!text-[9px] min-h-[1.8em]' : 'min-h-[2.4em]'}`}
         style={{ color: labelColor }}
       >
         {lvl.shortName}
