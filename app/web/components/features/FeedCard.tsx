@@ -86,8 +86,9 @@ export function FeedCard({ post }: FeedCardProps) {
 
   return (
     <article
-      className="bg-[#faf9f6] rounded-2xl border border-gray-200 overflow-hidden transition-all duration-200 ease-out
-                 hover:shadow-[0_8px_32px_rgba(0,0,0,0.10),0_2px_8px_rgba(0,0,0,0.05)]
+      className="bg-white rounded-3xl border-[1.5px] border-black overflow-hidden transition-all duration-200 ease-out
+                 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)]
+                 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.14),0_2px_8px_rgba(0,0,0,0.05)]
                  hover:-translate-y-[2px]
                  active:scale-[0.99] active:shadow-[0_2px_12px_rgba(0,0,0,0.08)]"
       style={{
@@ -98,8 +99,9 @@ export function FeedCard({ post }: FeedCardProps) {
       onMouseUp={() => setPressed(false)}
       onMouseLeave={() => setPressed(false)}
     >
-      {/* ── Top bar — Instagram-style identity (avatar · username · time) ───── */}
-      <div className="flex items-center gap-2.5 px-3.5 pt-3 pb-2.5">
+      {/* ── Top bar — Instagram-style identity (avatar · username · time).
+            A full-width divider under it separates identity from the masthead. ─ */}
+      <div className="flex items-center gap-2.5 px-3.5 pt-3 pb-2.5 border-b-[1.5px] border-black">
         <Link
           href={`/u/${user.username}`}
           className="-my-0.5 flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-0.5 transition-colors hover:bg-black/[0.04]"
@@ -200,7 +202,7 @@ export function FeedCard({ post }: FeedCardProps) {
             A blurred copy of the same image fills any letterbox space. ──────── */}
       <div className="px-3 pb-3">
         <div
-          className="relative group/image rounded-[6px] overflow-hidden bg-gray-100 flex items-center justify-center"
+          className="relative group/image rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center"
           style={{ minHeight: '220px', maxHeight: '560px' }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -220,10 +222,14 @@ export function FeedCard({ post }: FeedCardProps) {
         </div>
       </div>
 
+      {/* ── Footer divider — always present (full-width, dark): separates the
+            photo from the caption / engagement footer, even with no caption ─── */}
+      <div className="border-t-[1.5px] border-black" />
+
       {/* ── Caption — pull quote ────────────────────────────────────────────── */}
       {caption && (
-        <div className="px-4 pb-1">
-          <p className="text-[13px] text-gray-700 leading-relaxed italic border-t border-gray-200 pt-3">
+        <div className="px-4 pt-3 pb-1">
+          <p className="text-[13px] text-gray-700 leading-relaxed italic">
             “{caption}”
           </p>
         </div>
