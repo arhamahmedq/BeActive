@@ -7,7 +7,7 @@ import { useStreak } from '@/hooks/useStreak'
 import { ApiError } from '@/lib/api/friends.api'
 import { Avatar } from '@/components/ui/Avatar'
 import { StoryShareButton } from '@/components/features/StoryShareButton'
-import { canShowStoryShare } from '@/shared/utils'
+import { canShowStoryShare, isLatestVerifiedDayPost } from '@/shared/utils'
 
 // Workout type → editorial headline label (mirrors FeedCard).
 const WORKOUT_LABELS: Record<string, string> = {
@@ -114,7 +114,8 @@ export default function PostDetailPage() {
         </div>
       )}
 
-      {canShowStoryShare(user?.id, post) && (
+      {canShowStoryShare(user?.id, post) &&
+        isLatestVerifiedDayPost(post.createdAt, streakData?.lastVerifiedDate, streakData?.userTimezone) && (
         <div className="px-4 pt-3 pb-4">
           <StoryShareButton
             postId={post.id}

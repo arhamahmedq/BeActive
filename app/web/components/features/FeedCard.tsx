@@ -10,8 +10,9 @@ import { formatRelativeTime } from '@/lib/formatters'
 import { getPlantLevel } from '@/lib/streak-levels'
 import { useAuth } from '@/hooks/useAuth'
 import { useSavedPosts } from '@/hooks/useSavedPosts'
+import { useStreak } from '@/hooks/useStreak'
 import { blockUser } from '@/lib/api/friends.api'
-import { canShowStoryShare } from '@/shared/utils'
+import { canShowStoryShare, isLatestVerifiedDayPost } from '@/shared/utils'
 
 // Workout type → on-brand label + emoji. The Editorial layout uses the label
 // as the headline ("Strength Session"), so no per-type color tint is needed.
@@ -44,10 +45,15 @@ export function FeedCard({ post }: FeedCardProps) {
   const [pressed, setPressed] = useState(false)
   const { isSaved, savePost, unsavePost } = useSavedPosts()
   const { user: viewer } = useAuth()
+  const { data: viewerStreak } = useStreak()
   const qc = useQueryClient()
   // feed.repo.ts (getFeedCandidates) always filters status: VERIFIED, so every
   // FeedPostResponse is implicitly VERIFIED — only the ownership check matters here.
-  const showStoryShare = canShowStoryShare(viewer?.id, { status: 'VERIFIED', user })
+  // Gate the share button to the viewer's LATEST verified day so older posts
+  // don't each carry a share surface once a newer post exists (keeps the feed clean).
+  const showStoryShare =
+    canShowStoryShare(viewer?.id, { status: 'VERIFIED', user }) &&
+    isLatestVerifiedDayPost(createdAt, viewerStreak?.lastVerifiedDate, viewerStreak?.userTimezone)
 
   // Evolution + activity — all from real post data (streak-levels ladder).
   const streak = user.streak.current
