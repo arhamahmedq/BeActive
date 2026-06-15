@@ -94,7 +94,7 @@ export function FeedCard({ post }: FeedCardProps) {
     >
       {/* ── Eyebrow rule ────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-4 pt-3.5 pb-2 border-b-2 border-black">
-        <span className="text-[10px] font-black uppercase tracking-[0.22em] text-black">BeActive · Daily Proof</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.22em] text-black">{m.label} · Daily Proof</span>
         <span className="ml-auto text-[10px] font-bold uppercase tracking-widest text-gray-400">{formatRelativeTime(createdAt)}</span>
 
         {/* Save button */}
@@ -163,12 +163,9 @@ export function FeedCard({ post }: FeedCardProps) {
         </div>
       </div>
 
-      {/* ── Masthead — activity headline + drop-cap streak + identity ────────── */}
+      {/* ── Masthead — drop-cap streak + identity ───────────────────────────── */}
       <div className="px-4 pt-3 pb-3">
-        <h2 className="text-[32px] sm:text-[38px] leading-[0.92] font-black uppercase tracking-tight text-black">
-          {m.label}<br />Session
-        </h2>
-        <div className="flex items-end gap-3 mt-2.5">
+        <div className="flex items-end gap-3">
           <span className="text-[52px] sm:text-[60px] leading-[0.78] font-black tabular-nums text-black">{streak}</span>
           <span className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-500 leading-tight">Day<br />streak</span>
           <Link

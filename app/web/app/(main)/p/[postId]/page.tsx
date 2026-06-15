@@ -65,19 +65,16 @@ export default function PostDetailPage() {
     <div className="bg-[#faf9f6] rounded-2xl border border-gray-200 overflow-hidden">
       {/* ── Eyebrow rule ────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-4 pt-3.5 pb-2 border-b-2 border-black">
-        <span className="text-[10px] font-black uppercase tracking-[0.22em] text-black">BeActive · Daily Proof</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.22em] text-black">{workoutLabel(post.workout?.type)} · Daily Proof</span>
         <span className="ml-auto text-[10px] font-bold uppercase tracking-widest text-gray-400">{relativeTime(post.createdAt)}</span>
       </div>
 
-      {/* ── Masthead — activity headline + author identity ───────────────────── */}
+      {/* ── Masthead — author identity ──────────────────────────────────────── */}
       <div className="px-4 pt-3 pb-3">
-        <h2 className="text-[32px] sm:text-[38px] leading-[0.92] font-black uppercase tracking-tight text-black">
-          {workoutLabel(post.workout?.type)}<br />Session
-        </h2>
         {author && (
           <Link
             href={`/u/${author.username}`}
-            className="mt-3 flex items-center gap-2.5 w-fit rounded-lg py-1 px-1.5 -mx-1.5 transition-colors hover:bg-black/[0.04]"
+            className="flex items-center gap-2.5 w-fit rounded-lg py-1 px-1.5 -mx-1.5 transition-colors hover:bg-black/[0.04]"
           >
             <Avatar src={author.avatarUrl} name={author.username} size="md" />
             <span className="text-[14px] font-bold text-gray-900 truncate">@{author.username}</span>
