@@ -12,6 +12,14 @@ function workoutLabel(type?: string): string {
   return (type && WORKOUT_LABELS[type]) || 'Workout'
 }
 
+const WORKOUT_EMOJIS: Record<string, string> = {
+  GYM: '🏋️', RUNNING: '🏃', CYCLING: '🚴', SWIMMING: '🏊',
+  YOGA: '🧘', HIIT: '⚡', SPORTS: '⚽', OTHER: '💪',
+}
+function workoutEmoji(type?: string): string {
+  return (type && WORKOUT_EMOJIS[type]) || '💪'
+}
+
 function relativeTime(isoStr: string): string {
   const diffMs = Date.now() - new Date(isoStr).getTime()
   const mins = Math.floor(diffMs / 60_000)
@@ -34,22 +42,26 @@ export function ProfilePostCard({ post }: { post: FeedPostResponse }) {
 
   return (
     <div className="bg-[#faf9f6] rounded-2xl border border-gray-200 overflow-hidden">
-      {/* ── Eyebrow rule ────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-4 pt-3.5 pb-2 border-b-2 border-black">
-        <span className="text-[10px] font-black uppercase tracking-[0.22em] text-black">{workoutLabel(workout?.type)} · Daily Proof</span>
-        <span className="ml-auto text-[10px] font-bold uppercase tracking-widest text-gray-400">{relativeTime(createdAt)}</span>
-      </div>
-
-      {/* ── Masthead — drop-cap streak + evolution ──────────────────────────── */}
-      <div className="px-4 pt-3 pb-3">
+      {/* ── Masthead — drop-cap streak + time + activity / evolution chips.
+            Author identity is intentionally omitted on a profile (the page
+            header already establishes whose posts these are). ─────────────── */}
+      <div className="px-4 pt-4 pb-3">
         <div className="flex items-end gap-3">
           <span className="text-[52px] sm:text-[60px] leading-[0.78] font-black tabular-nums text-black">{streak}</span>
           <span className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-500 leading-tight">Day<br />streak</span>
-          {streak > 0 && (
-            <span className="mb-2 ml-auto text-[10px] font-bold uppercase tracking-wide text-brand-700">
-              {plant.emoji} {plant.shortName}
+          <span className="mb-1 ml-auto flex flex-col items-end gap-1.5">
+            <span className="text-[11px] font-medium text-gray-400">{relativeTime(createdAt)}</span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-600">
+                {workoutEmoji(workout?.type)} {workoutLabel(workout?.type)}
+              </span>
+              {streak > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-brand-700">
+                  {plant.emoji} {plant.shortName}
+                </span>
+              )}
             </span>
-          )}
+          </span>
         </div>
       </div>
 
