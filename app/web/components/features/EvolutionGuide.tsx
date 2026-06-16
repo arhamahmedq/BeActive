@@ -225,8 +225,10 @@ function CompactGuide({ currentDays }: { currentDays: number }) {
   return (
     <div className="space-y-3">
       {/* Grid wraps all 7 stages into rows: no horizontal scroll, no overflow,
-          fits any width down to ~180px. Every stage stays fully visible. */}
-      <div className="grid grid-cols-4 gap-1">
+          every stage stays fully visible. 3 columns (not 4) so each tile is wide
+          enough to fit the longest single-word label — "LEGENDARY" — comfortably
+          on one line inside its box at the ~256px sidebar width. */}
+      <div className="grid grid-cols-3 gap-1.5">
         {PLANT_LEVELS.map((lvl) => {
           const state: CardState =
             lvl.level === activeLvl.level ? 'current' : lvl.level < activeLvl.level ? 'past' : 'future'
