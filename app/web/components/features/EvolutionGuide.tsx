@@ -192,7 +192,7 @@ function CompactTierCard({ lvl, state }: { lvl: PlantLevel; state: CardState }) 
       className="relative flex flex-col items-center gap-1 rounded-xl px-0.5 pt-2 pb-1.5 text-center"
       style={{
         background: isCurrent ? lvl.bgColor : isFuture ? 'rgba(0,0,0,0.02)' : 'rgba(34,197,94,0.05)',
-        border: isCurrent ? `1.5px solid ${lvl.borderColor}` : '1px solid rgba(0,0,0,0.06)',
+        border: isCurrent ? `1.5px solid ${lvl.borderColor}` : '1px solid rgba(0,0,0,0.9)',
         boxShadow: isCurrent ? `inset 0 0 0 1.5px ${lvl.color}33` : 'none',
       }}
     >
