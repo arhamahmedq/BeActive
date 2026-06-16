@@ -158,35 +158,37 @@ function RuleRow({ icon, text }: { icon: string; text: string }) {
   )
 }
 
-// ── Compact tier card — restyled sidebar pill (branded, current-emphasised) ──
+// ── Compact tier card — fully self-contained tile ──────────────────────────
+// Architectural rule: every visual element (plant, checkmark, current-tier
+// emphasis) lives INSIDE this card's border-box. Nothing uses negative offsets
+// or scale transforms, so no ancestor overflow rule (the sidebar's
+// overflow-y-auto, or any scroll container) can ever clip it. Clipping-proof
+// by construction — not by spacing tweaks.
 function CompactTierCard({ lvl, state }: { lvl: PlantLevel; state: CardState }) {
   const isCurrent = state === 'current'
   const isPast = state === 'past'
   const isFuture = state === 'future'
 
   return (
-    <div className="snap-start flex flex-col items-center gap-1.5 flex-shrink-0 w-[54px]">
-      <div
-        className={`relative flex items-center justify-center rounded-2xl transition-all duration-200 ${isCurrent ? 'scale-110' : ''}`}
-        style={{
-          width: 50,
-          height: 50,
-          background: isCurrent ? lvl.bgColor : isFuture ? 'rgba(0,0,0,0.02)' : 'rgba(34,197,94,0.05)',
-          border: isCurrent ? `1.5px solid ${lvl.borderColor}` : '1px solid rgba(0,0,0,0.06)',
-          boxShadow: isCurrent ? `0 3px 12px ${lvl.color}26, inset 0 1px 0 rgba(255,255,255,0.7)` : 'none',
-        }}
-      >
-        <PlantIllustration level={lvl} locked={isFuture} size={34} />
-        {isPast && (
-          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-brand-500 flex items-center justify-center shadow-sm">
-            <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <polyline points="2 8 6 12 14 4" />
-            </svg>
-          </span>
-        )}
-      </div>
+    <div
+      className="relative flex flex-col items-center gap-1 rounded-xl px-1 pt-2 pb-1.5 text-center"
+      style={{
+        background: isCurrent ? lvl.bgColor : isFuture ? 'rgba(0,0,0,0.02)' : 'rgba(34,197,94,0.05)',
+        border: isCurrent ? `1.5px solid ${lvl.borderColor}` : '1px solid rgba(0,0,0,0.06)',
+        boxShadow: isCurrent ? `inset 0 0 0 1.5px ${lvl.color}33` : 'none',
+      }}
+    >
+      {/* Checkmark uses POSITIVE insets → sits inside the card box, never clipped */}
+      {isPast && (
+        <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-brand-500 flex items-center justify-center">
+          <svg className="w-2 h-2 text-white" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <polyline points="2 8 6 12 14 4" />
+          </svg>
+        </span>
+      )}
+      <PlantIllustration level={lvl} locked={isFuture} size={30} />
       <span
-        className="text-[8.5px] font-bold uppercase tracking-wide leading-tight text-center"
+        className="text-[8px] font-bold uppercase tracking-wide leading-tight"
         style={{ color: isCurrent ? lvl.color : isFuture ? '#9ca3af' : '#6b7280' }}
       >
         {lvl.shortName}
@@ -195,7 +197,7 @@ function CompactTierCard({ lvl, state }: { lvl: PlantLevel; state: CardState }) 
   )
 }
 
-// ── Compact variant — restyled horizontal tier row + branded progress panel ──
+// ── Compact variant — wrapping grid (ALL stages visible) + progress panel ────
 function CompactGuide({ currentDays }: { currentDays: number }) {
   const activeLvl = getPlantLevel(currentDays)
   const progress = getPlantLevelProgress(currentDays, activeLvl)
@@ -204,8 +206,9 @@ function CompactGuide({ currentDays }: { currentDays: number }) {
 
   return (
     <div className="space-y-3">
-      {/* Horizontal collectible tier row */}
-      <div className="flex items-start gap-1.5 overflow-x-auto snap-x snap-mandatory pb-1 -mx-1 px-1">
+      {/* Grid wraps all 7 stages into rows: no horizontal scroll, no overflow,
+          fits any width down to ~180px. Every stage stays fully visible. */}
+      <div className="grid grid-cols-4 gap-1.5">
         {PLANT_LEVELS.map((lvl) => {
           const state: CardState =
             lvl.level === activeLvl.level ? 'current' : lvl.level < activeLvl.level ? 'past' : 'future'
