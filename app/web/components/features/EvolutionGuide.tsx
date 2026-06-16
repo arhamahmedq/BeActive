@@ -171,7 +171,7 @@ function CompactTierCard({ lvl, state }: { lvl: PlantLevel; state: CardState }) 
 
   return (
     <div
-      className="relative flex flex-col items-center gap-1 rounded-xl px-1 pt-2 pb-1.5 text-center"
+      className="relative flex flex-col items-center gap-1 rounded-xl px-0.5 pt-2 pb-1.5 text-center"
       style={{
         background: isCurrent ? lvl.bgColor : isFuture ? 'rgba(0,0,0,0.02)' : 'rgba(34,197,94,0.05)',
         border: isCurrent ? `1.5px solid ${lvl.borderColor}` : '1px solid rgba(0,0,0,0.06)',
@@ -188,7 +188,7 @@ function CompactTierCard({ lvl, state }: { lvl: PlantLevel; state: CardState }) 
       )}
       <PlantIllustration level={lvl} locked={isFuture} size={30} />
       <span
-        className="text-[8px] font-bold uppercase tracking-wide leading-tight"
+        className="w-full text-[8px] font-bold uppercase leading-tight"
         style={{ color: isCurrent ? lvl.color : isFuture ? '#9ca3af' : '#6b7280' }}
       >
         {lvl.shortName}
@@ -208,7 +208,7 @@ function CompactGuide({ currentDays }: { currentDays: number }) {
     <div className="space-y-3">
       {/* Grid wraps all 7 stages into rows: no horizontal scroll, no overflow,
           fits any width down to ~180px. Every stage stays fully visible. */}
-      <div className="grid grid-cols-4 gap-1.5">
+      <div className="grid grid-cols-4 gap-1">
         {PLANT_LEVELS.map((lvl) => {
           const state: CardState =
             lvl.level === activeLvl.level ? 'current' : lvl.level < activeLvl.level ? 'past' : 'future'
