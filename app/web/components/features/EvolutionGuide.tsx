@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useRef } from 'react'
 import { PLANT_LEVELS, getPlantLevel, getPlantLevelProgress, type PlantLevel } from '@/lib/streak-levels'
-import { PlantIllustration } from './PlantIllustrations'
 
 interface EvolutionGuideProps {
   currentDays: number
@@ -204,7 +203,14 @@ function CompactTierCard({ lvl, state }: { lvl: PlantLevel; state: CardState }) 
           </svg>
         </span>
       )}
-      <PlantIllustration level={lvl} locked={isFuture} size={30} />
+      <span
+        className={`text-2xl leading-none select-none ${
+          isFuture ? 'grayscale opacity-40' : ''
+        } ${isCurrent ? 'motion-safe:animate-plant-sway' : ''}`}
+        aria-hidden
+      >
+        {lvl.emoji}
+      </span>
       <span
         className="w-full text-[8px] font-bold uppercase leading-tight"
         style={{ color: isCurrent ? lvl.color : isFuture ? '#9ca3af' : '#6b7280' }}
