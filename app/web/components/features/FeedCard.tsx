@@ -86,7 +86,7 @@ export function FeedCard({ post }: FeedCardProps) {
 
   return (
     <article
-      className="bg-white rounded-3xl border-[1px] border-black/80 overflow-hidden transition-all duration-200 ease-out
+      className="bg-white rounded-3xl border-[1px] border-black/40 overflow-hidden transition-all duration-200 ease-out
                  shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)]
                  hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.14),0_2px_8px_rgba(0,0,0,0.05)]
                  hover:-translate-y-[2px]
@@ -101,7 +101,7 @@ export function FeedCard({ post }: FeedCardProps) {
     >
       {/* ── Top bar — Instagram-style identity (avatar · username · time).
             A full-width divider under it separates identity from the masthead. ─ */}
-      <div className="flex items-center gap-2.5 px-3.5 pt-3 pb-2.5 border-b-[1px] border-black/80">
+      <div className="flex items-center gap-2.5 px-3.5 pt-3 pb-2.5 border-b-[1px] border-black/40">
         <Link
           href={`/u/${user.username}`}
           className="-my-0.5 flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-0.5 transition-colors hover:bg-black/[0.04]"
@@ -224,7 +224,7 @@ export function FeedCard({ post }: FeedCardProps) {
 
       {/* ── Footer divider — always present (full-width, dark): separates the
             photo from the caption / engagement footer, even with no caption ─── */}
-      <div className="border-t-[1px] border-black/80" />
+      <div className="border-t-[1px] border-black/40" />
 
       {/* ── Caption — pull quote ────────────────────────────────────────────── */}
       {caption && (
