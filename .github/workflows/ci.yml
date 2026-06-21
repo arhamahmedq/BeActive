@@ -6,35 +6,42 @@ on:
   pull_request:
     branches: [master]
 
-jobs:
-  check:
-    name: Type-check, test, lint
-    runs-on: ubuntu-latest
+# Single source of truth: CI runs the exact command developers run locally
+# (`npm run quality:gate` → scripts/quality-gate.mjs), so local and CI cannot drift.
+# See docs/QUALITY_GATES.md and .claude/workflows/pre-pr-gate.md.
 
+env:
+  # Prisma needs a valid URL shape to `generate`; placeholder is fine (no live DB at build).
+  DATABASE_URL: postgresql://test:test@localhost:5432/test
+  NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+jobs:
+  quality-gate:
+    name: Quality Gate (lint · typecheck · build · tests)
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+      - run: npm ci
 
-      - name: Install dependencies
-        run: npm ci
+      # Runs all four checks, writes .quality/quality-report.{json,md}, exits non-zero on any failure.
+      - name: Quality gate
+        run: npm run quality:gate
 
-      - name: Generate Prisma client
-        run: npx prisma generate
-        env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/test
+      # Aggregate any review findings committed under .quality/findings/ — Critical blocks.
+      # No-op (exit 0) when no findings are present, which is the norm in CI.
+      - name: Review findings gate
+        if: always()
+        run: npm run review:aggregate
 
-      - name: Type-check (server)
-        run: npm run type-check:server
-
-      - name: Type-check (web)
-        run: npm run type-check:web
-
-      - name: Unit tests
-        run: npm test
-
-      - name: Lint
-        run: npm run lint
+      # Machine-readable evidence on every run, even on failure.
+      - name: Upload quality + review reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: .quality/
+          if-no-files-found: warn
