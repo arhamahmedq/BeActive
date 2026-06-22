@@ -8,6 +8,8 @@
 
 ## 2026-06-22
 - `[2026-06-22] dev: bootstrapped loops/ harness (entry contract + this work clock + dev/review/design contracts) → audit gaps closed; support/content domains skipped (YAGNI)`
+- `[2026-06-22] dev: PR'd the harness through the gate (PR #48) → Quality Gate green (1m11s), squash-merged f5b5d54b, branch deleted`
+- `[2026-06-22] dev: built /loop-lab visual dashboard + loop:snapshot capture + loop-framework.html infographic + loop-stop-gate.mjs (Stop hook, hand-install) → typecheck+lint clean`
 - `[2026-06-22] review: branch protection configured + verified on master; direct push rejected live (PR #44/#45) → gate ENFORCED, enforce_admins:false escape hatch staged`
 
 ## 2026-06-21

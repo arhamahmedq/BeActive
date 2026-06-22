@@ -25,7 +25,8 @@
     "validate:parity": "node --env-file=app/web/.env.local scripts/validate-streak-parity.mjs",
     "quality:gate": "node scripts/quality-gate.mjs",
     "review:route": "node scripts/review/route.mjs",
-    "review:aggregate": "node scripts/review/aggregate.mjs"
+    "review:aggregate": "node scripts/review/aggregate.mjs",
+    "loop:snapshot": "node scripts/loop-snapshot.mjs"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.0.2",
