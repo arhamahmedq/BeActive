@@ -32,6 +32,10 @@ test-results/
 # Test coverage output
 /coverage
 
+# Quality-gate + review-runner machine output (regenerated each run)
+.quality/
+
 # Claude Code local settings/state (may contain approved command patterns with secrets)
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+.claude/worktrees/

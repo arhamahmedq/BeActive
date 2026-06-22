@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BeActive review findings file",
+  "description": "One file per reviewer, written to .quality/findings/<reviewer>.json and aggregated by scripts/review/aggregate.mjs.",
+  "type": "object",
+  "required": ["reviewer", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "reviewer": {
+      "type": "string",
+      "enum": ["ui", "qa", "security", "startup-pm", "mobile-performance"]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "title"],
+        "additionalProperties": false,
+        "properties": {
+          "severity": {
+            "enum": ["critical", "high", "medium", "low"],
+            "description": "critical = blocks completion; high = fix this pass or defer with reason; medium/low = noted."
+          },
+          "file": { "type": "string", "description": "repo-relative path" },
+          "line": { "type": "integer", "minimum": 1 },
+          "title": { "type": "string", "description": "one-line summary" },
+          "detail": { "type": "string", "description": "why it matters" },
+          "fix": { "type": "string", "description": "concrete remediation" }
+        }
+      }
+    }
+  }
+}
