@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import type { FeedPostResponse } from '@/shared/types/feed'
 import { useLikeToggle } from '@/hooks/usePostEngagement'
-import { CommentsSection } from './CommentsSection'
+import { CommentsSheet } from './CommentsSheet'
 
 // All engagement icons at w-5 h-5 — uniform sizing across Like, Comment, Share
 function HeartIcon({ filled }: { filled: boolean }) {
@@ -86,6 +86,7 @@ export function PostEngagementBar({ post }: { post: FeedPostResponse }) {
         <button
           onClick={() => setShowComments(v => !v)}
           className={`${engagementBtn} ${showComments ? 'text-gray-900 bg-white/50' : 'text-gray-500 hover:text-gray-900'}`}
+          aria-haspopup="dialog"
           aria-expanded={showComments}
           aria-label="Comments"
         >
@@ -104,7 +105,13 @@ export function PostEngagementBar({ post }: { post: FeedPostResponse }) {
         </button>
       </div>
 
-      {showComments && <CommentsSection postId={post.id} postAuthorId={post.user.id} />}
+      <CommentsSheet
+        open={showComments}
+        onClose={() => setShowComments(false)}
+        postId={post.id}
+        postAuthorId={post.user.id}
+        commentCount={post.commentCount}
+      />
     </div>
   )
 }
