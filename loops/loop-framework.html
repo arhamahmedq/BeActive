@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>BeActive Loop Engineering — what runs behind the scenes</title>
+<style>
+  :root{
+    --ink:#0f172a; --muted:#64748b; --line:#e5e7eb; --bg:#f8faf9;
+    --green:#22c55e; --green-bg:#ecfdf3; --green-ink:#15803d;
+    --amber:#f59e0b; --amber-bg:#fffbeb; --amber-ink:#b45309;
+    --gray-bg:#f1f5f9; --gray-ink:#475569; --blue:#2563eb;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:#fff; padding:28px}
+  .poster{max-width:1480px; margin:0 auto}
+  .head{display:flex; align-items:flex-start; justify-content:space-between; gap:24px; padding-bottom:16px; border-bottom:2px solid var(--ink)}
+  .head h1{font-size:46px; font-weight:800; letter-spacing:-1px; line-height:1}
+  .head .sub{color:var(--muted); font-size:15px; margin-top:8px; max-width:760px}
+  .badgebox{border:1px solid var(--line); border-radius:12px; padding:10px 14px; font-size:12px; color:var(--muted); text-align:right; line-height:1.5}
+  .badgebox b{color:var(--ink)} .badgebox .t{color:var(--green-ink); font-weight:700}
+  .legend{display:flex; gap:10px; flex-wrap:wrap; margin:14px 0 18px; font-size:12px}
+  .tag{font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; padding:2px 8px; border-radius:999px}
+  .auto{background:var(--green-bg); color:var(--green-ink)}
+  .trig{background:var(--amber-bg); color:var(--amber-ink)}
+  .plan{background:var(--gray-bg); color:var(--gray-ink)}
+  .grid{display:grid; grid-template-columns:1fr 1.5fr 1fr; gap:16px; margin-top:6px}
+  .card{border:1px solid var(--line); border-radius:14px; overflow:hidden; background:#fff}
+  .card>h2{background:var(--ink); color:#fff; font-size:13px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:8px 14px}
+  .card .body{padding:12px 14px}
+  .row{padding:8px 0; border-top:1px solid #f1f5f9}
+  .row:first-child{border-top:0}
+  .row .ttl{font-size:13.5px; font-weight:700; display:flex; align-items:center; gap:7px; flex-wrap:wrap}
+  .row .d{font-size:12px; color:var(--muted); margin-top:2px; line-height:1.4}
+  .col-stack{display:flex; flex-direction:column; gap:16px}
+  .loop{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px}
+  .node{border:1px solid var(--line); border-radius:12px; padding:10px 12px; background:#fff}
+  .node .n{font-size:12px; font-weight:800}
+  .node .n small{display:block; font-weight:500; color:var(--muted); font-size:11px; margin-top:2px; line-height:1.35}
+  .node.g{background:var(--green-bg); border-color:#bbf7d0}
+  .node.center{display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; border-style:dashed}
+  .node.center .big{font-size:13px; font-weight:800; line-height:1.2}
+  .node.center .small{font-size:11px; color:var(--muted); margin-top:6px}
+  .mindset{margin-top:12px; border:1px solid var(--line); border-radius:12px; padding:12px 14px; text-align:center; background:#fff}
+  .mindset b{font-size:13px} .mindset p{font-size:12.5px; color:var(--muted); margin-top:4px; font-style:italic}
+  .flow{display:flex; align-items:stretch; gap:6px; flex-wrap:wrap}
+  .step{flex:1; min-width:120px; border:1px solid var(--line); border-radius:10px; padding:9px 10px; background:#fff}
+  .step .s{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.03em}
+  .step .x{font-size:11px; color:var(--muted); margin-top:3px; line-height:1.35}
+  .arrow{align-self:center; color:#cbd5e1; font-weight:800}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
+  .chip{font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; background:var(--gray-bg); color:var(--gray-ink)}
+  .chip.ok{background:var(--green-bg); color:var(--green-ink)}
+  .band{margin-top:16px; border:2px solid var(--ink); border-radius:14px; overflow:hidden}
+  .band>h2{background:var(--ink); color:#fff; font-size:13px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; padding:9px 16px}
+  .lanes{display:grid; grid-template-columns:repeat(3,1fr)}
+  .lane{padding:14px 16px; border-right:1px solid var(--line)}
+  .lane:last-child{border-right:0}
+  .lane h3{font-size:12px; font-weight:800; display:flex; align-items:center; gap:8px; margin-bottom:8px}
+  .lane li{list-style:none; font-size:12.5px; color:var(--ink); padding:4px 0; line-height:1.4}
+  .lane li code{background:#f1f5f9; padding:1px 5px; border-radius:5px; font-size:11.5px}
+  .lane .none{color:var(--muted); font-style:italic}
+  .foot{margin-top:16px; display:flex; align-items:center; justify-content:space-between; gap:16px; border-top:2px solid var(--ink); padding-top:12px; font-size:12.5px; color:var(--muted)}
+  .foot b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="poster">
+
+  <div class="head">
+    <div>
+      <h1>BeActive Loop Engineering</h1>
+      <p class="sub">What <b>actually</b> runs behind the scenes when you prompt — the real harness, not the idealized framework. The honest split: some of it is automatic, most of it only fires on a trigger.</p>
+    </div>
+    <div class="badgebox">For one founder.<br/>By one agent + gates.<br/><span class="t">Verify · Gate · Ship.</span></div>
+  </div>
+
+  <div class="legend">
+    <span><span class="tag auto">Auto</span> fires on its own (a hook / CI)</span>
+    <span><span class="tag trig">Triggered</span> only on a command, instruction, or PR</span>
+    <span><span class="tag plan">Planned</span> designed, not wired yet</span>
+  </div>
+
+  <div class="grid">
+
+    <!-- LEFT -->
+    <div class="col-stack">
+      <div class="card">
+        <h2>1 · Principles</h2>
+        <div class="body">
+          <div class="row"><div class="ttl">♻️ Reuse before build</div><div class="d">Lean on ECC agents + stdlib; write only repo-specific glue (Ponytail).</div></div>
+          <div class="row"><div class="ttl">🛟 Degrade safe</div><div class="d">Local checks never block on infra failure; CI is the hard backstop.</div></div>
+          <div class="row"><div class="ttl">🪞 Local mirrors CI</div><div class="d"><code>quality:gate</code> runs the same command locally and in CI — no drift.</div></div>
+          <div class="row"><div class="ttl">📜 architecture.md wins</div><div class="d">One source of truth resolves every contradiction.</div></div>
+          <div class="row"><div class="ttl">🧾 Events are truth</div><div class="d">If it's not in the event log, it didn't happen. Append-only.</div></div>
+          <div class="row"><div class="ttl">🔪 Vertical slices</div><div class="d">End-to-end, never horizontal layers.</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>2 · Loop Artifacts (real files)</h2>
+        <div class="body">
+          <div class="row"><div class="ttl">📊 quality-report.json</div><div class="d">Gate result: lint·type·build·test, pass + timings.</div></div>
+          <div class="row"><div class="ttl">🧭 review-plan.json</div><div class="d">Which of the 5 reviewers the diff routes to + why.</div></div>
+          <div class="row"><div class="ttl">🔎 review-report.json + findings/*.json</div><div class="d">Findings by severity; <code>blocked</code> on any critical.</div></div>
+          <div class="row"><div class="ttl">📒 CHANGELOG · TODO · RISKS · DECISIONS</div><div class="d">The ledgers — change log, backlog, honest risks, decisions.</div></div>
+          <div class="row"><div class="ttl">⏱️ loops/logs.md</div><div class="d">Global work-clock across sessions.</div></div>
+          <div class="row"><div class="ttl">🖼️ /loop-lab</div><div class="d">Visual before→after dashboard per run.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER -->
+    <div class="col-stack">
+      <div class="card">
+        <h2>3 · The Loop</h2>
+        <div class="body">
+          <div class="loop">
+            <div class="node g"><div class="n">1 · Spec<small>Slice scope + feature template before any code.</small></div></div>
+            <div class="node"><div class="n">2 · Build<small>Edit → eslint-on-edit hook → fix (per file).</small></div></div>
+            <div class="node"><div class="n">3 · Verify<small>Scoped tests → fail → fix → green (per unit).</small></div></div>
+            <div class="node"><div class="n">6 · Ship<small>PR → green CI → squash-merge → Vercel deploy.</small></div></div>
+            <div class="node center"><div class="big">↻ TIGHT LOOPS<br/>VERIFY BEFORE SHIP</div><div class="small">inner → middle → outer, each closes before the next advances</div></div>
+            <div class="node"><div class="n">4 · Review<small>5 reviewers route on the diff → findings JSON.</small></div></div>
+            <div class="node" style="grid-column:2"><div class="n">5 · Gate<small>quality:gate + aggregate; only critical blocks.</small></div></div>
+          </div>
+          <div class="mindset">
+            <b>Mindset</b>
+            <p>"AI classifies, never decides. Quality is enforced by tooling — not by remembering to be careful."</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>6 · Example — the P0 comment-focus run (real)</h2>
+        <div class="body">
+          <div class="flow">
+            <div class="step"><div class="s">Detect</div><div class="x">Focus-trap effect dep <code>[onClose]</code> + <code>panelRef.focus()</code> → steals focus every re-render.</div></div>
+            <div class="arrow">→</div>
+            <div class="step"><div class="s">Fix</div><div class="x">Latest-ref + mount-once <code>[]</code>. 1 file, +13/−2.</div></div>
+            <div class="arrow">→</div>
+            <div class="step"><div class="s">Review</div><div class="x">security · qa · ui · mobile-perf. 0 crit / 0 high.</div></div>
+            <div class="arrow">→</div>
+            <div class="step"><div class="s">Gate + Ship</div><div class="x">Green → PR #47 → merged → prod.</div></div>
+          </div>
+          <div class="chips">
+            <span class="chip ok">gate PASS</span>
+            <span class="chip">lint 5.6s</span><span class="chip">type 4.7s</span><span class="chip">build 16.7s</span><span class="chip">test 5.4s</span>
+            <span class="chip ok">720 tests</span><span class="chip">0c·0h·1m·8l</span><span class="chip">diff 1f +13/−2</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="col-stack">
+      <div class="card">
+        <h2>4 · Quality Gates</h2>
+        <div class="body">
+          <div class="row"><div class="ttl">G0 lint-on-edit <span class="tag auto">Auto</span></div><div class="d">ESLint hook blocks a bad edit immediately.</div></div>
+          <div class="row"><div class="ttl">G1 typecheck <span class="tag trig">Triggered</span></div><div class="d">tsc strict, web + server.</div></div>
+          <div class="row"><div class="ttl">G2 tests <span class="tag trig">Triggered</span></div><div class="d">Vitest — 720 passing.</div></div>
+          <div class="row"><div class="ttl">G3 5-reviewer <span class="tag trig">Triggered</span></div><div class="d">LLM reviewers → findings; only <b>critical</b> blocks.</div></div>
+          <div class="row"><div class="ttl">G4 CI required <span class="tag auto">Auto on PR</span></div><div class="d">Same gate, enforced by branch protection on <code>master</code>.</div></div>
+          <div class="row"><div class="ttl">G5 E2E <span class="tag plan">Planned</span></div><div class="d">Playwright in CI — designed, not wired.</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>5 · Roles &amp; Responsibilities</h2>
+        <div class="body">
+          <div class="row"><div class="ttl">🤖 Agent (Claude)</div><div class="d">Specs, builds, verifies, follows the loop. Owns the change.</div></div>
+          <div class="row"><div class="ttl">🧐 5 Reviewers</div><div class="d">security · qa · ui · startup-pm · mobile-perf. Raise findings, don't edit.</div></div>
+          <div class="row"><div class="ttl">🪝 Hooks</div><div class="d">GateGuard (fact-forcing), eslint-on-edit, Stop-gate. Fire automatically.</div></div>
+          <div class="row"><div class="ttl">⚙️ CI</div><div class="d">Deterministic backstop neither human nor agent bypasses.</div></div>
+          <div class="row"><div class="ttl">👤 Human owner</div><div class="d">Merges, flips <code>enforce_admins</code>, runs migrations. Final authority.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HONESTY BAND -->
+  <div class="band">
+    <h2>What runs when you prompt — the honest answer</h2>
+    <div class="lanes">
+      <div class="lane">
+        <h3><span class="tag auto">Auto</span> every code action</h3>
+        <li>▸ <code>eslint-on-edit</code> on each file edit</li>
+        <li>▸ GateGuard fact-forcing on first Bash / Write</li>
+        <li>▸ cost + scope warnings on tool calls</li>
+        <li>▸ <code>Stop-gate</code> blocks finishing on a known-red gate <span class="tag plan">once you wire it</span></li>
+        <li>▸ CI quality gate — <b>auto on PR</b></li>
+      </div>
+      <div class="lane">
+        <h3><span class="tag trig">Triggered</span> only on command</h3>
+        <li>▸ <code>npm run quality:gate</code></li>
+        <li>▸ <code>review:route</code> / <code>review:aggregate</code></li>
+        <li>▸ the 5 LLM reviewers (I run them when the task says to)</li>
+        <li>▸ <code>npm run loop:snapshot</code> → /loop-lab</li>
+        <li>▸ the formal 6-stage loop — when I choose to follow it</li>
+      </div>
+      <div class="lane">
+        <h3>🚫 Not at all</h3>
+        <li class="none">On a plain chat message that touches no code, <b>none</b> of the loop machinery runs.</li>
+        <li class="none">Claude does not secretly score quality gates or spawn reviewers on every prompt.</li>
+        <li class="none">The dashboard is not auto-filled per prompt — a run is captured on demand.</li>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div><b>↻ Verify before you ship.</b> &nbsp; The gate is the backstop; the reviewers are the aid; the human is the authority.</div>
+    <div>Generated from BeActive's real harness · open in a browser → screenshot / ⌘P to PDF</div>
+  </div>
+
+</div>
+</body>
+</html>
