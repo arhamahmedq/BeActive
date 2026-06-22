@@ -122,16 +122,16 @@ export default function LandingPage() {
 
       {/* ── RIGHT · convert ─────────────────────────────────────── */}
       <section className="flex flex-col items-center justify-center px-5 sm:px-12 py-12 lg:py-0 lg:h-screen">
-        <div className="w-full max-w-sm">
-          <div className="flex flex-col items-center text-center">
-            <span className="w-13 h-13 min-w-[52px] min-h-[52px] rounded-2xl bg-brand-50 grid place-items-center mb-4">
-              <svg viewBox="0 0 24 24" className="w-6 h-6 text-brand-600" fill="currentColor" aria-hidden><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/></svg>
-            </span>
-            <h2 className="text-[24px] font-bold text-gray-900 tracking-tight">Build the habit.</h2>
-            <p className="mt-2 text-[14px] text-gray-500 leading-relaxed">One photo a day. A growing streak. Friends who notice.</p>
-          </div>
+        <div className="w-full max-w-sm flex flex-col items-center text-center">
+          {/* brand mark — large, in a soft sage disc (echoes the inspiration) */}
+          <span className="w-[68px] h-[68px] rounded-full bg-brand-50 ring-1 ring-brand-100 grid place-items-center">
+            <svg viewBox="0 0 24 24" className="w-8 h-8 text-brand-600" fill="currentColor" aria-hidden><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/></svg>
+          </span>
+          <h2 className="mt-5 text-[28px] font-bold text-gray-900 tracking-tight">BeActive</h2>
+          <p className="mt-1.5 text-[14px] text-gray-500">A streak you’ll want to protect — every day.</p>
 
-          <div className="mt-7 space-y-3">
+          {/* actions — the two real entry points (email auth; no OAuth) */}
+          <div className="mt-7 w-full space-y-3">
             <Link href="/signup" className="flex items-center justify-center w-full min-h-[52px] rounded-2xl bg-brand-600 text-white font-semibold text-[15px] shadow-[0_8px_24px_-8px_rgba(21,128,61,0.5)] hover:bg-brand-700 active:scale-[0.99] transition-all">
               Start your streak
             </Link>
@@ -140,11 +140,41 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          <p className="mt-6 text-center text-[12px] text-gray-400 leading-relaxed">
+          {/* divider */}
+          <div className="mt-7 w-full flex items-center gap-3">
+            <span className="h-px flex-1 bg-gray-200" />
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">What you get</span>
+            <span className="h-px flex-1 bg-gray-200" />
+          </div>
+
+          {/* pillar row — real product truths; fills the slot the inspiration gave to social logins */}
+          <ul className="mt-5 w-full grid grid-cols-3 gap-3">
+            {[
+              { label: 'Daily proof', path: 'M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zM9 2 7.17 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3.17L15 2H9z' },
+              { label: 'Grow a streak', path: 'M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z' },
+              { label: 'With friends', path: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z' },
+            ].map((p) => (
+              <li key={p.label} className="flex flex-col items-center gap-2">
+                <span className="w-11 h-11 rounded-xl bg-brand-50 grid place-items-center">
+                  <svg viewBox="0 0 24 24" className="w-5 h-5 text-brand-600" fill="currentColor" aria-hidden><path d={p.path} /></svg>
+                </span>
+                <span className="text-[12px] font-semibold text-gray-600 leading-tight">{p.label}</span>
+              </li>
+            ))}
+          </ul>
+
+          <p className="mt-7 text-[12px] text-gray-400 leading-relaxed">
             Free to start. By continuing you agree to our{' '}
             <Link href="/terms" className="text-brand-600 hover:underline">Terms</Link> and{' '}
-            <Link href="/privacy" className="text-brand-600 hover:underline">Privacy Policy</Link>.
+            <Link href="/privacy" className="text-brand-600 hover:underline">Privacy</Link>.
           </p>
+          <div className="mt-5 flex items-center gap-3 text-[12px] text-gray-400">
+            <Link href="/privacy" className="hover:text-gray-600">Privacy</Link>
+            <span aria-hidden>·</span>
+            <Link href="/terms" className="hover:text-gray-600">Terms</Link>
+            <span aria-hidden>·</span>
+            <span>© BeActive</span>
+          </div>
         </div>
       </section>
     </main>
