@@ -5,6 +5,9 @@
      Fallback stack ensures any platform gap still looks intentional, not broken.
      --font-family-sans is the Tailwind v4 token that powers the `font-sans` class. ── */
   --font-family-sans: var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* Fraunces — editorial display serif (loaded via next/font, --font-serif).
+     Powers `font-serif` on the landing hero for a warm, human, non-"AI-slop" feel. */
+  --font-family-serif: var(--font-serif), ui-serif, Georgia, Cambria, serif;
 
   /* ── Brand green scale ─────────────────────────────────────────────── */
   --color-brand-50:  #f0fdf4;

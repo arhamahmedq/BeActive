@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Plus_Jakarta_Sans } from 'next/font/google'
+import { Plus_Jakarta_Sans, Fraunces } from 'next/font/google'
 import './globals.css'
 import { QueryProvider } from '@/providers/QueryProvider'
 
@@ -15,6 +15,15 @@ const font = Plus_Jakarta_Sans({
   weight: ['300', '400', '500', '600', '700', '800'],
 })
 
+// Fraunces — warm editorial serif for the landing display headlines. Variable
+// optical/weight font; one file covers the range we use.
+const serif = Fraunces({
+  subsets: ['latin'],
+  variable: '--font-serif',
+  display: 'swap',
+  weight: ['400', '500', '600', '700'],
+})
+
 export const metadata: Metadata = {
   title: 'BeActive',
   description: 'Daily workout proof. Social accountability. Streak-powered.',
@@ -26,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`h-full ${font.variable}`}>
+    <html lang="en" className={`h-full ${font.variable} ${serif.variable}`}>
       <body className="min-h-full bg-app font-sans antialiased">
         <QueryProvider>{children}</QueryProvider>
       </body>
