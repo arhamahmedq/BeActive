@@ -70,7 +70,18 @@ function SheetPanel({
   const panelRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
+  // Keep the latest onClose in a ref so the focus/scroll-lock effect can run
+  // ONCE on mount (deps []) instead of on every render. The parent passes an
+  // inline `onClose` (new identity each render); if it were an effect dependency,
+  // each ancestor re-render would re-run the effect and call panelRef.focus(),
+  // stealing focus from the comment input mid-typing (the P0 regression).
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
   // Scroll-lock + Esc + minimal focus trap + return focus to the trigger.
+  // Mount-once: never re-runs, so it never steals focus on a re-render.
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null
     panelRef.current?.focus()
@@ -78,7 +89,7 @@ function SheetPanel({
 
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
-        onClose()
+        onCloseRef.current()
         return
       }
       if (e.key !== 'Tab' || !panelRef.current) return
@@ -101,7 +112,7 @@ function SheetPanel({
       document.body.style.overflow = ''
       previouslyFocused?.focus?.()
     }
-  }, [onClose])
+  }, [])
 
   return (
     <>
