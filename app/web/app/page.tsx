@@ -124,8 +124,8 @@ export default function LandingPage() {
       <section className="flex flex-col items-center justify-center px-5 sm:px-12 py-12 lg:py-0 lg:h-screen">
         <div className="w-full max-w-sm flex flex-col items-center text-center">
           {/* brand mark — large, in a soft sage disc (echoes the inspiration) */}
-          <span className="w-[68px] h-[68px] rounded-full bg-brand-50 ring-1 ring-brand-100 grid place-items-center">
-            <svg viewBox="0 0 24 24" className="w-8 h-8 text-brand-600" fill="currentColor" aria-hidden><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/></svg>
+          <span className="w-[80px] h-[80px] rounded-full bg-brand-50 ring-1 ring-brand-100 grid place-items-center">
+            <svg viewBox="0 0 24 24" className="w-10 h-10 text-brand-600" fill="currentColor" aria-hidden><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/></svg>
           </span>
           <h2 className="mt-5 text-[28px] font-bold text-gray-900 tracking-tight">BeActive</h2>
           <p className="mt-1.5 text-[14px] text-gray-500">A streak you’ll want to protect — every day.</p>
