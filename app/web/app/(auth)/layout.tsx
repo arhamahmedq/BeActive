@@ -1,43 +1,44 @@
-function LogoIcon() {
+/* Auth shell — matches the landing's natural/editorial language:
+   light app background, leaf mark in a sage disc, serif "Be active" wordmark,
+   and a soft white form card. Shared by /login, /signup, /onboarding,
+   /verify-email so all four stay coherent with the marketing surface. */
+
+const LEAF_BODY = 'M4.5 19.5C4.5 11 11 4.5 19.5 4.5c0 8.5-6.5 15-15 15z'
+const LEAF_OUTLINE = 'M5.5 18.5C10 15 14.5 10.5 18 6'
+
+function LeafMark() {
   return (
-    <div
-      className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-500 mx-auto"
-      style={{ boxShadow: '0 0 32px rgba(34,197,94,0.45), 0 4px 12px rgba(34,197,94,0.2)' }}
-    >
-      <svg viewBox="0 0 24 24" className="w-8 h-8 text-white" fill="currentColor" aria-hidden>
-        <path d="M5 3l14 9-14 9V3z" />
+    <span className="mx-auto inline-grid h-20 w-20 place-items-center rounded-full bg-[#eef3e8]">
+      <svg
+        viewBox="0 0 24 24"
+        className="h-10 w-10 text-[#4f7a3c]"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.6}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d={LEAF_BODY} />
+        <path d={LEAF_OUTLINE} />
       </svg>
-    </div>
+    </span>
   )
 }
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen relative overflow-hidden bg-[#060d06] flex items-center justify-center px-4 py-12">
-      {/* Ambient orbs */}
-      <div
-        className="absolute -top-48 -left-48 w-[600px] h-[600px] rounded-full blur-3xl pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(34,197,94,0.08), transparent 70%)' }}
-        aria-hidden
-      />
-      <div
-        className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full blur-3xl pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(74,222,128,0.05), transparent 70%)' }}
-        aria-hidden
-      />
-
-      <div className="w-full max-w-md relative z-10">
+    <div className="bg-app min-h-dvh flex items-center justify-center px-4 py-12 text-[#1d2b22]">
+      <div className="w-full max-w-md">
         {/* Brand header */}
-        <div className="text-center mb-8">
-          <LogoIcon />
-          <h1 className="mt-4 text-2xl font-bold text-white">BeActive</h1>
-          <p className="mt-1.5 text-sm text-white/40">
-            Daily workout proof. Social accountability.
-          </p>
+        <div className="mb-8 text-center">
+          <LeafMark />
+          <h1 className="mt-4 font-serif text-[32px] font-normal tracking-tight text-[#1d2b22]">Be active</h1>
+          <p className="mt-1.5 text-sm text-gray-500">Daily workout proof. Social accountability.</p>
         </div>
 
-        {/* Form card — white floating on dark */}
-        <div className="bg-white rounded-2xl overflow-hidden" style={{ boxShadow: '0 24px 64px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3)' }}>
+        {/* Form card — soft white on the light app background */}
+        <div className="overflow-hidden rounded-2xl border border-black/[0.06] bg-white shadow-[0_20px_50px_-20px_rgba(40,70,30,0.25),0_4px_16px_-8px_rgba(0,0,0,0.08)]">
           {children}
         </div>
       </div>

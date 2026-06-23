@@ -31,7 +31,7 @@ function getRingProgress(current: number, tier: DisplayTier): number {
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const RING_COLORS: Record<DisplayTier, string> = {
-  COMPLETED_TODAY: '#22c55e',
+  COMPLETED_TODAY: '#4f7a3c',
   PENDING_TODAY:   '#d1d5db',
   AT_RISK:         '#f59e0b',
   BROKEN:          '#ef4444',

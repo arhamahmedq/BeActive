@@ -67,9 +67,9 @@ function PlantSilhouette({ level }: { level: PlantLevel }) {
         <>
           <path d="M22 56 L42 56 L39 61 L25 61 Z" fill={POT_FILL} />
           <rect x="29" y="32" width="6" height="24" fill={TRUNK_FILL} />
-          <circle cx="24" cy="24" r="11" fill="#16a34a" />
-          <circle cx="40" cy="24" r="11" fill="#16a34a" />
-          <circle cx="32" cy="16" r="12" fill="#16a34a" />
+          <circle cx="24" cy="24" r="11" fill="#406331" />
+          <circle cx="40" cy="24" r="11" fill="#406331" />
+          <circle cx="32" cy="16" r="12" fill="#406331" />
           <circle cx="20" cy="18" r="3" fill={fill} />
           <circle cx="44" cy="20" r="3" fill={fill} />
           <circle cx="32" cy="8" r="3" fill={fill} />

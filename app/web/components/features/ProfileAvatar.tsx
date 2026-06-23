@@ -103,7 +103,7 @@ export function ProfileAvatar({
       {/* Avatar with brand ring for own profile */}
       <div
         className={`rounded-full ${isSelf ? 'ring-[2.5px] ring-brand-500 ring-offset-2' : ''}`}
-        style={isSelf ? { boxShadow: '0 0 0 2px white, 0 0 0 4.5px #22c55e' } : undefined}
+        style={isSelf ? { boxShadow: '0 0 0 2px white, 0 0 0 4.5px #4f7a3c' } : undefined}
       >
         <Avatar src={avatarUrl} name={name} size="2xl" onClick={onAvatarClick} />
       </div>

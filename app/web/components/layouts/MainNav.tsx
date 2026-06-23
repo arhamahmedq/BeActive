@@ -54,17 +54,12 @@ export function MainNav() {
         {/* Left: wordmark + nav links */}
         <div className="flex items-center gap-5">
           <Link href="/feed" className="flex items-center gap-2 hover:opacity-85 transition-opacity">
-            {/* Brand icon square */}
-            <span
-              className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-brand-500 text-white flex-shrink-0"
-              style={{ boxShadow: '0 2px 8px rgba(34,197,94,0.45), inset 0 1px 0 rgba(255,255,255,0.3)' }}
-              aria-hidden
-            >
-              <svg viewBox="0 0 16 16" className="w-4 h-4" fill="currentColor" aria-hidden>
-                <polygon points="6,2 6,7 2,7 10,14 10,9 14,9" />
-              </svg>
-            </span>
-            <span className="font-bold text-[16px] tracking-tight text-gray-900">BeActive</span>
+            {/* Brand — leaf mark + serif wordmark (matches landing) */}
+            <svg viewBox="0 0 24 24" className="h-6 w-6 flex-shrink-0 text-[#4f7a3c]" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M4.5 19.5C4.5 11 11 4.5 19.5 4.5c0 8.5-6.5 15-15 15z" />
+              <path d="M5.5 18.5C10 15 14.5 10.5 18 6" />
+            </svg>
+            <span className="font-serif text-[18px] font-medium tracking-tight text-[#1d2b22]">Be active</span>
           </Link>
 
           {/* Nav links — hidden on mobile (MobileNav handles it) and lg+ (DesktopSideNav handles it) */}
