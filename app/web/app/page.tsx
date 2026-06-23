@@ -60,12 +60,31 @@ function Composition() {
       <svg className="absolute right-0 bottom-10 w-24 h-24 text-[#a9c98e] rotate-[160deg]" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={LEAF_FILL} /></svg>
       <svg className="absolute right-8 top-2 w-16 h-16 text-[#cbe0b4] rotate-[30deg]" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d={LEAF_FILL} /></svg>
 
-      {/* phone */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[168px] h-[332px] rounded-[2rem] bg-white p-2 shadow-[0_30px_70px_-30px_rgba(30,50,20,0.45)] border border-black/5">
-        <div className="relative w-full h-full overflow-hidden rounded-[1.7rem] bg-gray-100">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={HERO_PHOTO} alt="A member's daily workout proof" className="w-full h-full object-cover" />
-          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/35 to-transparent" aria-hidden />
+      {/* phone — flagship device mockup (titanium rail → black bezel → screen) */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[168px] h-[332px]">
+        {/* titanium rail */}
+        <div className="relative w-full h-full rounded-[2.1rem] bg-gradient-to-br from-[#3a3a3c] via-[#1d1d1f] to-[#2c2c2e] p-[2.5px] shadow-[0_30px_70px_-28px_rgba(30,50,20,0.5),0_10px_28px_-14px_rgba(0,0,0,0.55)]">
+          {/* metallic edge highlight */}
+          <div className="pointer-events-none absolute inset-0 rounded-[2.1rem] opacity-50 mix-blend-overlay [background:linear-gradient(135deg,rgba(255,255,255,0.55),transparent_22%,transparent_78%,rgba(255,255,255,0.3))]" aria-hidden />
+          {/* black bezel */}
+          <div className="relative h-full w-full rounded-[1.95rem] bg-black p-[2px]">
+            {/* screen */}
+            <div className="relative h-full w-full overflow-hidden rounded-[1.8rem] bg-black">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={HERO_PHOTO} alt="A member's daily workout proof" className="h-full w-full object-cover" />
+              {/* bottom legibility gradient */}
+              <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/35 to-transparent" aria-hidden />
+              {/* glass sheen */}
+              <div className="pointer-events-none absolute inset-0 [background:linear-gradient(115deg,rgba(255,255,255,0.16),transparent_38%)]" aria-hidden />
+              {/* Dynamic Island */}
+              <div className="absolute left-1/2 top-[9px] flex h-[15px] w-[52px] -translate-x-1/2 items-center justify-end rounded-full bg-black pr-[6px] shadow-[0_1px_2px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.06]" aria-hidden>
+                {/* front camera lens */}
+                <span className="relative h-[5px] w-[5px] rounded-full bg-[#0b0b10] ring-[0.5px] ring-white/15">
+                  <span className="absolute right-[0.5px] top-[0.5px] h-[1.5px] w-[1.5px] rounded-full bg-sky-300/50" />
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
