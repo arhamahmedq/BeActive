@@ -199,7 +199,11 @@ export function FeedCard({ post }: FeedCardProps) {
       </div>
 
       {/* ── Photo — the user's full image, never cropped (object-contain).
-            A blurred copy of the same image fills any letterbox space. ──────── */}
+            Letterbox space falls back to a neutral fill. ──────────────────────
+            ponytail: removed the blurred-bg <img> — it eager-loaded a 2nd full-res
+            copy of every photo (no lazy) and ran a blur-2xl GPU filter per card,
+            which was the feed's scroll jank. Add a real blurred fill back only via
+            a tiny thumbnail variant, never the full image. */}
       <div className="px-3 pb-3">
         <div
           className="relative group/image rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center"
@@ -208,15 +212,9 @@ export function FeedCard({ post }: FeedCardProps) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={imageUrl}
-            alt=""
-            aria-hidden
-            className="absolute inset-0 h-full w-full object-cover scale-110 blur-2xl opacity-50"
-          />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageUrl}
             alt={caption ?? `${user.username}'s workout`}
             loading="lazy"
+            decoding="async"
             className="relative z-[1] max-h-[560px] max-w-full w-auto h-auto object-contain transition-opacity duration-200 group-hover/image:opacity-95"
           />
         </div>
