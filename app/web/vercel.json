@@ -1,4 +1,5 @@
 {
   "buildCommand": "npx prisma generate --schema ../../prisma/schema.prisma && next build",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "regions": ["sin1"]
 }
