@@ -30,9 +30,9 @@ function LeafOutline({ className = '' }: { className?: string }) {
 
 function Logo() {
   return (
-    <div className="flex items-center gap-2.5">
-      <LeafOutline className="w-7 h-7 text-[#4f7a3c]" />
-      <span className="font-serif text-[20px] font-medium tracking-tight text-[#1d2b22]">Be active</span>
+    <div className="flex items-center gap-3">
+      <LeafOutline className="w-[33px] h-[33px] text-[#4f7a3c]" />
+      <span className="font-serif text-[24px] font-medium tracking-tight text-[#1d2b22]">Be active</span>
     </div>
   )
 }
@@ -99,13 +99,13 @@ export default function LandingPage() {
           </header>
 
           <div className="flex-1 min-h-0 flex flex-col justify-center gap-7 py-6">
-            <div className="max-w-lg">
-              <h1 className="font-serif text-[2.7rem] sm:text-6xl font-light tracking-tight leading-[1.02]">
+            <div className="max-w-lg lg:ml-6">
+              <h1 className="font-serif text-[2.25rem] sm:text-5xl font-light tracking-tight leading-[1.04]">
                 Small steps.<br />
                 Every day.<br />
                 <span className="text-[#6f9355] italic">Momentum that lasts.</span>
               </h1>
-              <p className="mt-4 text-[15px] text-gray-500 leading-relaxed max-w-sm">
+              <p className="mt-4 text-[13px] text-gray-500 leading-relaxed max-w-sm">
                 Your daily companion for movement, consistency, and the friends who keep you going.
               </p>
             </div>
