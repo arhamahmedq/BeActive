@@ -9,15 +9,19 @@
      Powers `font-serif` on the landing hero for a warm, human, non-"AI-slop" feel. */
   --font-family-serif: var(--font-serif), ui-serif, Georgia, Cambria, serif;
 
-  /* ── Brand green scale ─────────────────────────────────────────────── */
-  --color-brand-50:  #f0fdf4;
-  --color-brand-100: #dcfce7;
-  --color-brand-200: #bbf7d0;
-  --color-brand-300: #86efac;
-  --color-brand-400: #4ade80;
-  --color-brand-500: #22c55e;
-  --color-brand-600: #16a34a;
-  --color-brand-700: #15803d;
+  /* ── Brand green scale — forest / editorial (matches landing #4f7a3c) ──
+     Retuned off the neon #22c55e scale to the muted natural green used on the
+     landing, so every `bg-brand-*` / `text-brand-*` across the app reads as the
+     same warm forest palette instead of "AI-slop" neon. brand-500 = the landing
+     primary button; brand-600 = its hover. ── */
+  --color-brand-50:  #f4f8ef;
+  --color-brand-100: #e9f0e0;
+  --color-brand-200: #d3e3c3;
+  --color-brand-300: #b3cd95;
+  --color-brand-400: #7fa45f;
+  --color-brand-500: #4f7a3c;
+  --color-brand-600: #406331;
+  --color-brand-700: #335028;
 
   /* ── Semantic easing curves ────────────────────────────────────────── */
   --ease-out-expo:    cubic-bezier(0.16, 1, 0.3, 1);
@@ -154,7 +158,7 @@
 
 /* FAB glass — green-tinted refractive material for primary upload CTAs */
 @utility glass-fab {
-  background: rgba(34, 197, 94, 0.16);
+  background: rgba(79, 122, 60, 0.16);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.45);
@@ -162,7 +166,7 @@
 }
 
 @utility glass-fab-hover {
-  background: rgba(34, 197, 94, 0.24);
+  background: rgba(79, 122, 60, 0.24);
 }
 
 /* Ambient diagonal sheen overlay — sits inside a glass-fab, drifts slowly */
@@ -174,7 +178,7 @@
 /* ── App background — rich ambient gradient with brand warmth ────────── */
 @utility bg-app {
   background:
-    radial-gradient(ellipse 90% 50% at 15% -5%,  rgba(34, 197, 94, 0.07) 0%, transparent 55%),
+    radial-gradient(ellipse 90% 50% at 15% -5%,  rgba(79, 122, 60, 0.07) 0%, transparent 55%),
     radial-gradient(ellipse 60% 40% at 85% 110%, rgba(59, 130, 246, 0.04) 0%, transparent 50%),
     linear-gradient(160deg, #f8fdf9 0%, #f2f7f3 45%, #edf6f0 100%);
 }
@@ -261,8 +265,8 @@
 }
 
 @keyframes glass-glow-green {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-  50%       { box-shadow: 0 0 20px 6px rgba(34, 197, 94, 0.22); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(79, 122, 60, 0); }
+  50%       { box-shadow: 0 0 20px 6px rgba(79, 122, 60, 0.22); }
 }
 
 @keyframes glass-glow-amber {

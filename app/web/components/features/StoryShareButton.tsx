@@ -206,8 +206,8 @@ export function StoryShareButton({
         background: isError
           ? 'linear-gradient(135deg, #ef4444, #dc2626)'
           : isSuccess
-            ? 'linear-gradient(135deg, #16a34a, #15803d)'
-            : 'linear-gradient(135deg, #22c55e, #16a34a)',
+            ? 'linear-gradient(135deg, #406331, #335028)'
+            : 'linear-gradient(135deg, #4f7a3c, #406331)',
         color: 'white',
         boxShadow: isError
           ? '0 4px 16px rgba(239,68,68,0.35)'
