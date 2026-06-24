@@ -503,10 +503,10 @@ export default function UploadPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-7 max-w-sm mx-auto">
         <div className="relative animate-pop">
-          <div className="absolute inset-0 rounded-full bg-emerald-100/60 scale-150 blur-xl" />
-          <div className="relative w-24 h-24 rounded-full bg-emerald-50 ring-1 ring-emerald-200/70 flex items-center justify-center">
+          <div className="absolute inset-0 rounded-full bg-[#d3e3c3]/60 scale-150 blur-xl" />
+          <div className="relative w-24 h-24 rounded-full bg-[#eef3e8] ring-1 ring-[#cfe0bd] flex items-center justify-center">
             <svg
-              className="w-11 h-11 text-emerald-600"
+              className="w-11 h-11 text-[#4f7a3c]"
               viewBox="0 0 24 24"
               fill="none"
               aria-label="Already completed today"

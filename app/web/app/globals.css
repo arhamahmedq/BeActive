@@ -39,9 +39,9 @@
   --color-text-faint:  #d1d5db;
 
   /* ── Streak / product state colors ────────────────────────────────── */
-  --color-state-completed-bg:     #f0fdf4;
-  --color-state-completed-border: #bbf7d0;
-  --color-state-completed-text:   #059669;
+  --color-state-completed-bg:     #f4f8ef;
+  --color-state-completed-border: #d3e3c3;
+  --color-state-completed-text:   #406331;
   --color-state-at-risk-bg:       #fffbeb;
   --color-state-at-risk-border:   #fde68a;
   --color-state-at-risk-text:     #b45309;

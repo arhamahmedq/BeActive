@@ -7,7 +7,7 @@ const TYPE_STYLE: Record<string, { iconBg: string; iconColor: string; emoji: str
   WELCOME:          { iconBg: 'bg-gray-100',   iconColor: 'text-gray-500',   emoji: '👋' },
   FRIEND_REQUEST:   { iconBg: 'bg-brand-50',   iconColor: 'text-brand-600',  emoji: '👤' },
   FRIEND_ACCEPTED:  { iconBg: 'bg-brand-50',   iconColor: 'text-brand-600',  emoji: '✓' },
-  WORKOUT_VERIFIED: { iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600',emoji: '✓' },
+  WORKOUT_VERIFIED: { iconBg: 'bg-[#eef3e8]',  iconColor: 'text-[#4f7a3c]',  emoji: '✓' },
   WORKOUT_REJECTED: { iconBg: 'bg-red-50',     iconColor: 'text-red-500',    emoji: '✗' },
   FRIEND_POSTED:    { iconBg: 'bg-brand-50',   iconColor: 'text-brand-600',  emoji: '🔥' },
   STREAK_AT_RISK:   { iconBg: 'bg-amber-50',   iconColor: 'text-amber-600',  emoji: '⚠' },
