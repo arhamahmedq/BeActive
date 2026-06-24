@@ -68,7 +68,7 @@ const TYPE_STYLES: Record<string, TypeStyle> = {
   WELCOME:          { iconBg: 'bg-gray-100',    iconColor: 'text-gray-500',   Icon: WaveIcon },
   FRIEND_REQUEST:   { iconBg: 'bg-brand-50',    iconColor: 'text-brand-600',  Icon: PersonIcon },
   FRIEND_ACCEPTED:  { iconBg: 'bg-brand-50',    iconColor: 'text-brand-600',  Icon: CheckIcon },
-  WORKOUT_VERIFIED: { iconBg: 'bg-emerald-50',  iconColor: 'text-emerald-600',Icon: CheckIcon },
+  WORKOUT_VERIFIED: { iconBg: 'bg-[#eef3e8]',   iconColor: 'text-[#4f7a3c]',  Icon: CheckIcon },
   WORKOUT_REJECTED: { iconBg: 'bg-red-50',      iconColor: 'text-red-500',    Icon: XIcon },
   FRIEND_POSTED:    { iconBg: 'bg-brand-50',    iconColor: 'text-brand-600',  Icon: PersonIcon },
   STREAK_AT_RISK:   { iconBg: 'bg-amber-50',    iconColor: 'text-amber-600',  Icon: WarningIcon },
