@@ -7,28 +7,33 @@ export interface AuthContext {
 }
 
 export async function requireAuth(
-  _request: NextRequest
+  request: NextRequest
 ): Promise<AuthContext | NextResponse> {
   try {
+    // Mobile clients (iOS/Android) send bearer tokens; web uses HTTP-only cookies.
+    const authHeader = request.headers.get('authorization')
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+
+    if (bearerToken) {
+      const supabase = await createClient()
+      const { data: { user }, error } = await supabase.auth.getUser(bearerToken)
+      if (error || !user) {
+        return NextResponse.json(toErrorResponse(new UnauthorizedError()), { status: 401 })
+      }
+      return { userId: user.id }
+    }
+
+    // Web path: read JWT from HTTP-only cookie (no network round-trip).
     const supabase = await createClient()
-    // getSession() reads and validates the JWT from the HTTP-only cookie without
-    // a network round-trip to Supabase (~1ms vs ~400ms for getUser()). Safe
-    // because: (1) HTTP-only + SameSite=Lax cookies can't be injected by client
-    // JS; (2) @supabase/ssr validates the HMAC-HS256 signature; (3) the proxy
-    // middleware calls getUser() on page requests, refreshing the cookie.
-    // Trade-off: revoked tokens stay valid until JWT expiry (~1 hour). Acceptable
-    // for this app; swap back to getUser() if revocation becomes a requirement.
     const { data: { session }, error } = await supabase.auth.getSession()
 
     if (error || !session?.user) {
-      const err = new UnauthorizedError()
-      return NextResponse.json(toErrorResponse(err), { status: 401 })
+      return NextResponse.json(toErrorResponse(new UnauthorizedError()), { status: 401 })
     }
 
     return { userId: session.user.id }
   } catch {
-    const err = new UnauthorizedError()
-    return NextResponse.json(toErrorResponse(err), { status: 401 })
+    return NextResponse.json(toErrorResponse(new UnauthorizedError()), { status: 401 })
   }
 }
 

@@ -5,6 +5,7 @@ import {
   UnauthorizedError,
   InternalError,
   EmailNotVerifiedError,
+  RateLimitError,
 } from '../../core/errors/AppError'
 import { logger } from '../../core/logger/index'
 import { EventType } from '../../core/events/index'
@@ -64,6 +65,10 @@ export async function signup(
       // caller cannot tell whether the email is new or already registered.
       logger.info('Signup suppressed for existing verified email', {})
       return { status: 'PENDING_VERIFICATION' }
+    }
+    if (error.status === 429 || error.message.toLowerCase().includes('rate limit')) {
+      logger.warn('Supabase signup rate limited', { errorName: error.name })
+      throw new RateLimitError()
     }
     logger.error('Supabase signUp error', { errorStatus: error.status, errorName: error.name })
     throw new InternalError()
