@@ -1,10 +1,8 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
-import { createClient } from '../../../app/web/lib/supabase/server'
 import { requireAuth } from '../../core/middleware/auth'
 import { validateQuery } from '../../core/middleware/validate'
 import { generalRateLimit } from '../../core/middleware/rateLimit'
-import { getSession } from '../auth/auth.service'
 import {
   getProfile,
   updateProfile,
@@ -21,15 +19,13 @@ import {
 } from '../../core/errors/AppError'
 import { logger } from '../../core/logger/index'
 
-export async function handleGetMe(_request: NextRequest): Promise<NextResponse> {
+export async function handleGetMe(request: NextRequest): Promise<NextResponse> {
   try {
-    const supabase = await createClient()
-    const sessionUser = await getSession(supabase)
-    if (!sessionUser) {
-      return NextResponse.json(toErrorResponse(new UnauthorizedError()), { status: 401 })
-    }
+    // requireAuth supports both web (HTTP-only cookie) and mobile (Bearer token).
+    const auth = await requireAuth(request)
+    if (auth instanceof NextResponse) return auth
 
-    const profile = await getProfile(sessionUser.id)
+    const profile = await getProfile(auth.userId)
     return NextResponse.json({ user: profile })
   } catch (err) {
     logger.error('GET /api/users/me failed', { error: String(err) })
@@ -39,11 +35,8 @@ export async function handleGetMe(_request: NextRequest): Promise<NextResponse> 
 
 export async function handleUpdateMe(request: NextRequest): Promise<NextResponse> {
   try {
-    const supabase = await createClient()
-    const sessionUser = await getSession(supabase)
-    if (!sessionUser) {
-      return NextResponse.json(toErrorResponse(new UnauthorizedError()), { status: 401 })
-    }
+    const auth = await requireAuth(request)
+    if (auth instanceof NextResponse) return auth
 
     const body: unknown = await request.json()
     const parsed = updateProfileSchema.safeParse(body)
@@ -55,7 +48,7 @@ export async function handleUpdateMe(request: NextRequest): Promise<NextResponse
       return NextResponse.json(toErrorResponse(new ValidationError(details)), { status: 400 })
     }
 
-    const updated = await updateProfile(sessionUser.id, parsed.data)
+    const updated = await updateProfile(auth.userId, parsed.data)
     return NextResponse.json({ user: updated })
   } catch (err) {
     // Surface domain errors with their real status (e.g. 429 from the timezone
