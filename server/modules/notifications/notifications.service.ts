@@ -10,11 +10,35 @@ import {
 } from './notifications.repo'
 import type { CreateNotificationParams } from './notifications.repo'
 import type { NotificationsResponse, MarkReadParams } from './notifications.types'
+import { getDeviceTokensForUser, deleteDeviceToken } from '../devices/devices.repo'
+import { sendPush } from '../../../app/web/lib/push/apns'
+import { logger } from '../../core/logger/index'
 
 export type { CreateNotificationParams }
 
 export async function createNotification(params: CreateNotificationParams): Promise<void> {
-  return repoCreateNotification(params)
+  await repoCreateNotification(params)
+  // Awaited (not detached) so it isn't abandoned if the caller's serverless
+  // invocation returns right after this resolves — same reasoning as the
+  // notification write itself (see CLAUDE.md §18). Never throws: a push
+  // failure must not fail the notification write that already succeeded.
+  await sendPushForNotification(params)
+}
+
+async function sendPushForNotification(params: CreateNotificationParams): Promise<void> {
+  try {
+    const tokens = await getDeviceTokensForUser(params.userId)
+    if (tokens.length === 0) return
+
+    const results = await Promise.all(
+      tokens.map((token) => sendPush(token, { title: params.title, body: params.body, data: params.data }))
+    )
+    await Promise.all(
+      results.map((result, i) => (result === 'invalid' ? deleteDeviceToken(tokens[i]!) : Promise.resolve()))
+    )
+  } catch (err) {
+    logger.error('Push notification dispatch failed', { userId: params.userId, error: String(err) })
+  }
 }
 
 // ---------------------------------------------------------------------------

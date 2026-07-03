@@ -189,6 +189,7 @@ NEXT_PUBLIC_STREAK_DEBUG="true" # Dev only — never in production
 UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN
 QSTASH_TOKEN                    # Publishes classification jobs from posts/create
 QSTASH_CURRENT_SIGNING_KEY / QSTASH_NEXT_SIGNING_KEY  # Verify /api/queue/classify
+APNS_KEY_ID / APNS_TEAM_ID / APNS_PRIVATE_KEY / APNS_BUNDLE_ID / APNS_ENVIRONMENT  # Push notifications — optional, no-ops if unset
 ```
 
 Never commit `.env`. `SUPABASE_SERVICE_KEY` and `AI_API_KEY` are never `NEXT_PUBLIC_`.
@@ -212,6 +213,7 @@ Never commit `.env`. `SUPABASE_SERVICE_KEY` and `AI_API_KEY` are never `NEXT_PUB
 | GET | `/api/users/search?q=` · `/api/users/me` · `PATCH /api/users/me` | Users |
 | GET | `/api/users/[username]` · `/api/users/[username]/posts` | Profiles |
 | GET/POST | `/api/notifications?cursor` · `/api/notifications/read` | Notifications |
+| POST | `/api/notifications/register-device` | Register APNs device token `{token, platform}` |
 | GET | `/api/stories/generate?postId=X` | 1080×1920 story card PNG (owner + VERIFIED only) |
 | POST | `/api/queue/classify` | QStash-only — runs AI classification (signature-verified) |
 
@@ -253,6 +255,7 @@ Full schema → `/docs/data_model.md`
 | 7 | Notifications | ✅ SHIPPED production (2026-06-07) |
 | 8D | Share (profile link) | ✅ MERGED (2026-06-07) |
 | 8E | Story Sharing Phase 1 | ✅ SHIPPED (2026-06-08) — 636 tests |
+| — | Push Notifications (APNs, iOS) | ⏳ CODE SHIPPED, awaiting real APNs credentials — see §18 |
 | 8C | Comments v2 | NOT STARTED |
 | 8 | Stories (full) | NOT STARTED (post-MVP) |
 | 9 | DM System | NOT STARTED (post-MVP) |
@@ -340,6 +343,7 @@ Update CLAUDE.md when: tech stack changes · slice status changes · new command
 - **cron-job.org jobs MUST use `https://`, never `http://`.** Vercel responds to `http://` with a `308` redirect at the edge (~17ms, never invokes the function); cron-job.org doesn't follow it and reports "Failed (HTTP error)", then auto-disables the job after enough failures. If a cron-job.org job shows a sub-100ms "HTTP error" on an endpoint that otherwise works, check the URL scheme first.
 - **QStash can't reach `localhost`.** `posts/create` enqueues classification via QStash to `${NEXT_PUBLIC_APP_URL}/api/queue/classify` — if `QSTASH_TOKEN`/signing keys aren't set (typical local dev), `enqueueClassificationJob` logs an error and returns false. `posts/create` then falls back to running `processUploadedPost` directly via `after()`, so the post still reaches VERIFIED/REJECTED without waiting on the `reprocess-pending` reconciler (the reconciler remains a backstop for queue-publish/delivery failures in prod). To test the full QStash queue locally, use QStash's local dev server or an ngrok tunnel as `NEXT_PUBLIC_APP_URL`.
 - **Migrations are MANUAL and Vercel CANNOT run them — never let Client/DB drift (incident 2026-06-13).** The Vercel build runs `prisma generate && next build` only. It does **not** run `migrate deploy`, and **can't**: the Supabase direct host (`db.<ref>.supabase.co:5432` = `DIRECT_URL`) is **IPv6-only** and Vercel build is **IPv4-only** → a build-time migrate dies with **`P1001: Can't reach database server`** (we tried it 2026-06-13; it broke the prod build; reverted same session). **So after every schema change you MUST run `prisma migrate deploy` out-of-band** (from local `.env.local`, which reaches the direct host: `cd app/web && set -a; . ./.env.local; set +a; npx prisma migrate deploy --schema ../../prisma/schema.prisma`). Root cause of the incident: schema gained `Post.classificationAttempts` (migration `20260612120000`) and deployed, but the migration never ran on prod → the Client (which includes `@default()` scalar columns in every INSERT) wrote a column the DB lacked → **every `POST /api/posts/create` 500'd → "An unexpected error occurred"**. First diagnostic after any post-schema-change 500: `npx prisma migrate status`. Prod DB = single Supabase project `clumuinbirdlslzdicnx`. Proper fix (TODO): a GitHub Action that migrates via the IPv4 session pooler. See [[prod-migration-drift]].
+  - Migration `20260703110000_add_device_token` (adds the `DeviceToken` table for push notifications) was deployed to prod on 2026-07-03 — `prisma migrate status` confirms schema is up to date. Note: `APNS_KEY_ID`/`APNS_TEAM_ID`/`APNS_PRIVATE_KEY`/`APNS_BUNDLE_ID` are still unset in every environment — push sends silently no-op until real Apple Developer credentials are added (intentional graceful degradation, not a bug).
 
 ### QA Commands
 ```bash

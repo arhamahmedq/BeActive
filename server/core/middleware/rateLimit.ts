@@ -202,3 +202,4 @@ export const friendActionUserRateLimit = createUserRateLimiter({ maxRequests: 10
 export const userSearchRateLimit = createUserRateLimiter({ maxRequests: 15, windowMs: 60_000 })
 export const likeUserRateLimit = createUserRateLimiter({ maxRequests: 30, windowMs: 60_000 })
 export const commentUserRateLimit = createUserRateLimiter({ maxRequests: 15, windowMs: 60_000 })
+export const registerDeviceUserRateLimit = createUserRateLimiter({ maxRequests: 20, windowMs: 3_600_000 })

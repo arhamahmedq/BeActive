@@ -34,6 +34,7 @@ model User {
   postComments     PostComment[]
   streak           Streak?
   stories          Story[]
+  deviceTokens     DeviceToken[]
 }
 
 model Post {
@@ -155,6 +156,22 @@ model Notification {
 
   @@index([userId, read, createdAt(sort: Desc)])
   @@index([userId, type])
+}
+
+// One row per registered device per user — a user with the app on two
+// phones gets two rows. Re-registering the same token (app reinstall, token
+// refresh) upserts by token rather than growing duplicates.
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String
+  platform  String   @default("ios")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
 }
 
 model Event {
